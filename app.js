@@ -1368,11 +1368,27 @@ async function fetchJsonWithProxyFallback(url, errorLabel, { timeoutMs = DEFAULT
     }
     return await response.json();
   } catch (error) {
-    console.log(`[FETCH] Fetch failed for ${errorLabel}:`, error?.message || error);
-    if (error?.name === 'AbortError') {
-      throw new Error(`${errorLabel} timed out after ${timeoutMs}ms.`);
+    console.log(`[FETCH] Direct fetch failed for ${errorLabel}:`, error?.message || error);
+    
+    // Try CORS proxy as fallback
+    console.log(`[FETCH] Trying CORS proxy for: ${errorLabel}`);
+    try {
+      const corsProxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+      const proxyResponse = await fetchWithTimeout(corsProxyUrl, {}, timeoutMs);
+      console.log(`[FETCH] CORS proxy response status: ${proxyResponse.status}`);
+      if (!proxyResponse.ok) {
+        throw new Error(`CORS proxy returned ${proxyResponse.status}`);
+      }
+      const data = await proxyResponse.json();
+      console.log(`[FETCH] CORS proxy success for: ${errorLabel}`);
+      return data;
+    } catch (proxyError) {
+      console.log(`[FETCH] CORS proxy also failed:`, proxyError?.message || proxyError);
+      if (error?.name === 'AbortError') {
+        throw new Error(`${errorLabel} timed out after ${timeoutMs}ms.`);
+      }
+      throw new Error(`${errorLabel} unavailable. If opening from file://, host on GitHub Pages or Netlify to enable API access.`);
     }
-    throw new Error(`${errorLabel} unavailable. ${error.message}`);
   }
 }
 
