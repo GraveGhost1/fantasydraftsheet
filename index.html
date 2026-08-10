@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fantasy Draft Sheet</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Fantasy football cheat sheet builder</p>
+          <h1>Build, compare, and tier your draft board</h1>
+          <p class="hero-copy">
+            Compare your personal rankings against ESPN and Yahoo ADP to shape your draft strategy.
+          </p>
+        </div>
+      </header>
+
+      <section class="panel settings-panel">
+        <div class="panel-heading">
+          <h2>League settings</h2>
+          <p>Adjust the fields below and create a ranking that fits your roster construction.</p>
+        </div>
+        <form id="settings-form" class="settings-grid">
+          <label>
+            Scoring format
+            <select id="scoring-format">
+              <option value="standard">Standard</option>
+              <option value="half">Half-PPR</option>
+              <option value="ppr">PPR</option>
+            </select>
+          </label>
+
+          <label>
+            QB slots
+            <input id="qb-slots" type="number" min="1" max="4" value="1" />
+          </label>
+
+          <label>
+            RB slots
+            <input id="rb-slots" type="number" min="1" max="6" value="2" />
+          </label>
+
+          <label>
+            WR slots
+            <input id="wr-slots" type="number" min="1" max="6" value="3" />
+          </label>
+
+          <label>
+            TE slots
+            <input id="te-slots" type="number" min="1" max="4" value="1" />
+          </label>
+
+          <label>
+            Flex slots
+            <input id="flex-slots" type="number" min="0" max="3" value="1" />
+          </label>
+
+          <label>
+            Bench spots
+            <input id="bench-slots" type="number" min="1" max="8" value="5" />
+          </label>
+
+          <label>
+            Roster size
+            <input id="roster-size" type="number" min="12" max="20" value="16" />
+          </label>
+
+          <div class="button-row">
+            <button type="submit">Apply settings</button>
+            <button type="button" id="auto-rank">Auto-rank players</button>
+            <button type="button" id="load-live-data" class="ghost">Load live rankings</button>
+            <button type="button" id="save-rankings" class="ghost">Save custom rankings</button>
+            <button type="button" id="apply-saved-rankings" class="ghost">Apply saved rankings</button>
+            <button type="button" id="reset-data" class="ghost">Reset</button>
+          </div>
+
+          <div class="sleeper-sync-row">
+            <label for="sleeper-draft-id">Sleeper draft ID</label>
+            <input id="sleeper-draft-id" type="text" placeholder="Paste Sleeper draft URL or draft ID" />
+            <div class="button-row sleeper-sync-actions">
+              <button type="button" id="toggle-sleeper-sync" class="ghost">Start Sleeper sync</button>
+              <button type="button" id="sync-sleeper-now" class="ghost">Sync now</button>
+            </div>
+          </div>
+        </form>
+
+        <div id="settings-summary" class="summary-box"></div>
+        <div id="data-status" class="summary-box"></div>
+      </section>
+
+      <section class="panel draft-panel">
+        <div class="table-toolbar">
+          <div>
+            <h2>Draft board</h2>
+            <p>Drag players into a tier to move them inside the same board and compare them by ADP columns.</p>
+          </div>
+          <div class="legend">Tier 1 = elite, tiers expand automatically after 25 players</div>
+        </div>
+
+        <div id="draft-signals" class="draft-signals" aria-live="polite"></div>
+
+        <div class="position-filters" id="position-filters" aria-label="Position filters">
+          <button type="button" class="chip-filter is-active" data-filter="ALL">Overall</button>
+          <button type="button" class="chip-filter" data-filter="QB">QB</button>
+          <button type="button" class="chip-filter" data-filter="RB">RB</button>
+          <button type="button" class="chip-filter" data-filter="WR">WR</button>
+          <button type="button" class="chip-filter" data-filter="TE">TE</button>
+          <button type="button" class="chip-filter" data-filter="K">K</button>
+          <button type="button" class="chip-filter" data-filter="DEF">DEF</button>
+        </div>
+
+        <div class="table-wrap comparison-wrap">
+          <table class="comparison-table">
+            <thead>
+              <tr>
+                <th data-key="player">Player</th>
+                <th data-key="myRank">My rank</th>
+                <th data-key="position">Pos</th>
+                <th data-key="team">Team</th>
+                <th data-key="espn">ESPN ADP</th>
+                <th data-key="yahoo">Yahoo ADP</th>
+                <th data-key="averageAdp">Draft ADP (Live)</th>
+              </tr>
+            </thead>
+            <tbody id="rankings-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel tracker-panel">
+        <div class="panel-heading">
+          <h2>Draft tracker</h2>
+          <p>Your list updates as you draft so the board stays in sync.</p>
+        </div>
+
+        <div class="tracker-grid">
+          <div class="tracker-column">
+            <h3>Drafted</h3>
+            <div id="drafted-list" class="draft-bin" data-action="draft"></div>
+          </div>
+          <div class="tracker-column">
+            <h3>Remaining</h3>
+            <div id="remaining-list" class="draft-bin"></div>
+          </div>
+        </div>
+
+        <div class="unmatched-panel">
+          <h3>Unmatched picks</h3>
+          <p>Sleeper picks we could not map to a player on your current board.</p>
+          <div id="unmatched-picks-panel" class="draft-bin unmatched-bin"></div>
+        </div>
+      </section>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
