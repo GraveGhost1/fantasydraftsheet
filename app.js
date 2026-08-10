@@ -1370,25 +1370,35 @@ async function fetchJsonWithProxyFallback(url, errorLabel, { timeoutMs = DEFAULT
   } catch (error) {
     console.log(`[FETCH] Direct fetch failed for ${errorLabel}:`, error?.message || error);
     
-    // Try CORS proxy as fallback
-    console.log(`[FETCH] Trying CORS proxy for: ${errorLabel}`);
-    try {
-      const corsProxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-      const proxyResponse = await fetchWithTimeout(corsProxyUrl, {}, timeoutMs);
-      console.log(`[FETCH] CORS proxy response status: ${proxyResponse.status}`);
-      if (!proxyResponse.ok) {
-        throw new Error(`CORS proxy returned ${proxyResponse.status}`);
+    // Try multiple CORS proxies as fallbacks
+    const proxies = [
+      { name: 'corsproxy.io', url: `https://corsproxy.io/?${encodeURIComponent(url)}` },
+      { name: 'allorigins', url: `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}` },
+      { name: 'thingproxy', url: `https://thingproxy.freeboard.io/fetch/${url}` }
+    ];
+
+    for (const proxy of proxies) {
+      console.log(`[FETCH] Trying ${proxy.name} for: ${errorLabel}`);
+      try {
+        const proxyResponse = await fetchWithTimeout(proxy.url, {}, timeoutMs);
+        console.log(`[FETCH] ${proxy.name} response status: ${proxyResponse.status}`);
+        if (!proxyResponse.ok) {
+          throw new Error(`${proxy.name} returned ${proxyResponse.status}`);
+        }
+        const data = await proxyResponse.json();
+        console.log(`[FETCH] ${proxy.name} success for: ${errorLabel}`);
+        return data;
+      } catch (proxyError) {
+        console.log(`[FETCH] ${proxy.name} failed:`, proxyError?.message || proxyError);
+        continue;
       }
-      const data = await proxyResponse.json();
-      console.log(`[FETCH] CORS proxy success for: ${errorLabel}`);
-      return data;
-    } catch (proxyError) {
-      console.log(`[FETCH] CORS proxy also failed:`, proxyError?.message || proxyError);
-      if (error?.name === 'AbortError') {
-        throw new Error(`${errorLabel} timed out after ${timeoutMs}ms.`);
-      }
-      throw new Error(`${errorLabel} unavailable. If opening from file://, host on GitHub Pages or Netlify to enable API access.`);
     }
+
+    console.log(`[FETCH] All CORS proxies failed`);
+    if (error?.name === 'AbortError') {
+      throw new Error(`${errorLabel} timed out after ${timeoutMs}ms.`);
+    }
+    throw new Error(`${errorLabel} unavailable. All CORS proxies failed. Try using a local server (python server.py).`);
   }
 }
 
