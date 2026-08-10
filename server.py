@@ -164,6 +164,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path == '/test':
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self._set_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({'status': 'ok', 'message': 'Server is working'}).encode('utf-8'))
+            return
+
         if parsed.path == '/adp-profile':
             self.handle_get_adp_profile()
             return
@@ -242,21 +250,40 @@ class Handler(BaseHTTPRequestHandler):
         target_url = params.get('url', [None])[0]
         if not target_url:
             self.send_response(400)
+            self.send_header('Content-Type', 'application/json')
+            self._set_cors_headers()
             self.end_headers()
-            self.wfile.write(b'Missing url parameter')
+            self.wfile.write(json.dumps({'error': 'Missing url parameter'}).encode('utf-8'))
             return
 
         target_url = unquote(target_url)
+        print(f'[PROXY] Fetching: {target_url}', flush=True)
         try:
             req = urllib.request.Request(target_url, headers={'User-Agent': 'Mozilla/5.0'})
             with urllib.request.urlopen(req, timeout=PROXY_TIMEOUT_SECONDS) as response:
                 body = response.read()
+                content_type = response.headers.get('content-type', '')
+                print(f'[PROXY] Response status: {response.status}, content-type: {content_type}, body length: {len(body)}', flush=True)
+                
+                # Validate that we're getting JSON, not HTML error pages
+                # Check body content since some APIs return JSON with wrong content-type
+                if body.startswith(b'<!DOCTYPE') or body.startswith(b'<html'):
+                    print(f'[PROXY] ERROR: Non-JSON response detected', flush=True)
+                    self.send_response(502)
+                    self.send_header('Content-Type', 'application/json')
+                    self._set_cors_headers()
+                    self.end_headers()
+                    self.wfile.write(json.dumps({'error': f'External API returned HTML error page (content-type: {content_type})'}).encode('utf-8'))
+                    return
+                
                 self.send_response(200)
-                self.send_header('Content-Type', response.headers.get('content-type', 'application/json'))
                 self._set_cors_headers()
+                self.send_header('Content-Type', 'application/json')
                 self.end_headers()
                 self.wfile.write(body)
+                print(f'[PROXY] Success: proxied {len(body)} bytes, set content-type to application/json', flush=True)
         except Exception as exc:
+            print(f'[PROXY] ERROR: {type(exc).__name__}: {exc}', flush=True)
             self.send_response(502)
             self.send_header('Content-Type', 'application/json')
             self._set_cors_headers()

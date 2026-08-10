@@ -5,13 +5,11 @@ const SLEEPER_SYNC_INTERVAL_MS = 1000;
 const DEFAULT_FETCH_TIMEOUT_MS = 12000;
 const SLEEPER_PICKS_FETCH_TIMEOUT_MS = 5000;
 const SLEEPER_PLAYERS_FETCH_TIMEOUT_MS = 7000;
-const CUSTOM_ADP_PROFILE_ENDPOINT = '/adp-profile';
 const POSITION_ORDER = { QB: 1, RB: 2, WR: 3, TE: 4, FLEX: 5, K: 6, DEF: 7, DST: 7, D: 7 };
 let sleeperSyncTimer = null;
 let sleeperPlayersByIdCache = null;
 let sleeperSyncInFlight = false;
 let sleeperSyncLoopActive = false;
-let customAdpProfileLoadAttempted = false;
 
 const basePlayers = [
   { id: 'allen', name: 'Josh Allen', position: 'QB', team: 'BUF', baseValue: 96, espn: 2.2, yahoo: 2.7 },
@@ -167,6 +165,7 @@ document.querySelectorAll('th[data-key]').forEach((header) => {
 
 rankingsBody.addEventListener('input', handleTableInput);
 rankingsBody.addEventListener('change', handleTableInput);
+rankingsBody.addEventListener('click', handleRankArrowClick);
 positionFilters.addEventListener('click', handlePositionFilterClick);
 
 settingsForm.addEventListener('submit', (event) => {
@@ -316,7 +315,6 @@ resetButton.addEventListener('click', () => {
   state.autoTiering = true;
   autoFillPlayers();
   render();
-  loadCustomAdpProfileFromDatabase(true);
 });
 
 rankingsBody.addEventListener('dragstart', handleDragStart);
@@ -427,36 +425,6 @@ function mergeCustomAdpProfiles(baseProfile, incomingProfile) {
 
   merged.totalSamples = Object.values(merged.players).reduce((total, entry) => total + entry.count, 0);
   return merged;
-}
-
-async function loadCustomAdpProfileFromDatabase(force = false) {
-  if (customAdpProfileLoadAttempted && !force) {
-    return;
-  }
-
-  customAdpProfileLoadAttempted = true;
-
-  try {
-    const payload = await fetchJsonWithProxyFallback(CUSTOM_ADP_PROFILE_ENDPOINT, 'Custom ADP profile');
-    const merged = mergeCustomAdpProfiles(state.customAdpProfile, payload);
-    state.customAdpProfile = merged;
-    saveState();
-    render();
-  } catch {
-    // Keep local profile if server-backed persistence is unavailable.
-  }
-}
-
-async function persistCustomAdpProfileToDatabase() {
-  try {
-    await fetchWithTimeout(CUSTOM_ADP_PROFILE_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(normalizeCustomAdpProfile(state.customAdpProfile))
-    }, DEFAULT_FETCH_TIMEOUT_MS);
-  } catch {
-    // Keep working locally if persistence is temporarily unavailable.
-  }
 }
 
 function autoFillPlayers() {
@@ -1140,9 +1108,6 @@ function updateCustomAdpProfileFromRecords(records, draftId) {
 
   draftProgress.maxProcessedPickNo = maxPickNo;
   state.customAdpProfile.totalSamples += applied;
-  if (applied > 0) {
-    persistCustomAdpProfileToDatabase();
-  }
   return applied;
 }
 
@@ -1394,53 +1359,20 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_FETCH_TIM
 }
 
 async function fetchJsonWithProxyFallback(url, errorLabel, { timeoutMs = DEFAULT_FETCH_TIMEOUT_MS } = {}) {
-  let proxyErrorText = '';
-
+  console.log(`[FETCH] Direct fetch for: ${errorLabel} - ${url}`);
   try {
-    const proxyResponse = await fetchWithTimeout(`/proxy?url=${encodeURIComponent(url)}`, {}, timeoutMs);
-    if (proxyResponse.ok) {
-      return await proxyResponse.json();
+    const response = await fetchWithTimeout(url, {}, timeoutMs);
+    console.log(`[FETCH] Response status: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`${errorLabel} unavailable (${response.status})`);
     }
-
-    try {
-      const proxyErrorPayload = await proxyResponse.json();
-      proxyErrorText = `${proxyErrorPayload?.error || ''}`;
-    } catch {
-      proxyErrorText = '';
-    }
-
-    if (proxyErrorText) {
-      const lower = proxyErrorText.toLowerCase();
-      if (errorLabel === 'Sleeper draft picks' && (lower.includes('404') || lower.includes('not found'))) {
-        throw new Error('Sleeper draft not found. Check the draft ID and confirm the draft is accessible.');
-      }
-      if (lower.includes('400') || lower.includes('404') || lower.includes('403') || lower.includes('401')) {
-        throw new Error(`${errorLabel} unavailable. ${proxyErrorText}`);
-      }
-    }
+    return await response.json();
   } catch (error) {
-    if (error?.name === 'AbortError') {
-      proxyErrorText = `Request timed out after ${timeoutMs}ms`;
-    } else if (error instanceof Error && error.message && !error.message.includes('Failed to fetch')) {
-      throw error;
-    }
-    // Fall through to direct fetch when proxy path is unavailable.
-  }
-
-  try {
-    const directResponse = await fetchWithTimeout(url, {}, timeoutMs);
-    if (!directResponse.ok) {
-      throw new Error(`${errorLabel} unavailable (${directResponse.status})`);
-    }
-    return await directResponse.json();
-  } catch (error) {
+    console.log(`[FETCH] Fetch failed for ${errorLabel}:`, error?.message || error);
     if (error?.name === 'AbortError') {
       throw new Error(`${errorLabel} timed out after ${timeoutMs}ms.`);
     }
-    if (proxyErrorText) {
-      throw new Error(`${errorLabel} unavailable. ${proxyErrorText}`);
-    }
-    throw new Error(`${errorLabel} unavailable. Run the app with "py server.py" to enable proxy-backed data fetches.`);
+    throw new Error(`${errorLabel} unavailable. ${error.message}`);
   }
 }
 
@@ -1614,6 +1546,8 @@ function renderDraftBoard() {
       ...players.map((player) => {
         const avgAdp = getDraftAdjustedAdp(player).toFixed(1);
         const isSelected = state.ui?.selectedPlayerId === player.id;
+        const canMoveUp = player.myRank > 1;
+        const canMoveDown = player.myRank < state.players.length;
         return `
           <tr data-player-id="${player.id}" draggable="true" class="${player.drafted ? 'drafted-row' : ''} ${isSelected ? 'selected-row' : ''}">
             <td>
@@ -1622,7 +1556,13 @@ function renderDraftBoard() {
                 ${player.draftedSource === 'manual' ? '<span class="table-tag table-tag-manual">MANUAL</span>' : ''}
               </div>
             </td>
-            <td><input class="small" type="number" min="1" max="999" value="${player.myRank}" data-field="myRank" /></td>
+            <td>
+              <div class="rank-controls">
+                <button class="rank-arrow rank-up" data-player-id="${player.id}" ${canMoveUp ? '' : 'disabled'}>↑</button>
+                <input class="small" type="number" min="1" max="999" value="${player.myRank}" data-field="myRank" />
+                <button class="rank-arrow rank-down" data-player-id="${player.id}" ${canMoveDown ? '' : 'disabled'}>↓</button>
+              </div>
+            </td>
             <td><span class="pos-pill">${player.position}</span></td>
             <td>${player.team}</td>
             <td>${player.espn.toFixed(1)}</td>
@@ -1860,8 +1800,6 @@ function addUnmatchedPicksToBoard() {
     state.customAdpProfile.totalSamples += 1;
   }
 
-  persistCustomAdpProfileToDatabase();
-
   state.sort.key = 'myRank';
   state.sort.direction = 'asc';
   syncDraftedPlayerIds();
@@ -2063,6 +2001,36 @@ function handleTableInput(event) {
   render();
 }
 
+function handleRankArrowClick(event) {
+  const target = event.target;
+  if (!target.classList.contains('rank-arrow')) {
+    return;
+  }
+
+  const row = target.closest('tr[data-player-id]');
+  if (!row) {
+    return;
+  }
+
+  const player = state.players.find((entry) => entry.id === row.dataset.playerId);
+  if (!player) {
+    return;
+  }
+
+  if (target.classList.contains('rank-up')) {
+    movePlayerToRank(player.id, player.myRank - 1);
+  } else if (target.classList.contains('rank-down')) {
+    movePlayerToRank(player.id, player.myRank + 1);
+  }
+
+  state.sort.key = 'myRank';
+  state.sort.direction = 'asc';
+  state.autoTiering = true;
+  applyAutoTiering();
+  saveState();
+  render();
+}
+
 function handleTrackerClick(event) {
   const actionButton = event.target.closest('button[data-action]');
   const draftItem = !actionButton ? event.target.closest('.draft-item[data-player-id]') : null;
@@ -2091,6 +2059,5 @@ function handleTrackerClick(event) {
 }
 
 render();
-loadCustomAdpProfileFromDatabase();
 loadLiveRankings();
 initSleeperSyncFromState();
