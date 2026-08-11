@@ -2259,6 +2259,22 @@ async function fetchJsonWithProxyFallback(url, errorLabel, { timeoutMs = DEFAULT
   } catch (error) {
     console.log(`[FETCH] Direct fetch failed for ${errorLabel}:`, error?.message || error);
     
+    // Try Render proxy first (if deployed), then fallback to public proxies
+    const renderProxyUrl = window.location.origin + '/proxy?url=' + encodeURIComponent(url);
+    console.log(`[FETCH] Trying Render proxy for: ${errorLabel}`);
+    try {
+      const renderResponse = await fetchWithTimeout(renderProxyUrl, {}, timeoutMs);
+      console.log(`[FETCH] Render proxy response status: ${renderResponse.status}`);
+      if (renderResponse.ok) {
+        const data = await renderResponse.json();
+        console.log(`[FETCH] Render proxy success for: ${errorLabel}`);
+        return data;
+      }
+    } catch (renderError) {
+      console.log(`[FETCH] Render proxy failed:`, renderError?.message || renderError);
+    }
+
+    // Fallback to public CORS proxies
     const proxies = [
       { name: 'corsproxy.io', url: `https://corsproxy.io/?${encodeURIComponent(url)}` },
       { name: 'allorigins', url: `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}` },
@@ -2282,11 +2298,11 @@ async function fetchJsonWithProxyFallback(url, errorLabel, { timeoutMs = DEFAULT
       }
     }
 
-    console.log(`[FETCH] All CORS proxies failed`);
+    console.log(`[FETCH] All proxies failed`);
     if (error?.name === 'AbortError') {
       throw new Error(`${errorLabel} timed out after ${timeoutMs}ms.`);
     }
-    throw new Error(`${errorLabel} unavailable. All CORS proxies failed. Try using a local server (python server.py).`);
+    throw new Error(`${errorLabel} unavailable. All proxies failed.`);
   }
 }
 

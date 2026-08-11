@@ -1,4 +1,5 @@
 import json
+import os
 import sqlite3
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -6,7 +7,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse, unquote
 
 ROOT = Path(__file__).resolve().parent
-PORT = 8000
+PORT = int(os.environ.get('PORT', 8000))
 PROXY_TIMEOUT_SECONDS = 8
 DB_PATH = ROOT / 'adp_profile.db'
 
