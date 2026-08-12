@@ -247,6 +247,108 @@ select {
   content: ' ▴';
 }
 
+/* Mobile & Tablet Responsive Design */
+@media (max-width: 768px) {
+  .top-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+  
+  .logo-section h1 {
+    font-size: 1rem;
+  }
+  
+  .settings-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .rankings-table,
+  .comparison-table th,
+  .comparison-table td {
+    padding: 8px 6px;
+    font-size: 0.75rem;
+  }
+  
+  .rankings-table th:nth-child(5),
+  .rankings-table th:nth-child(6),
+  .rankings-table th:nth-child(7),
+  .rankings-table td:nth-child(5),
+  .rankings-table td:nth-child(6),
+  .rankings-table td:nth-child(7),
+  .comparison-table th:nth-child(5),
+  .comparison-table th:nth-child(6),
+  .comparison-table th:nth-child(7),
+  .comparison-table td:nth-child(5),
+  .comparison-table td:nth-child(6),
+  .comparison-table td:nth-child(7) {
+    display: none; /* Hide less important columns on mobile */
+  }
+  
+  .player-name {
+    font-size: 0.85rem;
+  }
+  
+  .pos-pill {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+  }
+  
+  .drag-handle {
+    display: none; /* Hide drag handle on mobile */
+  }
+  
+  .summary-panel {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .summary-item {
+    font-size: 0.85rem;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .top-bar {
+    padding: 12px 20px;
+  }
+  
+  .settings-bar {
+    gap: 6px;
+  }
+  
+  .compact-select,
+  .compact-input {
+    font-size: 0.8rem;
+    padding: 5px 8px;
+  }
+  
+  .rankings-table,
+  .comparison-table th,
+  .comparison-table td {
+    padding: 10px 12px;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .rankings-table th:nth-child(4),
+  .rankings-table td:nth-child(4),
+  .comparison-table th:nth-child(4),
+  .comparison-table td:nth-child(4) {
+    display: none; /* Hide team column on very small screens */
+  }
+  
+  .rankings-table th:nth-child(5),
+  .rankings-table td:nth-child(5),
+  .comparison-table th:nth-child(5),
+  .comparison-table td:nth-child(5) {
+    display: table-cell; /* Show ESPN again on very small */
+  }
+}
+
 .rankings-table tbody tr {
   transition: background 0.15s ease;
 }
