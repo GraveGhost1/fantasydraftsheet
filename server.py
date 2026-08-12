@@ -1,6 +1,8 @@
 import json
 import os
 import sqlite3
+import time
+import hashlib
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -10,6 +12,11 @@ ROOT = Path(__file__).resolve().parent
 PORT = int(os.environ.get('PORT', 8000))
 PROXY_TIMEOUT_SECONDS = 8
 DB_PATH = ROOT / 'adp_profile.db'
+
+# API configurations
+FANTASYPROS_API_KEY = 'PNnzNP9Brm5ZdldankRwc8l6Z1z9HpJR1KKEQTjF'
+FANTASYNERDS_API_KEY = 'TEST'
+THE_ODDS_API_KEY = '14c838df8c4ec407c40336ca9594213b'
 
 
 def init_db():
@@ -33,6 +40,16 @@ def init_db():
             CREATE TABLE IF NOT EXISTS adp_profile_meta (
                 meta_key TEXT PRIMARY KEY,
                 meta_value TEXT NOT NULL
+            )
+            '''
+        )
+        conn.execute(
+            '''
+            CREATE TABLE IF NOT EXISTS user_states (
+                username TEXT PRIMARY KEY,
+                password_hash TEXT NOT NULL,
+                state_json TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
             )
             '''
         )
@@ -79,6 +96,37 @@ def load_adp_profile():
         'totalSamples': total_samples,
         'players': players
     }
+
+
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def save_user_state(username, password, state_json):
+    password_hash = hash_password(password)
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            '''
+            INSERT OR REPLACE INTO user_states (username, password_hash, state_json, updated_at)
+            VALUES (?, ?, ?, ?)
+            ''',
+            (username, password_hash, state_json, int(time.time()))
+        )
+        conn.commit()
+
+
+def load_user_state(username, password):
+    password_hash = hash_password(password)
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            'SELECT state_json, password_hash FROM user_states WHERE username = ?',
+            (username,)
+        ).fetchone()
+        if row and row['password_hash'] == password_hash:
+            return row['state_json']
+        if row and row['password_hash'] != password_hash:
+            return 'INVALID_PASSWORD'
+        return None
 
 
 def save_adp_profile(payload):
@@ -155,7 +203,7 @@ def save_adp_profile(payload):
 class Handler(BaseHTTPRequestHandler):
     def _set_cors_headers(self):
         self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
 
     def do_OPTIONS(self):
@@ -177,8 +225,24 @@ class Handler(BaseHTTPRequestHandler):
             self.handle_get_adp_profile()
             return
 
+        if parsed.path == '/api/user-state':
+            self.handle_get_user_state()
+            return
+
         if parsed.path == '/proxy':
             self.handle_proxy(parsed)
+            return
+
+        if parsed.path == '/api/fantasypros':
+            self.handle_fantasypros(parsed)
+            return
+
+        if parsed.path == '/api/fantasynerds':
+            self.handle_fantasynerds(parsed)
+            return
+
+        if parsed.path == '/api/theodds':
+            self.handle_theodds(parsed)
             return
 
         if parsed.path in ('/', '/index.html'):
@@ -204,10 +268,124 @@ class Handler(BaseHTTPRequestHandler):
             self.handle_post_adp_profile()
             return
 
+        if parsed.path == '/api/user-state':
+            self.handle_post_user_state()
+            return
+
         self.send_response(404)
         self._set_cors_headers()
         self.end_headers()
         self.wfile.write(b'Not Found')
+
+    def do_DELETE(self):
+        parsed = urlparse(self.path)
+        if parsed.path == '/api/user-state':
+            self.handle_delete_user_state()
+            return
+
+        self.send_response(404)
+        self._set_cors_headers()
+        self.end_headers()
+        self.wfile.write(b'Not Found')
+
+    def handle_fantasypros(self, parsed):
+        """Fetch FantasyPros rankings server-side to bypass CORS"""
+        try:
+            season = parsed.query.split('season=')[1].split('&')[0] if 'season=' in parsed.query else '2026'
+            # FantasyPros requires position parameter - fetch all positions
+            positions = ['QB', 'RB', 'WR', 'TE', 'K', 'DST']
+            all_players = []
+            
+            for position in positions:
+                url = f'https://api.fantasypros.com/public/v2/json/nfl/{season}/consensus-rankings?scoring=ppr&position={position}'
+                print(f'[FANTASYPROS] Fetching {position}: {url}', flush=True)
+                
+                req = urllib.request.Request(url, headers={
+                    'x-api-key': FANTASYPROS_API_KEY,
+                    'User-Agent': 'Mozilla/5.0'
+                })
+                
+                with urllib.request.urlopen(req, timeout=15) as response:
+                    body = response.read()
+                    print(f'[FANTASYPROS] {position} response status: {response.status}, body length: {len(body)}', flush=True)
+                    data = json.loads(body.decode())
+                    if data.get('players'):
+                        all_players.extend(data['players'])
+            
+            result = {'players': all_players}
+            result_json = json.dumps(result).encode('utf-8')
+            print(f'[FANTASYPROS] Total players fetched: {len(all_players)}', flush=True)
+            
+            self.send_response(200)
+            self._set_cors_headers()
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(result_json)
+            print(f'[FANTASYPROS] Success: returned {len(result_json)} bytes', flush=True)
+        except urllib.error.HTTPError as e:
+            print(f'[FANTASYPROS] HTTP Error: {e.code} - {e.reason}', flush=True)
+            print(f'[FANTASYPROS] Response body: {e.read().decode() if hasattr(e, "read") else "N/A"}', flush=True)
+            self.send_response(502)
+            self._set_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': f'HTTP {e.code}: {e.reason}'}).encode('utf-8'))
+        except Exception as exc:
+            print(f'[FANTASYPROS] ERROR: {type(exc).__name__}: {exc}', flush=True)
+            import traceback
+            traceback.print_exc()
+            self.send_response(502)
+            self._set_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': str(exc)}).encode('utf-8'))
+
+    def handle_fantasynerds(self, parsed):
+        """Fetch FantasyNerds projections server-side to bypass CORS"""
+        try:
+            url = f'https://api.fantasynerds.com/v1/nfl/draft-projections?apikey={FANTASYNERDS_API_KEY}'
+            print(f'[FANTASYNERDS] Fetching: {url}', flush=True)
+            
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            
+            with urllib.request.urlopen(req, timeout=15) as response:
+                body = response.read()
+                print(f'[FANTASYNERDS] Response status: {response.status}, body length: {len(body)}', flush=True)
+                
+                self.send_response(200)
+                self._set_cors_headers()
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(body)
+        except Exception as exc:
+            print(f'[FANTASYNERDS] ERROR: {type(exc).__name__}: {exc}', flush=True)
+            self.send_response(502)
+            self._set_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': str(exc)}).encode('utf-8'))
+
+    def handle_theodds(self, parsed):
+        """Fetch The Odds API data server-side to bypass CORS"""
+        try:
+            # Get NFL events with player props
+            url = f'https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds?regions=us&markets=player_pass_tds,player_rush_tds,player_reception_tds,player_pass_yds,player_rush_yds,player_reception_yds&apiKey={THE_ODDS_API_KEY}'
+            print(f'[THEODDS] Fetching: {url}', flush=True)
+            
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            
+            with urllib.request.urlopen(req, timeout=15) as response:
+                body = response.read()
+                print(f'[THEODDS] Response status: {response.status}, body length: {len(body)}', flush=True)
+                
+                self.send_response(200)
+                self._set_cors_headers()
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(body)
+        except Exception as exc:
+            print(f'[THEODDS] ERROR: {type(exc).__name__}: {exc}', flush=True)
+            self.send_response(502)
+            self._set_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': str(exc)}).encode('utf-8'))
 
     def handle_get_adp_profile(self):
         try:
@@ -241,6 +419,127 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({'ok': True}).encode('utf-8'))
         except Exception as exc:
             self.send_response(400)
+            self.send_header('Content-Type', 'application/json')
+            self._set_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': str(exc)}).encode('utf-8'))
+
+    def handle_get_user_state(self):
+        try:
+            params = parse_qs(urlparse(self.path).query)
+            username = params.get('username', [None])[0]
+            password = params.get('password', [None])[0]
+            
+            if not username or not password:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self._set_cors_headers()
+                self.end_headers()
+                self.wfile.write(json.dumps({'error': 'Missing username or password'}).encode('utf-8'))
+                return
+            
+            state_json = load_user_state(username, password)
+            if state_json == 'INVALID_PASSWORD':
+                self.send_response(401)
+                self.send_header('Content-Type', 'application/json')
+                self._set_cors_headers()
+                self.end_headers()
+                self.wfile.write(json.dumps({'error': 'Invalid username or password'}).encode('utf-8'))
+                return
+            if state_json is None:
+                # First time login - no saved state
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self._set_cors_headers()
+                self.end_headers()
+                self.wfile.write(json.dumps({'state': None}).encode('utf-8'))
+                return
+            
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self._set_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({'state': state_json}).encode('utf-8'))
+        except Exception as exc:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self._set_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': str(exc)}).encode('utf-8'))
+
+    def handle_post_user_state(self):
+        try:
+            content_length = int(self.headers.get('Content-Length', '0'))
+        except ValueError:
+            content_length = 0
+
+        try:
+            body = self.rfile.read(content_length) if content_length > 0 else b'{}'
+            payload = json.loads(body.decode('utf-8'))
+            
+            username = payload.get('username')
+            password = payload.get('password')
+            state_json = payload.get('state')
+            
+            if not username or not password or state_json is None:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self._set_cors_headers()
+                self.end_headers()
+                self.wfile.write(json.dumps({'error': 'Missing username, password, or state'}).encode('utf-8'))
+                return
+            
+            save_user_state(username, password, state_json)
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self._set_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({'ok': True}).encode('utf-8'))
+        except Exception as exc:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self._set_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': str(exc)}).encode('utf-8'))
+
+    def handle_delete_user_state(self):
+        try:
+            params = parse_qs(urlparse(self.path).query)
+            username = params.get('username', [None])[0]
+            password = params.get('password', [None])[0]
+            
+            if not username or not password:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self._set_cors_headers()
+                self.end_headers()
+                self.wfile.write(json.dumps({'error': 'Missing username or password'}).encode('utf-8'))
+                return
+            
+            password_hash = hash_password(password)
+            with sqlite3.connect(DB_PATH) as conn:
+                conn.row_factory = sqlite3.Row
+                row = conn.execute(
+                    'SELECT password_hash FROM user_states WHERE username = ?',
+                    (username,)
+                ).fetchone()
+                if row and row['password_hash'] == password_hash:
+                    conn.execute('DELETE FROM user_states WHERE username = ?', (username,))
+                    conn.commit()
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self._set_cors_headers()
+                    self.end_headers()
+                    self.wfile.write(json.dumps({'ok': True}).encode('utf-8'))
+                    return
+            
+            self.send_response(401)
+            self.send_header('Content-Type', 'application/json')
+            self._set_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': 'Invalid username or password'}).encode('utf-8'))
+        except Exception as exc:
+            self.send_response(500)
             self.send_header('Content-Type', 'application/json')
             self._set_cors_headers()
             self.end_headers()

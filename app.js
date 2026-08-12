@@ -1,6 +1,18 @@
+// API Configuration
+const API_CONFIG = {
+  fantasyPros: {
+    baseUrl: 'https://api.fantasypros.com/public/v2/json',
+    apiKey: 'PNnzNP9Brm5ZdldankRwc8l6Z1z9HpJR1KKEQTjF'
+  },
+  sleeper: {
+    baseUrl: 'https://api.sleeper.com',
+    apiKey: '' // No key required
+  }
+};
+
 const STORAGE_KEY = 'fantasy-draft-sheet-state';
-const MAX_TIER_SIZE = 25;
 const OPENING_TIER_SIZES = [3, 8, 10, 12, 15];
+
 const SLEEPER_SYNC_INTERVAL_MS = 1000;
 const DEFAULT_FETCH_TIMEOUT_MS = 12000;
 const SLEEPER_PICKS_FETCH_TIMEOUT_MS = 5000;
@@ -10,44 +22,46 @@ let sleeperSyncTimer = null;
 let sleeperPlayersByIdCache = null;
 let sleeperSyncInFlight = false;
 let sleeperSyncLoopActive = false;
+let currentUsername = null;
+let currentPassword = null;
 
 const basePlayers = [
-  { id: 'allen', name: 'Josh Allen', position: 'QB', team: 'BUF', baseValue: 96, espn: 2.2, yahoo: 2.7 },
-  { id: 'mcaffrey', name: 'Christian McCaffrey', position: 'RB', team: 'SF', baseValue: 98, espn: 1.2, yahoo: 1.4 },
-  { id: 'hill', name: 'Tyreek Hill', position: 'WR', team: 'MIA', baseValue: 95, espn: 2.4, yahoo: 2.6 },
-  { id: 'ekeler', name: 'Austin Ekeler', position: 'RB', team: 'WAS', baseValue: 90, espn: 3.5, yahoo: 3.8 },
-  { id: 'lamb', name: 'CeeDee Lamb', position: 'WR', team: 'DAL', baseValue: 94, espn: 2.8, yahoo: 3.0 },
-  { id: 'hurts', name: 'Jalen Hurts', position: 'QB', team: 'PHI', baseValue: 92, espn: 4.8, yahoo: 4.9 },
-  { id: 'breece', name: 'Breece Hall', position: 'RB', team: 'NYJ', baseValue: 88, espn: 4.2, yahoo: 4.6 },
-  { id: 'waller', name: 'Darren Waller', position: 'TE', team: 'MIA', baseValue: 85, espn: 5.1, yahoo: 5.3 },
-  { id: 'murray', name: 'Kyler Murray', position: 'QB', team: 'ARI', baseValue: 89, espn: 6.5, yahoo: 6.7 },
-  { id: 'achane', name: "De'Von Achane", position: 'RB', team: 'MIA', baseValue: 86, espn: 7.0, yahoo: 7.2 },
-  { id: 'nabers', name: 'Malik Nabers', position: 'WR', team: 'NYG', baseValue: 87, espn: 7.3, yahoo: 7.6 },
-  { id: 'puka', name: 'Puka Nacua', position: 'WR', team: 'LAR', baseValue: 84, espn: 8.1, yahoo: 8.3 },
-  { id: 'kelce', name: 'Travis Kelce', position: 'TE', team: 'KC', baseValue: 91, espn: 4.1, yahoo: 4.3 },
-  { id: 'diggs', name: 'Stefon Diggs', position: 'WR', team: 'HOU', baseValue: 83, espn: 8.8, yahoo: 9.0 },
-  { id: 'gibbs', name: 'Jahmyr Gibbs', position: 'RB', team: 'DET', baseValue: 93, espn: 3.2, yahoo: 3.4 },
-  { id: 'herbert', name: 'Justin Herbert', position: 'QB', team: 'LAC', baseValue: 82, espn: 9.6, yahoo: 9.7 },
-  { id: 'kincaid', name: 'Dalton Kincaid', position: 'TE', team: 'BUF', baseValue: 81, espn: 9.8, yahoo: 10.0 },
-  { id: 'dobbins', name: 'Gus Edwards', position: 'RB', team: 'LAC', baseValue: 79, espn: 10.2, yahoo: 10.4 },
-  { id: 'rice', name: 'Rashee Rice', position: 'WR', team: 'KC', baseValue: 80, espn: 10.5, yahoo: 10.7 },
-  { id: 'lawrence', name: 'Trevor Lawrence', position: 'QB', team: 'JAX', baseValue: 78, espn: 11.1, yahoo: 11.2 },
-  { id: 'sam', name: 'Sam LaPorta', position: 'TE', team: 'DET', baseValue: 88, espn: 6.8, yahoo: 7.0 },
-  { id: 'djk', name: 'D.J. Moore', position: 'WR', team: 'CHI', baseValue: 77, espn: 12.0, yahoo: 12.1 },
-  { id: 'davis', name: 'Mike Davis', position: 'RB', team: 'FA', baseValue: 74, espn: 15.0, yahoo: 15.2 },
-  { id: 'matt', name: 'Matthew Stafford', position: 'QB', team: 'LAR', baseValue: 76, espn: 13.2, yahoo: 13.3 }
+  { id: 'allen', name: 'Josh Allen', position: 'QB', team: 'BUF', baseValue: 96, espn: 2.2, yahoo: 2.7, posRank: 0, sleeperAdp: null },
+  { id: 'mcaffrey', name: 'Christian McCaffrey', position: 'RB', team: 'SF', baseValue: 98, espn: 1.2, yahoo: 1.4, posRank: 0, sleeperAdp: null },
+  { id: 'hill', name: 'Tyreek Hill', position: 'WR', team: 'MIA', baseValue: 95, espn: 2.4, yahoo: 2.6, posRank: 0, sleeperAdp: null },
+  { id: 'ekeler', name: 'Austin Ekeler', position: 'RB', team: 'WAS', baseValue: 90, espn: 3.5, yahoo: 3.8, posRank: 0, sleeperAdp: null },
+  { id: 'lamb', name: 'CeeDee Lamb', position: 'WR', team: 'DAL', baseValue: 94, espn: 2.8, yahoo: 3.0, posRank: 0, sleeperAdp: null },
+  { id: 'hurts', name: 'Jalen Hurts', position: 'QB', team: 'PHI', baseValue: 92, espn: 4.8, yahoo: 4.9, posRank: 0, sleeperAdp: null },
+  { id: 'breece', name: 'Breece Hall', position: 'RB', team: 'NYJ', baseValue: 88, espn: 4.2, yahoo: 4.6, posRank: 0, sleeperAdp: null },
+  { id: 'waller', name: 'Darren Waller', position: 'TE', team: 'MIA', baseValue: 85, espn: 5.1, yahoo: 5.3, posRank: 0, sleeperAdp: null },
+  { id: 'murray', name: 'Kyler Murray', position: 'QB', team: 'ARI', baseValue: 89, espn: 6.5, yahoo: 6.7, posRank: 0, sleeperAdp: null },
+  { id: 'achane', name: "De'Von Achane", position: 'RB', team: 'MIA', baseValue: 86, espn: 7.0, yahoo: 7.2, posRank: 0, sleeperAdp: null },
+  { id: 'nabers', name: 'Malik Nabers', position: 'WR', team: 'NYG', baseValue: 87, espn: 7.3, yahoo: 7.6, posRank: 0, sleeperAdp: null },
+  { id: 'puka', name: 'Puka Nacua', position: 'WR', team: 'LAR', baseValue: 84, espn: 8.1, yahoo: 8.3, posRank: 0, sleeperAdp: null },
+  { id: 'kelce', name: 'Travis Kelce', position: 'TE', team: 'KC', baseValue: 91, espn: 4.1, yahoo: 4.3, posRank: 0, sleeperAdp: null },
+  { id: 'diggs', name: 'Stefon Diggs', position: 'WR', team: 'HOU', baseValue: 83, espn: 8.8, yahoo: 9.0, posRank: 0, sleeperAdp: null },
+  { id: 'gibbs', name: 'Jahmyr Gibbs', position: 'RB', team: 'DET', baseValue: 93, espn: 3.2, yahoo: 3.4, posRank: 0, sleeperAdp: null },
+  { id: 'herbert', name: 'Justin Herbert', position: 'QB', team: 'LAC', baseValue: 82, espn: 9.6, yahoo: 9.7, posRank: 0, sleeperAdp: null },
+  { id: 'kincaid', name: 'Dalton Kincaid', position: 'TE', team: 'BUF', baseValue: 81, espn: 9.8, yahoo: 10.0, posRank: 0, sleeperAdp: null },
+  { id: 'dobbins', name: 'Gus Edwards', position: 'RB', team: 'LAC', baseValue: 79, espn: 10.2, yahoo: 10.4, posRank: 0, sleeperAdp: null },
+  { id: 'rice', name: 'Rashee Rice', position: 'WR', team: 'KC', baseValue: 80, espn: 10.5, yahoo: 10.7, posRank: 0, sleeperAdp: null },
+  { id: 'lawrence', name: 'Trevor Lawrence', position: 'QB', team: 'JAX', baseValue: 78, espn: 11.1, yahoo: 11.2, posRank: 0, sleeperAdp: null },
+  { id: 'sam', name: 'Sam LaPorta', position: 'TE', team: 'DET', baseValue: 88, espn: 6.8, yahoo: 7.0, posRank: 0, sleeperAdp: null },
+  { id: 'djk', name: 'D.J. Moore', position: 'WR', team: 'CHI', baseValue: 77, espn: 12.0, yahoo: 12.1, posRank: 0, sleeperAdp: null },
+  { id: 'davis', name: 'Mike Davis', position: 'RB', team: 'FA', baseValue: 74, espn: 15.0, yahoo: 15.2, posRank: 0, sleeperAdp: null },
+  { id: 'matt', name: 'Matthew Stafford', position: 'QB', team: 'LAR', baseValue: 76, espn: 13.2, yahoo: 13.3, posRank: 0, sleeperAdp: null }
 ];
 
 const defaultState = {
   settings: {
-    scoringFormat: 'ppr',
+    scoringFormat: 'standard',
     qbSlots: 1,
     rbSlots: 2,
     wrSlots: 3,
     teSlots: 1,
     flexSlots: 1,
-    benchSlots: 5,
-    rosterSize: 16
+    superflex: false,
+    benchSpots: 5
   },
   sort: { key: 'myRank', direction: 'asc' },
   players: [],
@@ -65,7 +79,9 @@ const defaultState = {
     draftProgress: {},
     acceptedUnmatchedByDraft: {},
     unmatchedCount: 0,
-    unmatchedPicks: []
+    unmatchedPicks: [],
+    // Store all Sleeper draft picks for ADP calculation
+    allDraftPicks: []
   },
   customAdpProfile: {
     totalSamples: 0,
@@ -75,14 +91,14 @@ const defaultState = {
     selectedPlayerId: null
   },
   draftedPlayerIds: [],
-  autoTiering: true,
+  autoTiering: false,
   positionFilter: 'ALL'
 };
 
 const state = loadState();
 
 if (typeof state.autoTiering !== 'boolean') {
-  state.autoTiering = true;
+  state.autoTiering = false;
 }
 if (!state.positionFilter) {
   state.positionFilter = 'ALL';
@@ -139,197 +155,293 @@ if (state.sort?.key === 'sleeper') {
   state.sort.key = 'averageAdp';
 }
 
+// Check for saved username in localStorage
+const savedUsername = localStorage.getItem('fantasy-draft-username');
+const savedPassword = localStorage.getItem('fantasy-draft-password');
+
 autoFillPlayers();
 
-const settingsForm = document.getElementById('settings-form');
-const autoRankButton = document.getElementById('auto-rank');
-const liveDataButton = document.getElementById('load-live-data');
-const saveRankingsButton = document.getElementById('save-rankings');
-const applySavedRankingsButton = document.getElementById('apply-saved-rankings');
-const sleeperDraftIdInput = document.getElementById('sleeper-draft-id');
-const sleeperSyncToggleButton = document.getElementById('toggle-sleeper-sync');
-const sleeperSyncNowButton = document.getElementById('sync-sleeper-now');
-const resetButton = document.getElementById('reset-data');
-const rankingsBody = document.getElementById('rankings-body');
-const positionFilters = document.getElementById('position-filters');
-const settingsSummary = document.getElementById('settings-summary');
-const dataStatus = document.getElementById('data-status');
-const draftSignals = document.getElementById('draft-signals');
-const draftedList = document.getElementById('drafted-list');
-const remainingList = document.getElementById('remaining-list');
-const unmatchedPicksPanel = document.getElementById('unmatched-picks-panel');
+// Wait for DOM to be ready before accessing elements
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOM loaded');
+  
+  const autoRankButton = document.getElementById('auto-rank');
+  const saveRankingsButton = document.getElementById('save-rankings');
+  const applySavedRankingsButton = document.getElementById('apply-saved-rankings');
+  const rankingsBody = document.getElementById('rankings-body');
+  const positionFilters = document.getElementById('position-filters');
+  const settingsSummary = document.getElementById('settings-summary');
+  const dataStatus = document.getElementById('data-status');
+  const rankingStatus = document.getElementById('ranking-status');
+  const usernameModal = document.getElementById('username-modal');
+  const usernameInput = document.getElementById('username-input');
+  const passwordInput = document.getElementById('password-input');
+  const usernameSubmit = document.getElementById('username-submit');
+  const usernameCancel = document.getElementById('username-cancel');
+  const loginButton = document.getElementById('login-button');
+  const logoutButton = document.getElementById('logout-button');
+  const userDisplay = document.getElementById('user-display');
+  const sleeperDraftIdInput = document.getElementById('sleeper-draft-id');
 
-document.querySelectorAll('th[data-key]').forEach((header) => {
-  header.addEventListener('click', () => sortBy(header.dataset.key));
-});
+  console.log('DOM elements:', {
+    autoRankButton,
+    saveRankingsButton,
+    rankingsBody,
+    positionFilters
+  });
 
-rankingsBody.addEventListener('input', handleTableInput);
-rankingsBody.addEventListener('change', handleTableInput);
-rankingsBody.addEventListener('click', handleRankArrowClick);
-positionFilters.addEventListener('click', handlePositionFilterClick);
+  document.querySelectorAll('th[data-key]').forEach((header) => {
+    header.addEventListener('click', () => sortBy(header.dataset.key));
+  });
 
-settingsForm.addEventListener('submit', (event) => {
-  event.preventDefault();
-  collectSettings();
-  state.autoTiering = true;
-  autoFillPlayers();
-  saveState();
-  render();
-});
-
-autoRankButton.addEventListener('click', () => {
-  collectSettings();
-  state.autoTiering = true;
-  autoFillPlayers();
-  saveState();
-  render();
-});
-
-liveDataButton.addEventListener('click', () => {
-  collectSettings();
-  loadLiveRankings();
-});
-
-saveRankingsButton.addEventListener('click', () => {
-  saveCustomRankings();
-});
-
-applySavedRankingsButton.addEventListener('click', () => {
-  const before = state.players.map((player) => player.myRank).join('|');
-  const changed = applySavedCustomRanksToPlayers(state.players);
-  if (changed) {
-    state.autoTiering = true;
-    applyAutoTiering();
-  }
-  const after = state.players.map((player) => player.myRank).join('|');
-  state.liveDataStatus = changed || before !== after
-    ? 'Applied your saved custom rankings.'
-    : 'No saved custom rankings found for current players.';
-  saveState();
-  render();
-});
-
-sleeperSyncToggleButton.addEventListener('click', async () => {
-  const draftId = normalizeSleeperDraftIdInput();
-  if (draftId) {
-    applySleeperDraftId(draftId);
+  const addTierButton = document.getElementById('add-tier');
+  if (addTierButton) {
+    addTierButton.addEventListener('click', handleTierAction);
   }
 
-  if (state.sleeperSync.enabled) {
-    stopSleeperSync('Sleeper sync stopped.');
-    saveState();
-    render();
-    return;
+  const deleteTierButton = document.getElementById('delete-tier');
+  if (deleteTierButton) {
+    deleteTierButton.addEventListener('click', handleTierAction);
   }
 
-  if (!draftId) {
-    state.sleeperSync.lastResult = 'Enter a Sleeper draft ID to start sync.';
-    saveState();
-    render();
-    return;
-  }
-
-  state.sleeperSync.enabled = true;
-  startSleeperSyncTimer();
-  saveState();
-  render();
-  await syncSleeperDraft({ initiatedByUser: true });
-});
-
-sleeperSyncNowButton.addEventListener('click', async () => {
-  const draftId = normalizeSleeperDraftIdInput();
-  if (draftId) {
-    applySleeperDraftId(draftId);
-  }
-
-  if (!state.sleeperSync.draftId) {
-    state.sleeperSync.lastResult = 'Enter a Sleeper draft ID before syncing.';
-    saveState();
-    render();
-    return;
-  }
-
-  sleeperSyncNowButton.disabled = true;
-  try {
-    state.sleeperSync.enabled = true;
-    startSleeperSyncTimer();
-    saveState();
-    render();
-    await syncSleeperDraft({ initiatedByUser: true });
-  } finally {
-    sleeperSyncNowButton.disabled = false;
-  }
-});
-
-sleeperDraftIdInput.addEventListener('blur', () => {
-  const draftId = normalizeSleeperDraftIdInput();
-  if (draftId) {
-    const changed = applySleeperDraftId(draftId);
-    if (changed && state.sleeperSync.enabled) {
-      syncSleeperDraft({ initiatedByUser: true });
-    }
-    saveState();
-    render();
-  }
-});
-
-sleeperDraftIdInput.addEventListener('change', () => {
-  const draftId = normalizeSleeperDraftIdInput();
-  if (draftId) {
-    const changed = applySleeperDraftId(draftId);
-    if (changed && state.sleeperSync.enabled) {
-      syncSleeperDraft({ initiatedByUser: true });
-    }
-    saveState();
-    render();
-  }
-});
-
-sleeperDraftIdInput.addEventListener('input', () => {
-  const value = `${sleeperDraftIdInput.value || ''}`;
-  if (value.includes('sleeper.com/draft') || value.includes('draft_id=')) {
-    normalizeSleeperDraftIdInput();
-  }
-});
-
-sleeperDraftIdInput.addEventListener('paste', () => {
-  setTimeout(() => {
-    const draftId = normalizeSleeperDraftIdInput();
-    if (draftId) {
-      const changed = applySleeperDraftId(draftId);
-      if (changed && state.sleeperSync.enabled) {
-        syncSleeperDraft({ initiatedByUser: true });
+  const submitSleeperIdButton = document.getElementById('submit-sleeper-id');
+  if (submitSleeperIdButton) {
+    submitSleeperIdButton.addEventListener('click', async () => {
+      collectSettings();
+      saveState();
+      
+      // Start Sleeper sync if draft ID is provided
+      const draftId = state.sleeperSync?.draftId;
+      if (draftId) {
+        state.sleeperSync.enabled = true;
+        startSleeperSyncTimer();
+        await syncSleeperDraft({ initiatedByUser: true });
       }
+      
+      render();
+      alert('Sleeper draft ID updated! Sync started.');
+    });
+  }
+
+  const addUnmatchedButton = document.getElementById('add-unmatched-to-board');
+  if (addUnmatchedButton) {
+    addUnmatchedButton.addEventListener('click', async () => {
+      console.log('Add unmatched button clicked');
+      const added = addUnmatchedPicksToBoard();
+      if (!added) {
+        state.liveDataStatus = 'No unmatched picks were added (they may already exist on your board).';
+        saveState();
+        render();
+        return;
+      }
+
       saveState();
       render();
-    }
-  }, 0);
-});
+      await syncSleeperDraft({ initiatedByUser: true });
+      console.log('Added', added, 'unmatched picks');
+    });
+  }
 
-resetButton.addEventListener('click', () => {
-  const preservedCustomAdpProfile = normalizeCustomAdpProfile(state.customAdpProfile);
-  stopSleeperSync('Sleeper sync stopped.');
-  localStorage.removeItem(STORAGE_KEY);
-  Object.assign(state, loadState());
-  state.customAdpProfile = preservedCustomAdpProfile;
-  state.autoTiering = true;
-  autoFillPlayers();
+  const resetBoardButton = document.getElementById('reset-board');
+  if (resetBoardButton) {
+    resetBoardButton.addEventListener('click', () => {
+      if (confirm('Reset the draft board? This will clear all drafted status but keep your player rankings and unmatched players.')) {
+        resetDraftBoard();
+      }
+    });
+  }
+
+  if (sleeperDraftIdInput) {
+    sleeperDraftIdInput.addEventListener('blur', normalizeSleeperDraftIdInput);
+    sleeperDraftIdInput.addEventListener('change', normalizeSleeperDraftIdInput);
+    sleeperDraftIdInput.addEventListener('input', () => {
+      // Auto-normalize on any input change
+      const current = sleeperDraftIdInput.value;
+      const normalized = extractSleeperDraftId(current);
+      if (normalized && normalized !== current) {
+        sleeperDraftIdInput.value = normalized;
+      }
+    });
+    sleeperDraftIdInput.addEventListener('paste', () => {
+      setTimeout(normalizeSleeperDraftIdInput, 0);
+    });
+    sleeperDraftIdInput.addEventListener('keypress', async (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        collectSettings();
+        saveState();
+        
+        // Start Sleeper sync if draft ID is provided
+        const draftId = state.sleeperSync?.draftId;
+        if (draftId) {
+          state.sleeperSync.enabled = true;
+          startSleeperSyncTimer();
+          await syncSleeperDraft({ initiatedByUser: true });
+        }
+        
+        render();
+        alert('Sleeper draft ID updated! Sync started.');
+      }
+    });
+  }
+
+  // Load API keys from localStorage (if user wants to add their own keys later)
+  const savedApiConfig = localStorage.getItem('fantasy-api-config');
+  if (savedApiConfig) {
+    try {
+      const config = JSON.parse(savedApiConfig);
+      if (config.fantasyPros?.apiKey) {
+        API_CONFIG.fantasyPros.apiKey = config.fantasyPros.apiKey;
+      }
+      if (config.moneyLine?.apiKey) {
+        API_CONFIG.moneyLine.apiKey = config.moneyLine.apiKey;
+      }
+    } catch (error) {
+      console.error('Failed to load API config:', error);
+    }
+  }
+
+  // Add drag and drop event listeners after DOM is ready
+  setTimeout(() => {
+    const rankingsBodyEl = document.getElementById('rankings-body');
+    if (rankingsBodyEl) {
+      rankingsBodyEl.addEventListener('dragstart', handleDragStart);
+      rankingsBodyEl.addEventListener('dragover', handleDragOver);
+      rankingsBodyEl.addEventListener('drop', handleDrop);
+      rankingsBodyEl.addEventListener('dragend', handleDragEnd);
+      rankingsBodyEl.addEventListener('click', handleBoardClick);
+    }
+  }, 100);
+
+  // Handle login/logout
+  if (savedUsername && savedPassword) {
+    currentUsername = savedUsername;
+    currentPassword = savedPassword;
+    if (userDisplay) userDisplay.textContent = currentUsername;
+    if (loginButton) loginButton.style.display = 'none';
+    if (logoutButton) logoutButton.style.display = 'inline-block';
+    loadStateFromServer().then((loaded) => {
+      if (loaded) {
+        render();
+        // Don't load live rankings if we loaded saved state - use the saved tiers
+      } else {
+        // First time or no saved state
+        render();
+        loadLiveRankings();
+      }
+    });
+  } else {
+    if (userDisplay) userDisplay.textContent = '';
+    if (loginButton) loginButton.style.display = 'inline-block';
+    if (logoutButton) logoutButton.style.display = 'none';
+    loadLiveRankings();
+  }
+
+  if (loginButton) {
+    loginButton.addEventListener('click', () => {
+      showUsernameModal();
+    });
+  }
+
+  if (logoutButton) {
+    logoutButton.addEventListener('click', () => {
+      currentUsername = null;
+      currentPassword = null;
+      localStorage.removeItem('fantasy-draft-username');
+      localStorage.removeItem('fantasy-draft-password');
+      if (userDisplay) userDisplay.textContent = '';
+      if (loginButton) loginButton.style.display = 'inline-block';
+      if (logoutButton) logoutButton.style.display = 'none';
+      localStorage.removeItem(STORAGE_KEY);
+      Object.assign(state, structuredClone(defaultState));
+      autoFillPlayers();
+      render();
+      loadLiveRankings();
+      
+      // Don't delete from server - keep the data for next login
+      console.log('[SERVER] Logged out, keeping server data intact');
+    });
+  }
+
+  if (usernameSubmit) {
+    usernameSubmit.addEventListener('click', async () => {
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value.trim();
+      if (!username || !password) {
+        return;
+      }
+
+      currentUsername = username;
+      currentPassword = password;
+      localStorage.setItem('fantasy-draft-username', username);
+      localStorage.setItem('fantasy-draft-password', password);
+      userDisplay.textContent = currentUsername;
+      loginButton.style.display = 'none';
+      logoutButton.style.display = 'inline-block';
+      hideUsernameModal();
+      
+      const loaded = await loadStateFromServer();
+      if (loaded) {
+        render();
+        alert('Your saved rankings have been loaded!');
+      } else {
+        // No saved state on server, use current state (first time login)
+        render();
+        // Don't show alert for first-time login
+      }
+      loadLiveRankings();
+    });
+  }
+
+  if (usernameCancel) {
+    usernameCancel.addEventListener('click', () => {
+      hideUsernameModal();
+    });
+  }
+
+  if (autoRankButton) {
+    autoRankButton.addEventListener('click', () => {
+      collectSettings();
+      autoFillPlayers();
+      saveState();
+      render();
+    });
+  }
+
+  if (saveRankingsButton) {
+    saveRankingsButton.addEventListener('click', () => {
+      saveCustomRankings();
+    });
+  }
+
+  if (applySavedRankingsButton) {
+    applySavedRankingsButton.addEventListener('click', () => {
+      const before = state.players.map((player) => player.myRank).join('|');
+      const changed = applySavedCustomRanksToPlayers(state.players);
+      if (changed) {
+        applyAutoTiering();
+        render();
+      }
+    });
+  }
+
+  if (positionFilters) {
+    positionFilters.addEventListener('click', handlePositionFilterClick);
+  }
+
+  // Auto-rank when any setting changes
+  document.querySelectorAll('.compact-select, #superflex').forEach(el => {
+    el.addEventListener('change', () => {
+      collectSettings();
+      autoFillPlayers();
+      saveState();
+      render();
+    });
+  });
+  
+  // Initial render
   render();
 });
-
-rankingsBody.addEventListener('dragstart', handleDragStart);
-rankingsBody.addEventListener('click', handleBoardClick);
-rankingsBody.addEventListener('dragover', handleDragOver);
-rankingsBody.addEventListener('drop', handleDrop);
-draftedList.addEventListener('click', handleTrackerClick);
-remainingList.addEventListener('click', handleTrackerClick);
-draftedList.addEventListener('dragover', handleDragOver);
-draftedList.addEventListener('drop', handleDrop);
-remainingList.addEventListener('dragover', handleDragOver);
-remainingList.addEventListener('drop', handleDrop);
-if (unmatchedPicksPanel) {
-  unmatchedPicksPanel.addEventListener('click', handleUnmatchedPicksPanelClick);
-}
 
 function loadState() {
   const saved = localStorage.getItem(STORAGE_KEY);
@@ -343,8 +455,112 @@ function loadState() {
   return structuredClone(defaultState);
 }
 
-function saveState() {
+async function saveState() {
+  console.log('[STATE] Saving state, user logged in:', !!currentUsername);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (currentUsername) {
+    saveStateToServer().catch(error => {
+      console.error('[SERVER] Failed to save state:', error);
+      alert('Failed to save to server. Your data is saved locally only.');
+    });
+  }
+}
+
+async function saveStateToServer() {
+  if (!currentUsername || !currentPassword) {
+    console.log('[SERVER] Skipping server save - no credentials');
+    return;
+  }
+
+  console.log('[SERVER] Saving state to server for user:', currentUsername);
+  console.log('[SERVER] Current page URL:', window.location.href);
+  console.log('[SERVER] API URL:', '/api/user-state');
+  console.log('[SERVER] Full API URL:', window.location.origin + '/api/user-state');
+  console.log('[SERVER] State to save - players count:', state.players?.length);
+  console.log('[SERVER] State to save - first player myRank:', state.players?.[0]?.myRank);
+  
+  try {
+    const response = await fetch('/api/user-state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: currentUsername,
+        password: currentPassword,
+        state: JSON.stringify(state)
+      })
+    });
+    console.log('[SERVER] Save response status:', response.status, 'ok:', response.ok);
+    if (response.ok) {
+      console.log('[SERVER] State saved successfully');
+    } else {
+      const errorText = await response.text();
+      console.error('[SERVER] Save failed - status:', response.status, 'error:', errorText);
+      alert(`Failed to save to server: ${response.status} - ${errorText}\n\nAre you accessing the app on port 8000? Current URL: ${window.location.href}`);
+    }
+  } catch (error) {
+    console.error('[SERVER] Failed to save state:', error);
+    alert(`Failed to save to server: ${error.message}\n\nAre you accessing the app on port 8000? Current URL: ${window.location.href}`);
+  }
+}
+
+async function loadStateFromServer() {
+  if (!currentUsername || !currentPassword) {
+    console.log('[SERVER] Skipping server load - no credentials');
+    return false;
+  }
+
+  console.log('[SERVER] Loading state from server for user:', currentUsername);
+  try {
+    const response = await fetch(`/api/user-state?username=${encodeURIComponent(currentUsername)}&password=${encodeURIComponent(currentPassword)}`);
+    console.log('[SERVER] Load response status:', response.status);
+    if (response.ok) {
+      const data = await response.json();
+      console.log('[SERVER] Load response data:', data);
+      if (data.state) {
+        try {
+          const loadedState = JSON.parse(data.state);
+          console.log('[SERVER] Parsed loaded state, players count:', loadedState.players?.length);
+          // Replace the entire state instead of shallow merge
+          Object.keys(state).forEach(key => delete state[key]);
+          Object.assign(state, loadedState);
+          // Disable auto-tiering to preserve manual tier assignments
+          state.autoTiering = false;
+          console.log('[SERVER] State loaded successfully, current players:', state.players?.length);
+          return true;
+        } catch (error) {
+          console.error('[SERVER] Failed to parse state:', error);
+          alert('Failed to load saved data from server.');
+          return false;
+        }
+      } else {
+        console.log('[SERVER] No saved state found (first time login)');
+        return false; // First time login, no error
+      }
+    } else {
+      const errorText = await response.text();
+      console.log('[SERVER] Failed to load state - server returned', response.status, errorText);
+      if (response.status === 401) {
+        alert('Invalid username or password');
+      } else {
+        alert(`Failed to load from server: ${response.status} - ${errorText}`);
+      }
+      return false;
+    }
+  } catch (error) {
+    console.error('[SERVER] Failed to load state:', error);
+    alert(`Failed to load from server: ${error.message}`);
+    return false;
+  }
+}
+
+function showUsernameModal() {
+  const modal = document.getElementById('username-modal');
+  modal.style.display = 'flex';
+}
+
+function hideUsernameModal() {
+  const modal = document.getElementById('username-modal');
+  modal.style.display = 'none';
 }
 
 function normalizeCustomAdpProfile(profile) {
@@ -427,11 +643,40 @@ function mergeCustomAdpProfiles(baseProfile, incomingProfile) {
   return merged;
 }
 
+function calculatePositionalRanks() {
+  const playersByPosition = {};
+  
+  // Group players by position
+  state.players.forEach(player => {
+    const position = player.position;
+    if (!playersByPosition[position]) {
+      playersByPosition[position] = [];
+    }
+    playersByPosition[position].push(player);
+  });
+  
+  // Sort each position group by myRank and assign positional ranks
+  Object.keys(playersByPosition).forEach(position => {
+    playersByPosition[position].sort((a, b) => a.myRank - b.myRank);
+    playersByPosition[position].forEach((player, index) => {
+      player.posRank = index + 1;
+    });
+  });
+  
+  // Ensure all players have posRank field
+  state.players.forEach(player => {
+    if (!player.posRank) {
+      player.posRank = 0;
+    }
+  });
+}
+
 function autoFillPlayers() {
   if (!state.players.length) {
     state.players = basePlayers.map((player) => ({
       ...player,
       myRank: 0,
+      posRank: 0,
       tier: 1,
       drafted: false,
       draftedSource: null,
@@ -458,6 +703,7 @@ function autoFillPlayers() {
   });
 
   state.players = state.players.sort((a, b) => a.myRank - b.myRank);
+  calculatePositionalRanks();
   syncDraftedPlayerIds();
 }
 
@@ -482,9 +728,11 @@ function getTierForRank(index, totalPlayers) {
 }
 
 function getTierSizes(totalPlayers) {
+  // More flexible tier sizing - no hard limits
   const sizes = [];
   let remaining = totalPlayers;
 
+  // Use opening tier sizes as a guide, but don't enforce them strictly
   for (const openingSize of OPENING_TIER_SIZES) {
     if (remaining <= 0) {
       break;
@@ -495,37 +743,60 @@ function getTierSizes(totalPlayers) {
     remaining -= count;
   }
 
+  // For remaining players, use larger, more flexible chunks
   while (remaining > 0) {
-    const count = remaining > MAX_TIER_SIZE ? 15 : remaining;
-    sizes.push(count);
-    remaining -= count;
+    // Use progressively larger chunks as we go down the rankings
+    const chunkSize = Math.min(remaining, Math.max(15, Math.floor(remaining / 4)));
+    sizes.push(chunkSize);
+    remaining -= chunkSize;
   }
 
   return sizes.length ? sizes : [1];
 }
 
 function collectSettings() {
+  const scoringFormat = document.getElementById('scoring-format');
+  const qbSlots = document.getElementById('qb-slots');
+  const rbSlots = document.getElementById('rb-slots');
+  const wrSlots = document.getElementById('wr-slots');
+  const teSlots = document.getElementById('te-slots');
+  const flexSlots = document.getElementById('flex-slots');
+  const superflex = document.getElementById('superflex');
+  const benchSlots = document.getElementById('bench-slots');
+  const sleeperDraftId = document.getElementById('sleeper-draft-id');
+
   state.settings = {
-    scoringFormat: document.getElementById('scoring-format').value,
-    qbSlots: Number(document.getElementById('qb-slots').value),
-    rbSlots: Number(document.getElementById('rb-slots').value),
-    wrSlots: Number(document.getElementById('wr-slots').value),
-    teSlots: Number(document.getElementById('te-slots').value),
-    flexSlots: Number(document.getElementById('flex-slots').value),
-    benchSlots: Number(document.getElementById('bench-slots').value),
-    rosterSize: Number(document.getElementById('roster-size').value)
+    scoringFormat: scoringFormat?.value || 'standard',
+    qbSlots: Number(qbSlots?.value) || 1,
+    rbSlots: Number(rbSlots?.value) || 2,
+    wrSlots: Number(wrSlots?.value) || 3,
+    teSlots: Number(teSlots?.value) || 1,
+    flexSlots: Number(flexSlots?.value) || 1,
+    superflex: superflex?.checked || false,
+    benchSlots: Number(benchSlots?.value) || 5
   };
+  
+  // Update Sleeper draft ID
+  if (sleeperDraftId) {
+    const normalized = extractSleeperDraftId(sleeperDraftId.value);
+    if (normalized !== state.sleeperSync.draftId) {
+      state.sleeperSync.draftId = normalized;
+      state.sleeperSync.lastPickCount = 0;
+      state.sleeperSync.lastSyncAt = null;
+      state.sleeperSync.adpShift = 0;
+    }
+  }
 }
 
 function scorePlayer(player, settings) {
   const positionWeight = { QB: 2.8, RB: 3.4, WR: 3.2, TE: 2.6 };
   const scoringMultiplier = settings.scoringFormat === 'ppr' ? 1.75 : settings.scoringFormat === 'half' ? 1.35 : 1;
   const lineupBoost = settings.rbSlots * 0.8 + settings.wrSlots * 0.7 + settings.teSlots * 0.6 + settings.qbSlots * 0.4;
-  const benchBoost = settings.benchSlots * 0.35;
+  const benchBoost = settings.benchSpots * 0.35;
   const flexBoost = settings.flexSlots * 0.2;
-  const rosterBoost = settings.rosterSize / 16;
+  const superflexBoost = settings.superflex && player.position === 'QB' ? settings.flexSlots * 1.5 : 0;
 
-  return player.baseValue * scoringMultiplier + positionWeight[player.position] + lineupBoost + benchBoost + flexBoost + rosterBoost;
+  return player.baseValue * scoringMultiplier + positionWeight[player.position] + lineupBoost + benchBoost + flexBoost + superflexBoost;
 }
 
 function sortBy(key) {
@@ -536,49 +807,69 @@ function sortBy(key) {
     state.sort.direction = 'asc';
   }
 
-  state.autoTiering = true;
   applyAutoTiering();
   render();
 }
 
-function render() {
+async function render() {
   populateSettingsFields();
   renderPositionFilterChips();
+  renderSortIndicators();
+  renderRankingStatus();
   renderSummary();
   renderDataStatus();
-  renderDraftSignals();
+  // Only apply auto-tiering if explicitly enabled
   if (state.autoTiering) {
     applyAutoTiering();
   }
   renderDraftBoard();
-  renderDraftLists();
-  renderUnmatchedPicksPanel();
   saveState();
 }
 
 function populateSettingsFields() {
   const { settings } = state;
-  document.getElementById('scoring-format').value = settings.scoringFormat;
-  document.getElementById('qb-slots').value = settings.qbSlots;
-  document.getElementById('rb-slots').value = settings.rbSlots;
-  document.getElementById('wr-slots').value = settings.wrSlots;
-  document.getElementById('te-slots').value = settings.teSlots;
-  document.getElementById('flex-slots').value = settings.flexSlots;
-  document.getElementById('bench-slots').value = settings.benchSlots;
-  document.getElementById('roster-size').value = settings.rosterSize;
-  sleeperDraftIdInput.value = state.sleeperSync?.draftId || '';
+  
+  const scoringFormat = document.getElementById('scoring-format');
+  if (scoringFormat) scoringFormat.value = settings.scoringFormat;
+  
+  const qbSlots = document.getElementById('qb-slots');
+  if (qbSlots) qbSlots.value = settings.qbSlots;
+  
+  const rbSlots = document.getElementById('rb-slots');
+  if (rbSlots) rbSlots.value = settings.rbSlots;
+  
+  const wrSlots = document.getElementById('wr-slots');
+  if (wrSlots) wrSlots.value = settings.wrSlots;
+  
+  const teSlots = document.getElementById('te-slots');
+  if (teSlots) teSlots.value = settings.teSlots;
+  
+  const flexSlots = document.getElementById('flex-slots');
+  if (flexSlots) flexSlots.value = settings.flexSlots;
+  
+  const superflex = document.getElementById('superflex');
+  if (superflex) superflex.checked = settings.superflex || false;
+  
+  const benchSlots = document.getElementById('bench-slots');
+  if (benchSlots) benchSlots.value = settings.benchSlots;
+  
+  const sleeperDraftId = document.getElementById('sleeper-draft-id');
+  if (sleeperDraftId) sleeperDraftId.value = state.sleeperSync?.draftId || '';
 
-  sleeperSyncToggleButton.textContent = state.sleeperSync?.enabled ? 'Stop Sleeper sync' : 'Start Sleeper sync';
 }
 
 function renderSummary() {
-  settingsSummary.innerHTML = `
-    <strong>Current build:</strong> ${state.settings.scoringFormat.toUpperCase()} • ${state.settings.qbSlots} QB • ${state.settings.rbSlots} RB • ${state.settings.wrSlots} WR • ${state.settings.teSlots} TE • ${state.settings.flexSlots} FLEX • ${state.settings.benchSlots} bench • ${state.settings.rosterSize} roster
+  const settingsSummaryEl = document.getElementById('settings-summary');
+  if (!settingsSummaryEl) return;
+  settingsSummaryEl.innerHTML = `
+    <strong>Current build:</strong> ${state.settings.scoringFormat.toUpperCase()} • ${state.settings.qbSlots} QB • ${state.settings.rbSlots} RB • ${state.settings.wrSlots} WR • ${state.settings.teSlots} TE • ${state.settings.flexSlots} FLEX • ${state.settings.benchSlots} bench 
   `;
 }
 
 function renderDataStatus() {
-  const status = state.liveDataStatus || 'Starter board loaded. Use “Load live rankings” to pull public ranking data.';
+  const dataStatusEl = document.getElementById('data-status');
+  if (!dataStatusEl) return;
+  const status = state.liveDataStatus || 'Starter board loaded. Use "Load live rankings" to pull public ranking data.';
   const sleeperStatus = state.sleeperSync?.lastResult
     ? `<br><strong>Sleeper sync:</strong> ${state.sleeperSync.lastResult}`
     : '';
@@ -587,7 +878,7 @@ function renderDataStatus() {
   const sleeperDiagnostics = hasDiagnostics
     ? `<br><strong>Sleeper diagnostics:</strong> last attempt ${formatSleeperTime(state.sleeperSync.lastAttemptAt)} • duration ${formatSleeperDuration(state.sleeperSync.lastDurationMs)} • consecutive errors ${state.sleeperSync.consecutiveErrors || 0} • target cadence ${SLEEPER_SYNC_INTERVAL_MS}ms • room ADP shift ${formatSignedNumber(state.sleeperSync.adpShift)} picks • custom ADP model ${customAdpPlayerCount} players / ${state.customAdpProfile?.totalSamples || 0} samples`
     : '';
-  dataStatus.innerHTML = `<strong>Live data:</strong> ${status}${sleeperStatus}${sleeperDiagnostics}`;
+  dataStatusEl.innerHTML = `<strong>Live data:</strong> ${status}${sleeperStatus}${sleeperDiagnostics}`;
 }
 
 function formatSignedNumber(value) {
@@ -725,7 +1016,6 @@ function clearSyncDraftedPlayers(includeManual = false) {
 
   if (cleared > 0) {
     syncDraftedPlayerIds();
-    state.autoTiering = true;
     applyAutoTiering();
   }
 
@@ -887,18 +1177,23 @@ function playerMatchesPickRecord(player, record) {
 
   const sameTeam = record.team && normalizeSleeperTeamCode(player.team) === record.team;
   const samePosition = record.position && normalizePositionCode(player.position) === record.position;
+  
+  // Check name matching with suffix handling
+  const playerNames = getNameMatchKeys(player.name);
+  const recordNames = getNameMatchKeys(record.name);
+  const nameMatches = playerNames.some(pn => recordNames.includes(pn));
 
   if (record.team && record.position) {
-    return sameTeam && samePosition;
+    return nameMatches && sameTeam && samePosition;
   }
   if (record.team) {
-    return sameTeam;
+    return nameMatches && sameTeam;
   }
   if (record.position) {
-    return samePosition;
+    return nameMatches && samePosition;
   }
 
-  return true;
+  return nameMatches;
 }
 
 function syncDraftedPlayersFromLookup(pickedLookup) {
@@ -1111,6 +1406,31 @@ function updateCustomAdpProfileFromRecords(records, draftId) {
   return applied;
 }
 
+function calculateSleeperAdp() {
+  // Calculate Sleeper ADP from all saved draft picks
+  const picksByPlayer = {};
+  
+  state.sleeperSync.allDraftPicks.forEach(pick => {
+    // Store multiple normalized name keys for each pick
+    const nameKeys = getNameMatchKeys(pick.name);
+    nameKeys.forEach(key => {
+      if (!picksByPlayer[key]) {
+        picksByPlayer[key] = { totalPickNo: 0, count: 0 };
+      }
+      picksByPlayer[key].totalPickNo += pick.pickNo;
+      picksByPlayer[key].count += 1;
+    });
+  });
+  
+  const sleeperAdpByPlayer = {};
+  Object.keys(picksByPlayer).forEach(key => {
+    const data = picksByPlayer[key];
+    sleeperAdpByPlayer[key] = data.totalPickNo / data.count;
+  });
+  
+  return sleeperAdpByPlayer;
+}
+
 function recalculateRoomAdpShift() {
   const diffs = (state.players || [])
     .filter((player) => player.draftedSource === 'sync' && Number.isFinite(player.roomPickNo))
@@ -1209,10 +1529,15 @@ async function syncSleeperDraft({ initiatedByUser = false } = {}) {
 
     const pickedLookup = buildPickedLookup(picks, sleeperPlayersById);
     const learnedSamples = updateCustomAdpProfileFromRecords(pickedLookup.allRecords || [], draftId);
+    
+    // Save all draft picks for Sleeper ADP calculation
+    state.sleeperSync.allDraftPicks = pickedLookup.allRecords || [];
+    
     const { newlyMarked, newlyCleared, matchedTotal, unmatchedRecords } = syncDraftedPlayersFromLookup(pickedLookup);
     recalculateRoomAdpShift();
     if (newlyMarked > 0 || newlyCleared > 0) {
       syncDraftedPlayerIds();
+      calculatePositionalRanks();
       state.autoTiering = true;
       applyAutoTiering();
     }
@@ -1238,6 +1563,18 @@ async function syncSleeperDraft({ initiatedByUser = false } = {}) {
     state.sleeperSync.lastDurationMs = state.sleeperSync.lastSyncAt - syncStartedAt;
     state.sleeperSync.consecutiveErrors = 0;
     state.sleeperSync.lastResult = `Synced ${picks.length} picks; matched ${matchedTotal} board players${newlyMarked ? `; +${newlyMarked}` : ''}${newlyCleared ? `; -${newlyCleared}` : ''}${learnedSamples ? `; learned ${learnedSamples} ADP samples` : ''}.`;
+    
+    // Update Sleeper ADP for all players based on saved draft picks
+    const sleeperAdpByPlayer = calculateSleeperAdp();
+    (state.players || []).forEach(player => {
+      const playerNames = getNameMatchKeys(player.name);
+      // Check if any of the player's name keys match Sleeper ADP data
+      const matchingKey = playerNames.find(nameKey => sleeperAdpByPlayer[nameKey]);
+      if (matchingKey) {
+        player.sleeperAdp = sleeperAdpByPlayer[matchingKey];
+      }
+    });
+    
     wasSuccessful = true;
   } catch (error) {
     const failedAt = Date.now();
@@ -1320,6 +1657,7 @@ function applySavedCustomRanksToPlayers(players) {
   });
 
   state.players = updatedPlayers;
+  calculatePositionalRanks();
   return true;
 }
 
@@ -1403,7 +1741,11 @@ async function fetchJsonWithProxyFallback(url, errorLabel, { timeoutMs = DEFAULT
 }
 
 function getAverageAdp(player) {
-  return (player.espn + player.yahoo) / 2;
+  const values = [player.espn, player.yahoo];
+  if (player.sleeperAdp !== null && player.sleeperAdp !== undefined) {
+    values.push(player.sleeperAdp);
+  }
+  return values.reduce((sum, val) => sum + val, 0) / values.length;
 }
 
 function getDraftAdjustedAdp(player) {
@@ -1411,20 +1753,55 @@ function getDraftAdjustedAdp(player) {
     return player.roomPickNo;
   }
 
-  const profileKey = getCustomAdpProfileKey(player?.name, player?.position, player?.team);
-  const profile = profileKey ? state.customAdpProfile?.players?.[profileKey] : null;
-  const baseline = Number.isFinite(profile?.averagePickNo)
-    ? profile.averagePickNo
-    : getAverageAdp(player);
-  const shift = Number.isFinite(state.sleeperSync?.adpShift) ? state.sleeperSync.adpShift : 0;
-  return Math.max(1, baseline + shift);
+  // Return true average of ESPN + Yahoo + Sleeper (no shift)
+  return getAverageAdp(player);
 }
 
 function renderPositionFilterChips() {
-  positionFilters.querySelectorAll('button[data-filter]').forEach((button) => {
+  const positionFiltersEl = document.getElementById('position-filters');
+  if (!positionFiltersEl) return;
+  
+  positionFiltersEl.querySelectorAll('button[data-filter]').forEach((button) => {
     const isActive = button.dataset.filter === state.positionFilter;
     button.classList.toggle('is-active', isActive);
   });
+}
+
+function renderSortIndicators() {
+  document.querySelectorAll('th[data-key]').forEach((th) => {
+    th.classList.toggle('is-sorted', th.dataset.key === state.sort.key);
+    th.classList.toggle('asc', th.dataset.key === state.sort.key && state.sort.direction === 'asc');
+  });
+}
+
+function renderRankingStatus() {
+  const rankingStatus = document.getElementById('ranking-status');
+  if (!rankingStatus) return;
+  
+  let statusText = '';
+  
+  // Show what's being sorted by
+  const sortLabels = {
+    myRank: 'My Rankings',
+    espn: 'ESPN ADP',
+    yahoo: 'Yahoo ADP',
+    averageAdp: 'Draft ADP',
+    player: 'Player Name',
+    position: 'Position',
+    team: 'Team'
+  };
+  
+  const currentSort = sortLabels[state.sort.key] || state.sort.key;
+  const direction = state.sort.direction === 'asc' ? '↑' : '↓';
+  statusText = `Sort: ${currentSort} ${direction}`;
+  
+  // Show if custom rankings are applied
+  const hasCustomRanks = state.players.some(p => p.customRank !== undefined);
+  if (hasCustomRanks) {
+    statusText += ' | Custom: Applied';
+  }
+  
+  rankingStatus.textContent = statusText;
 }
 
 function handlePositionFilterClick(event) {
@@ -1452,6 +1829,130 @@ function applyAutoTiering() {
   }));
 }
 
+async function fetchFantasyProsRankings(season) {
+  console.log('[FantasyPros] Fetching from server endpoint');
+  
+  try {
+    // Use server-side endpoint to bypass CORS
+    const response = await fetch(`/api/fantasypros?season=${season}`);
+    console.log('[FantasyPros] Response status:', response.status);
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('[FantasyPros] Rankings loaded successfully, players:', data.players?.length || 0);
+      console.log('[FantasyPros] Sample data:', data.players?.[0]);
+      return data;
+    }
+    
+    console.error('[FantasyPros] Failed to load rankings:', response.status, response.statusText);
+    return null;
+  } catch (error) {
+    console.error('[FantasyPros] Error fetching rankings:', error);
+    return null;
+  }
+}
+
+async function fetchSleeperProjections(season) {
+  console.log('[Sleeper] Fetching projections for season:', season);
+  try {
+    const response = await fetch(`${API_CONFIG.sleeper.baseUrl}/projections/nfl/${season}?season_type=regular`);
+    console.log('[Sleeper] Response status:', response.status);
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('[Sleeper] Projections loaded successfully, type:', typeof data);
+      console.log('[Sleeper] Sample data:', Object.values(data)?.[0]);
+      return data;
+    }
+    console.error('[Sleeper] Failed to load projections:', response.status, response.statusText);
+    return null;
+  } catch (error) {
+    console.error('[Sleeper] Error fetching projections:', error);
+    return null;
+  }
+}
+
+async function fetchMoneyLineProps() {
+  // Skip if no API key
+  const apiKey = API_CONFIG.moneyLine.apiKey;
+  if (!apiKey) {
+    console.log('[MoneyLine] No API key, skipping Vegas props');
+    return null;
+  }
+
+  try {
+    const response = await fetch(`${API_CONFIG.moneyLine.baseUrl}/v1/player-props?league=nfl`, {
+      headers: { 'x-api-key': apiKey }
+    });
+    if (response.ok) {
+      const data = await response.json();
+      console.log('[MoneyLine] Props loaded successfully');
+      return data;
+    }
+    console.error('[MoneyLine] Failed to load props:', response.status);
+    return null;
+  } catch (error) {
+    console.error('[MoneyLine] Error fetching props:', error);
+    return null;
+  }
+}
+
+async function fetchTheOddsData() {
+  console.log('[TheOdds] Fetching from server endpoint');
+  try {
+    // Use server-side endpoint to bypass CORS
+    const response = await fetch('/api/theodds');
+    console.log('[TheOdds] Response status:', response.status);
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('[TheOdds] Data loaded successfully');
+      console.log('[TheOdds] Sample data:', data[0]);
+      return data;
+    }
+    console.error('[TheOdds] Failed to load data:', response.status, response.statusText);
+    return null;
+  } catch (error) {
+    console.error('[TheOdds] Error fetching data:', error);
+    return null;
+  }
+}
+
+async function fetchFantasyNerdsProjections() {
+  console.log('[FantasyNerds] Disabled - not needed for now');
+  return null;
+}
+
+async function fetchFantasyNerdsProjections() {
+  console.log('[FantasyNerds] Fetching from server endpoint');
+  try {
+    // Use server-side endpoint to bypass CORS
+    const response = await fetch('/api/fantasynerds');
+    console.log('[FantasyNerds] Response status:', response.status);
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('[FantasyNerds] Projections loaded successfully, data keys:', Object.keys(data));
+      console.log('[FantasyNerds] Full data structure:', JSON.stringify(data, null, 2));
+      
+      // Check if projections is an array
+      if (data.projections && Array.isArray(data.projections)) {
+        console.log('[FantasyNerds] Projections is array, length:', data.projections.length);
+        console.log('[FantasyNerds] First projection:', data.projections[0]);
+      } else {
+        console.log('[FantasyNerds] Projections is not an array or is undefined');
+      }
+      
+      return data;
+    }
+    console.error('[FantasyNerds] Failed to load projections:', response.status, response.statusText);
+    return null;
+  } catch (error) {
+    console.error('[FantasyNerds] Error fetching projections:', error);
+    return null;
+  }
+}
+
 async function loadLiveRankings() {
   const selectedScoring = state.settings.scoringFormat;
   const selectedScoringApiType = getScoringApiType(selectedScoring);
@@ -1459,6 +1960,7 @@ async function loadLiveRankings() {
   render();
 
   try {
+    // Fetch FFC data (this works via proxy)
     const [selectedResponse, standardResponse] = await Promise.all([
       fetchJsonWithProxyFallback(`https://fantasyfootballcalculator.com/api/v1/adp/${selectedScoringApiType}`, `${getScoringLabel(selectedScoring)} ADP`),
       fetchJsonWithProxyFallback('https://fantasyfootballcalculator.com/api/v1/adp/standard', 'Standard ADP')
@@ -1476,11 +1978,24 @@ async function loadLiveRankings() {
           team: player.team,
           espn: player.adp,
           yahoo: standardMatch?.adp ?? player.adp,
+          sleeperAdp: null,
           baseValue: Math.max(70, 100 - player.adp * 4),
           tier: 1,
-          myRank: 0
+          myRank: 0,
+          posRank: 0
         };
       });
+
+    // Calculate Sleeper ADP from saved draft picks
+    const sleeperAdpByPlayer = calculateSleeperAdp();
+    mergedPlayers.forEach(player => {
+      const playerNames = getNameMatchKeys(player.name);
+      // Check if any of the player's name keys match Sleeper ADP data
+      const matchingKey = playerNames.find(nameKey => sleeperAdpByPlayer[nameKey]);
+      if (matchingKey) {
+        player.sleeperAdp = sleeperAdpByPlayer[matchingKey];
+      }
+    });
 
     const existingById = new Map((state.players || []).map((player) => [player.id, player]));
     const rankedPlayers = mergedPlayers
@@ -1494,13 +2009,13 @@ async function loadLiveRankings() {
           draftedSource: existing?.draftedSource ?? null,
           roomPickNo: Number.isFinite(existing?.roomPickNo) ? existing.roomPickNo : null,
           myRank: index + 1,
-          tier: getTierForRank(index, mergedPlayers.length)
+          tier: existing?.tier ?? getTierForRank(index, mergedPlayers.length)
         };
       });
 
     state.players = rankedPlayers;
+    calculatePositionalRanks();
     const appliedSavedRanks = applySavedCustomRanksToPlayers(state.players);
-    state.autoTiering = true;
     state.liveDataStatus = `Loaded ${state.players.length} players from Fantasy Football Calculator (${getScoringLabel(selectedScoring)}/Standard). API type: ${selectedResponse?.meta?.type || getScoringLabel(selectedScoring)}.${appliedSavedRanks ? ' Applied saved custom rankings.' : ''}`;
     render();
   } catch (error) {
@@ -1538,69 +2053,78 @@ function normalizePositionCode(value) {
   return value;
 }
 
+function normalizePositionForCss(value) {
+  const normalized = normalizePositionCode(value).toLowerCase();
+  if (normalized === 'pk') return 'k';
+  if (normalized === 'd' || normalized === 'dst') return 'def';
+  return normalized;
+}
+
 function renderDraftBoard() {
+  const rankingsBodyEl = document.getElementById('rankings-body');
+  if (!rankingsBodyEl) {
+    console.error('rankingsBody element not found');
+    return;
+  }
+  
+  console.log('Rendering draft board, players:', state.players.length);
+  
   const sortedPlayers = [...state.players].sort(comparePlayers);
   const visiblePlayers = sortedPlayers.filter((player) => !player.drafted && matchesPositionFilter(player));
+
+  let rows = [];
+  
+  // Always show tier dividers
   const tiersToRender = [...new Set(visiblePlayers.map((player) => Number(player.tier)).filter((tier) => Number.isFinite(tier) && tier > 0))]
     .sort((a, b) => a - b);
 
-  const tierTotalCounts = new Map();
-  state.players
-    .filter((player) => matchesPositionFilter(player))
-    .forEach((player) => {
-      const tier = Number(player.tier);
-      if (!Number.isFinite(tier) || tier <= 0) {
-        return;
-      }
-      tierTotalCounts.set(tier, (tierTotalCounts.get(tier) || 0) + 1);
-    });
-
-  const groupedRows = tiersToRender.flatMap((tier) => {
+  tiersToRender.forEach((tier) => {
     const players = visiblePlayers.filter((player) => Number(player.tier) === tier);
-    const tierCount = tierTotalCounts.get(tier) || players.length;
-
-    return [
-      `
-        <tr class="tier-divider" data-tier="${tier}">
-          <td colspan="7">
+    
+    rows.push(`
+      <tr class="tier-divider" data-tier="${tier}">
+        <td colspan="8">
+          <div class="tier-bar">
             <span class="tier-pill t${tier}">Tier ${tier}</span>
-            <span class="tier-divider-count">${players.length}/${tierCount} players</span>
-            <span class="tier-divider-hint">Drop here to move players into this tier</span>
+            <span class="tier-divider-count">${players.length} players</span>
+          </div>
+        </td>
+      </tr>
+    `);
+    
+    players.forEach((player) => {
+      const avgAdp = getDraftAdjustedAdp(player).toFixed(1);
+      const isSelected = state.ui?.selectedPlayerId === player.id;
+      const posRankDisplay = player.posRank ? `${player.position}${player.posRank}` : player.position;
+      const normalizedPosition = normalizePositionForCss(player.position);
+      
+      rows.push(`
+        <tr data-player-id="${player.id}" class="${player.drafted ? 'drafted-row' : ''} ${isSelected ? 'selected-row' : ''}" draggable="true">
+          <td>
+            <span class="drag-handle" data-player-id="${player.id}"></span>
+            ${player.myRank}
           </td>
+          <td>
+            <div class="player-cell">
+              <span class="player-name">${player.name}</span>
+            </div>
+          </td>
+          <td><span class="pos-pill pos-${normalizedPosition}">${posRankDisplay}</span></td>
+          <td>${player.team}</td>
+          <td>${player.espn.toFixed(1)}</td>
+          <td>${player.yahoo.toFixed(1)}</td>
+          <td>${player.sleeperAdp ? player.sleeperAdp.toFixed(1) : '-'}</td>
+          <td>${avgAdp}</td>
         </tr>
-      `,
-      ...players.map((player) => {
-        const avgAdp = getDraftAdjustedAdp(player).toFixed(1);
-        const isSelected = state.ui?.selectedPlayerId === player.id;
-        const canMoveUp = player.myRank > 1;
-        const canMoveDown = player.myRank < state.players.length;
-        return `
-          <tr data-player-id="${player.id}" draggable="true" class="${player.drafted ? 'drafted-row' : ''} ${isSelected ? 'selected-row' : ''}">
-            <td>
-              <div class="player-cell">
-                <span class="player-name">${player.name}</span>
-                ${player.draftedSource === 'manual' ? '<span class="table-tag table-tag-manual">MANUAL</span>' : ''}
-              </div>
-            </td>
-            <td>
-              <div class="rank-controls">
-                <button class="rank-arrow rank-up" data-player-id="${player.id}" ${canMoveUp ? '' : 'disabled'}>↑</button>
-                <input class="small" type="number" min="1" max="999" value="${player.myRank}" data-field="myRank" />
-                <button class="rank-arrow rank-down" data-player-id="${player.id}" ${canMoveDown ? '' : 'disabled'}>↓</button>
-              </div>
-            </td>
-            <td><span class="pos-pill">${player.position}</span></td>
-            <td>${player.team}</td>
-            <td>${player.espn.toFixed(1)}</td>
-            <td>${player.yahoo.toFixed(1)}</td>
-            <td>${avgAdp}</td>
-          </tr>
-        `;
-      })
-    ];
+      `);
+    });
   });
 
-  rankingsBody.innerHTML = groupedRows.join('');
+  rankingsBodyEl.innerHTML = rows.join('');
+  console.log('Rendered', rows.length, 'rows');
+  
+  // Render unmatched picks section
+  renderUnmatchedPicksSection();
 }
 
 function comparePlayers(a, b) {
@@ -1624,6 +2148,98 @@ function comparePlayers(a, b) {
   }
 
   return direction === 'asc' ? result : -result;
+}
+
+function resetDraftBoard() {
+  // Clear drafted status from all players except manually drafted
+  state.players = state.players.map((player) => {
+    // Keep manually drafted players as is
+    if (player.draftedSource === 'manual') {
+      return player;
+    }
+    
+    // For unmatched Sleeper imports, make them undrafted but preserve their rank
+    if (player.draftedSource === 'sync' && player.id?.startsWith('sleeper-')) {
+      return {
+        ...player,
+        drafted: false,
+        draftedAt: null,
+        draftedSource: null,
+        roomPickNo: null,
+        // Keep their myRank as their draft position
+        myRank: player.roomPickNo || player.myRank
+      };
+    }
+    
+    // Clear drafted status for all other players
+    return {
+      ...player,
+      drafted: false,
+      draftedAt: null,
+      draftedSource: null,
+      roomPickNo: null
+    };
+  });
+  
+  // Clear Sleeper sync state
+  state.sleeperSync = {
+    ...state.sleeperSync,
+    enabled: false,
+    lastPickCount: 0,
+    lastSyncAt: null,
+    lastResult: 'Draft board reset. Ready for new draft.',
+    unmatchedCount: 0,
+    unmatchedPicks: []
+  };
+  
+  stopSleeperSync('Draft board reset.');
+  
+  // Recalculate everything
+  syncDraftedPlayerIds();
+  calculatePositionalRanks();
+  state.autoTiering = true;
+  applyAutoTiering();
+  
+  saveState();
+  render();
+  console.log('Draft board reset complete');
+}
+
+function renderUnmatchedPicksSection() {
+  const unmatchedSection = document.getElementById('unmatched-picks-section');
+  const unmatchedList = document.getElementById('unmatched-picks-list');
+  
+  if (!unmatchedSection || !unmatchedList) {
+    return;
+  }
+  
+  const unmatchedPicks = state.sleeperSync?.unmatchedPicks || [];
+  
+  if (unmatchedPicks.length === 0) {
+    unmatchedSection.style.display = 'none';
+    return;
+  }
+  
+  unmatchedSection.style.display = 'block';
+  
+  const items = unmatchedPicks.map((pick) => {
+    const pickNo = pick.pickNo || '?';
+    const name = pick.name || 'Unknown';
+    const position = pick.position || '?';
+    const team = pick.team || '?';
+    
+    return `
+      <div class="unmatched-item">
+        <div class="player-info">
+          <span class="pick-no">Pick ${pickNo}</span>
+          <span>${name}</span>
+          <span>(${position} - ${team})</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  unmatchedList.innerHTML = items;
 }
 
 function renderDraftLists() {
@@ -1787,6 +2403,7 @@ function addUnmatchedPicksToBoard() {
       baseValue: Math.max(60, 100 - fallbackAdp * 0.5),
       tier: getTierForRank(state.players.length, state.players.length + 1),
       myRank: state.players.length + 1,
+      posRank: 0,
       drafted: true,
       draftedAt,
       draftedSource: 'sync',
@@ -1829,7 +2446,7 @@ function addUnmatchedPicksToBoard() {
   state.sort.key = 'myRank';
   state.sort.direction = 'asc';
   syncDraftedPlayerIds();
-  state.autoTiering = true;
+  calculatePositionalRanks();
   applyAutoTiering();
   state.liveDataStatus = `Imported ${added} unmatched Sleeper picks into your board as drafted players.`;
   return added;
@@ -1878,75 +2495,113 @@ function syncDraftedPlayerIds() {
   state.draftedPlayerIds = (state.players || []).filter((player) => player.drafted).map((player) => player.id);
 }
 
-function movePlayerToRank(playerId, requestedRank) {
-  const rankedPlayers = [...state.players].sort((a, b) => a.myRank - b.myRank || a.name.localeCompare(b.name));
-  const fromIndex = rankedPlayers.findIndex((player) => player.id === playerId);
-  if (fromIndex < 0) {
-    return false;
-  }
 
-  const clampedRank = Math.max(1, Math.min(rankedPlayers.length, Math.round(requestedRank)));
-  const toIndex = clampedRank - 1;
-  if (fromIndex === toIndex) {
-    return false;
-  }
-
-  const [moving] = rankedPlayers.splice(fromIndex, 1);
-  rankedPlayers.splice(toIndex, 0, moving);
-
-  rankedPlayers.forEach((player, index) => {
-    player.myRank = index + 1;
-  });
-
-  state.players = rankedPlayers;
-  return true;
-}
 
 function handleDragStart(event) {
-  const draggable = event.target.closest('[data-player-id]');
-  if (!draggable) {
+  // Find the player row - drag can start from anywhere in the row
+  const playerRow = event.target.closest('tr[data-player-id]');
+  if (!playerRow) {
+    console.log('Drag start: no player row found, target:', event.target);
     return;
   }
 
-  state.draggedPlayerId = draggable.dataset.playerId;
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', draggable.dataset.playerId);
+  // Check if the drag started from the first column (rank column with drag handle)
+  const firstCell = event.target.closest('td');
+  if (firstCell && firstCell.cellIndex !== 0) {
+    console.log('Drag start: not from first column, ignoring');
+    return;
   }
+
+  state.draggedPlayerId = playerRow.dataset.playerId;
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', playerRow.dataset.playerId);
+  
+  console.log('Drag started for player:', state.draggedPlayerId);
+  
+  // Add visual feedback
+  playerRow.style.opacity = '0.5';
 }
 
 function handleDragOver(event) {
-  if (event.target.closest('.tier-divider') || event.target.closest('tr[data-player-id]') || event.target.closest('.draft-bin')) {
+  const playerRow = event.target.closest('tr[data-player-id]');
+  const tierRow = event.target.closest('.tier-divider');
+  const draftBin = event.target.closest('.draft-bin');
+  
+  if (playerRow || tierRow || draftBin) {
     event.preventDefault();
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'move';
-    }
+    event.dataTransfer.dropEffect = 'move';
   }
 }
 
 function handleDrop(event) {
   event.preventDefault();
   const playerId = state.draggedPlayerId;
+  console.log('Drop event, dragged player:', playerId);
+  
   if (!playerId) {
+    console.log('Drop: no dragged player ID');
     return;
   }
 
   const player = state.players.find((entry) => entry.id === playerId);
   if (!player) {
+    console.log('Drop: player not found');
     return;
   }
 
-  const targetTierRow = event.target.closest('.tier-divider');
   const targetPlayerRow = event.target.closest('tr[data-player-id]');
+  const targetTierRow = event.target.closest('.tier-divider');
   const targetDraftBin = event.target.closest('.draft-bin');
 
-  if (targetTierRow) {
-    player.tier = Number(targetTierRow.dataset.tier);
-    state.autoTiering = false;
-  } else if (targetPlayerRow) {
+  console.log('Drop targets - player row:', !!targetPlayerRow, 'tier row:', !!targetTierRow, 'draft bin:', !!targetDraftBin);
+
+  if (targetPlayerRow) {
     const targetPlayer = state.players.find((entry) => entry.id === targetPlayerRow.dataset.playerId);
-    if (targetPlayer) {
-      player.tier = Number(targetPlayer.tier);
+    if (targetPlayer && targetPlayer.id !== player.id) {
+      console.log('Reordering players, from:', player.name, 'to:', targetPlayer.name);
+      
+      // Reorder players based on visible list (not just myRank)
+      const sortedPlayers = [...state.players].sort(comparePlayers);
+      const visiblePlayers = sortedPlayers.filter((p) => !p.drafted && matchesPositionFilter(p));
+      
+      const fromIndex = visiblePlayers.findIndex((p) => p.id === player.id);
+      const toIndex = visiblePlayers.findIndex((p) => p.id === targetPlayer.id);
+      
+      console.log('Reorder indices - from:', fromIndex, 'to:', toIndex);
+      
+      if (fromIndex !== -1 && toIndex !== -1) {
+        // Reorder in the visible list
+        const [moving] = visiblePlayers.splice(fromIndex, 1);
+        visiblePlayers.splice(toIndex, 0, moving);
+        
+        // Reassign myRank based on new order
+        visiblePlayers.forEach((p, index) => {
+          p.myRank = index + 1;
+        });
+        
+        // Update the moved player's tier to match the target position's tier
+        if (targetPlayer) {
+          moving.tier = targetPlayer.tier;
+        }
+        
+        // Update myRank for drafted players to maintain gaps
+        const draftedPlayers = sortedPlayers.filter(p => p.drafted);
+        draftedPlayers.forEach((p, index) => {
+          p.myRank = visiblePlayers.length + index + 1;
+        });
+        
+        calculatePositionalRanks();
+        state.autoTiering = false; // Don't auto-tier after manual reordering
+        
+        console.log('Reorder complete');
+      }
+    }
+  } else if (targetTierRow) {
+    // Move player to this tier
+    const targetTier = Number(targetTierRow.dataset.tier);
+    console.log('Moving player to tier:', targetTier);
+    if (Number.isFinite(targetTier)) {
+      player.tier = targetTier;
       state.autoTiering = false;
     }
   } else if (targetDraftBin?.dataset.action === 'draft') {
@@ -1958,6 +2613,101 @@ function handleDrop(event) {
   syncDraftedPlayerIds();
   saveState();
   render();
+}
+
+function handleDragEnd(event) {
+  // Clean up visual effects
+  document.querySelectorAll('tr[data-player-id]').forEach(row => {
+    row.style.opacity = '';
+    row.style.background = '';
+  });
+  state.draggedPlayerId = null;
+}
+
+function handleTierSelect(event) {
+  const target = event.target;
+  if (!target.classList.contains('tier-select')) {
+    return;
+  }
+
+  const row = target.closest('tr[data-player-id]');
+  if (!row) {
+    return;
+  }
+
+  const player = state.players.find((entry) => entry.id === row.dataset.playerId);
+  if (!player) {
+    return;
+  }
+
+  const newTier = Number(target.value);
+  if (Number.isFinite(newTier)) {
+    player.tier = newTier;
+    state.autoTiering = false;
+    saveState();
+    render();
+  }
+}
+
+function handleTierAction(event) {
+  const actionButton = event.target.closest('button');
+  if (!actionButton) {
+    return;
+  }
+
+  const action = actionButton.dataset.action || actionButton.id;
+  
+  console.log('Tier action clicked:', action, 'Button:', actionButton);
+  
+  if (action === 'add-tier' || actionButton.id === 'add-tier') {
+    console.log('Add tier clicked');
+    
+    // Add a new empty tier at the bottom
+    const maxTier = Math.max(...state.players.map(p => p.tier || 0), 0);
+    const newTier = maxTier + 1;
+    
+    console.log('Adding new tier:', newTier);
+    
+    state.autoTiering = false;
+    saveState();
+    render();
+    console.log('New tier added successfully');
+  } else if (action === 'delete-tier' || actionButton.id === 'delete-tier') {
+    // Check if a player is selected
+    const selectedPlayerId = state.ui?.selectedPlayerId;
+    
+    if (selectedPlayerId) {
+      const selectedPlayer = state.players.find(p => p.id === selectedPlayerId);
+      if (selectedPlayer) {
+        const selectedTier = selectedPlayer.tier || 1;
+        
+        // Don't allow deleting tier 1 (merge into nothing)
+        if (selectedTier <= 1) {
+          alert('Cannot delete Tier 1. Select a player in a higher tier to delete it.');
+          return;
+        }
+        
+        // Merge selected tier into the previous tier
+        const previousTier = selectedTier - 1;
+        
+        // Move all players from selected tier to previous tier
+        state.players.forEach(player => {
+          if (player.tier === selectedTier) {
+            player.tier = previousTier;
+          } else if (player.tier > selectedTier) {
+            player.tier = player.tier - 1;
+          }
+        });
+        
+        state.autoTiering = false;
+        saveState();
+        render();
+        console.log('Tier deleted successfully');
+      }
+    } else {
+      alert('Select a player in the tier you want to delete.');
+    }
+  }
 }
 
 function handleBoardClick(event) {
@@ -1989,73 +2739,15 @@ function handleBoardClick(event) {
     player.draftedSource = 'manual';
     player.roomPickNo = null;
     syncDraftedPlayerIds();
+    calculatePositionalRanks();
     saveState();
     render();
   }
 }
 
-function handleTableInput(event) {
-  const target = event.target;
-  if (!target.dataset.field) {
-    return;
-  }
 
-  const row = target.closest('tr[data-player-id]');
-  if (!row) {
-    return;
-  }
 
-  const player = state.players.find((entry) => entry.id === row.dataset.playerId);
-  if (!player) {
-    return;
-  }
 
-  if (target.dataset.field === 'myRank') {
-    const requestedRank = Number(target.value);
-    if (!Number.isFinite(requestedRank)) {
-      return;
-    }
-
-    movePlayerToRank(player.id, requestedRank);
-    state.sort.key = 'myRank';
-    state.sort.direction = 'asc';
-    state.autoTiering = true;
-    applyAutoTiering();
-  }
-
-  saveState();
-  render();
-}
-
-function handleRankArrowClick(event) {
-  const target = event.target;
-  if (!target.classList.contains('rank-arrow')) {
-    return;
-  }
-
-  const row = target.closest('tr[data-player-id]');
-  if (!row) {
-    return;
-  }
-
-  const player = state.players.find((entry) => entry.id === row.dataset.playerId);
-  if (!player) {
-    return;
-  }
-
-  if (target.classList.contains('rank-up')) {
-    movePlayerToRank(player.id, player.myRank - 1);
-  } else if (target.classList.contains('rank-down')) {
-    movePlayerToRank(player.id, player.myRank + 1);
-  }
-
-  state.sort.key = 'myRank';
-  state.sort.direction = 'asc';
-  state.autoTiering = true;
-  applyAutoTiering();
-  saveState();
-  render();
-}
 
 function handleTrackerClick(event) {
   const actionButton = event.target.closest('button[data-action]');
@@ -2079,6 +2771,7 @@ function handleTrackerClick(event) {
     player.draftedSource = null;
     player.roomPickNo = null;
     syncDraftedPlayerIds();
+    calculatePositionalRanks();
     saveState();
     render();
   }

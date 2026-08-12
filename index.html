@@ -7,152 +7,127 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <div id="username-modal" class="modal-overlay" style="display: none;">
+      <div class="modal-content">
+        <h2>Enter your name</h2>
+        <p>Your draft sheet will be saved under this name with password protection.</p>
+        <input id="username-input" type="text" placeholder="Your name" maxlength="30" />
+        <input id="password-input" type="password" placeholder="Password" maxlength="50" />
+        <button id="username-submit">Start drafting</button>
+        <button id="username-cancel" class="ghost">Cancel</button>
+      </div>
+    </div>
+    
     <div class="app-shell">
-      <header class="hero">
-        <div>
-          <p class="eyebrow">Fantasy football cheat sheet builder</p>
-          <h1>Build, compare, and tier your draft board</h1>
-          <p class="hero-copy">
-            Compare your personal rankings against ESPN and Yahoo ADP to shape your draft strategy.
-          </p>
+      <header class="top-bar">
+        <div class="logo-section">
+          <h1>Fantasy Draft Sheet</h1>
+        </div>
+        <div class="settings-bar">
+          <select id="scoring-format" class="compact-select">
+            <option value="standard">Standard</option>
+            <option value="half">Half-PPR</option>
+            <option value="ppr">PPR</option>
+          </select>
+          <select id="qb-slots" class="compact-select">
+            <option value="1">1 QB</option>
+            <option value="2">2 QB</option>
+            <option value="3">3 QB</option>
+            <option value="4">4 QB</option>
+          </select>
+          <select id="rb-slots" class="compact-select">
+            <option value="1">1 RB</option>
+            <option value="2">2 RB</option>
+            <option value="3">3 RB</option>
+            <option value="4">4 RB</option>
+            <option value="5">5 RB</option>
+            <option value="6">6 RB</option>
+          </select>
+          <select id="wr-slots" class="compact-select">
+            <option value="1">1 WR</option>
+            <option value="2">2 WR</option>
+            <option value="3">3 WR</option>
+            <option value="4">4 WR</option>
+            <option value="5">5 WR</option>
+            <option value="6">6 WR</option>
+          </select>
+          <select id="te-slots" class="compact-select">
+            <option value="1">1 TE</option>
+            <option value="2">2 TE</option>
+            <option value="3">3 TE</option>
+            <option value="4">4 TE</option>
+          </select>
+          <select id="flex-slots" class="compact-select">
+            <option value="0">0 FLEX</option>
+            <option value="1">1 FLEX</option>
+            <option value="2">2 FLEX</option>
+            <option value="3">3 FLEX</option>
+          </select>
+          <label class="checkbox-label">
+            <input id="superflex" type="checkbox" />
+            Superflex
+          </label>
+          <button id="auto-rank" class="compact-button">Auto-rank</button>
+          <input id="sleeper-draft-id" type="text" placeholder="Sleeper Draft ID" class="compact-input" />
+          <button id="submit-sleeper-id" class="compact-button">Submit</button>
+        </div>
+        <div class="user-section">
+          <span id="user-display"></span>
+          <button id="login-button" class="ghost compact-button">Login</button>
+          <button id="logout-button" class="ghost compact-button" style="display: none;">Logout</button>
         </div>
       </header>
 
-      <section class="panel settings-panel">
-        <div class="panel-heading">
-          <h2>League settings</h2>
-          <p>Adjust the fields below and create a ranking that fits your roster construction.</p>
-        </div>
-        <form id="settings-form" class="settings-grid">
-          <label>
-            Scoring format
-            <select id="scoring-format">
-              <option value="standard">Standard</option>
-              <option value="half">Half-PPR</option>
-              <option value="ppr">PPR</option>
-            </select>
-          </label>
-
-          <label>
-            QB slots
-            <input id="qb-slots" type="number" min="1" max="4" value="1" />
-          </label>
-
-          <label>
-            RB slots
-            <input id="rb-slots" type="number" min="1" max="6" value="2" />
-          </label>
-
-          <label>
-            WR slots
-            <input id="wr-slots" type="number" min="1" max="6" value="3" />
-          </label>
-
-          <label>
-            TE slots
-            <input id="te-slots" type="number" min="1" max="4" value="1" />
-          </label>
-
-          <label>
-            Flex slots
-            <input id="flex-slots" type="number" min="0" max="3" value="1" />
-          </label>
-
-          <label>
-            Bench spots
-            <input id="bench-slots" type="number" min="1" max="8" value="5" />
-          </label>
-
-          <label>
-            Roster size
-            <input id="roster-size" type="number" min="12" max="20" value="16" />
-          </label>
-
-          <div class="button-row">
-            <button type="submit">Apply settings</button>
-            <button type="button" id="auto-rank">Auto-rank players</button>
-            <button type="button" id="load-live-data" class="ghost">Load live rankings</button>
-            <button type="button" id="save-rankings" class="ghost">Save custom rankings</button>
-            <button type="button" id="apply-saved-rankings" class="ghost">Apply saved rankings</button>
-            <button type="button" id="reset-data" class="ghost">Reset</button>
+      <div class="main-content">
+        <div class="filters-bar">
+          <div class="position-filters" id="position-filters" aria-label="Position filters">
+            <button type="button" class="chip-filter is-active" data-filter="ALL">All</button>
+            <button type="button" class="chip-filter" data-filter="QB">QB</button>
+            <button type="button" class="chip-filter" data-filter="RB">RB</button>
+            <button type="button" class="chip-filter" data-filter="WR">WR</button>
+            <button type="button" class="chip-filter" data-filter="TE">TE</button>
+            <button type="button" class="chip-filter" data-filter="K">K</button>
+            <button type="button" class="chip-filter" data-filter="DEF">DEF</button>
           </div>
-
-          <div class="sleeper-sync-row">
-            <label for="sleeper-draft-id">Sleeper draft ID</label>
-            <input id="sleeper-draft-id" type="text" placeholder="Paste Sleeper draft URL or draft ID" />
-            <div class="button-row sleeper-sync-actions">
-              <button type="button" id="toggle-sleeper-sync" class="ghost">Start Sleeper sync</button>
-              <button type="button" id="sync-sleeper-now" class="ghost">Sync now</button>
-            </div>
+          <div class="action-buttons">
+            <button id="add-tier" class="ghost compact-button">+ Add Tier</button>
+            <button id="delete-tier" class="ghost compact-button">- Delete Tier</button>
+            <button id="save-rankings" class="ghost compact-button">Save</button>
+            <button id="apply-saved-rankings" class="ghost compact-button">Load</button>
+            <button id="reset-board" class="ghost compact-button">Reset Board</button>
           </div>
-        </form>
-
-        <div id="settings-summary" class="summary-box"></div>
-        <div id="data-status" class="summary-box"></div>
-      </section>
-
-      <section class="panel draft-panel">
-        <div class="table-toolbar">
-          <div>
-            <h2>Draft board</h2>
-            <p>Drag players into a tier to move them inside the same board and compare them by ADP columns.</p>
-          </div>
-          <div class="legend">Tier 1 = elite, tiers expand automatically after 25 players</div>
         </div>
 
-        <div id="draft-signals" class="draft-signals" aria-live="polite"></div>
+        <div id="ranking-status" class="ranking-status-bar"></div>
 
-        <div class="position-filters" id="position-filters" aria-label="Position filters">
-          <button type="button" class="chip-filter is-active" data-filter="ALL">Overall</button>
-          <button type="button" class="chip-filter" data-filter="QB">QB</button>
-          <button type="button" class="chip-filter" data-filter="RB">RB</button>
-          <button type="button" class="chip-filter" data-filter="WR">WR</button>
-          <button type="button" class="chip-filter" data-filter="TE">TE</button>
-          <button type="button" class="chip-filter" data-filter="K">K</button>
-          <button type="button" class="chip-filter" data-filter="DEF">DEF</button>
-        </div>
-
-        <div class="table-wrap comparison-wrap">
-          <table class="comparison-table">
+        <div class="table-container">
+          <table class="rankings-table">
             <thead>
               <tr>
+                <th data-key="myRank">Rank</th>
                 <th data-key="player">Player</th>
-                <th data-key="myRank">My rank</th>
                 <th data-key="position">Pos</th>
                 <th data-key="team">Team</th>
-                <th data-key="espn">ESPN ADP</th>
-                <th data-key="yahoo">Yahoo ADP</th>
-                <th data-key="averageAdp">Draft ADP (Live)</th>
+                <th data-key="espn">ESPN</th>
+                <th data-key="yahoo">Yahoo</th>
+                <th data-key="sleeperAdp">Sleeper</th>
+                <th data-key="averageAdp">ADP</th>
               </tr>
             </thead>
             <tbody id="rankings-body"></tbody>
           </table>
         </div>
-      </section>
 
-      <section class="panel tracker-panel">
-        <div class="panel-heading">
-          <h2>Draft tracker</h2>
-          <p>Your list updates as you draft so the board stays in sync.</p>
+        <div id="settings-summary" class="status-bar"></div>
+        <div id="data-status" class="status-bar"></div>
+        
+        <div id="unmatched-picks-section" class="unmatched-section" style="display: none;">
+          <h3>Unmatched Sleeper Picks</h3>
+          <p>These players were drafted in Sleeper but couldn't be matched to your board. Click "Add to Board" to add them.</p>
+          <div id="unmatched-picks-list" class="unmatched-list"></div>
+          <button id="add-unmatched-to-board" data-action="add-unmatched-to-board" class="compact-button">Add to Board</button>
         </div>
-
-        <div class="tracker-grid">
-          <div class="tracker-column">
-            <h3>Drafted</h3>
-            <div id="drafted-list" class="draft-bin" data-action="draft"></div>
-          </div>
-          <div class="tracker-column">
-            <h3>Remaining</h3>
-            <div id="remaining-list" class="draft-bin"></div>
-          </div>
-        </div>
-
-        <div class="unmatched-panel">
-          <h3>Unmatched picks</h3>
-          <p>Sleeper picks we could not map to a player on your current board.</p>
-          <div id="unmatched-picks-panel" class="draft-bin unmatched-bin"></div>
-        </div>
-      </section>
+      </div>
     </div>
 
     <script src="app.js"></script>

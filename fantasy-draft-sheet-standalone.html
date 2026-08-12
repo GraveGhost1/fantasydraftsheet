@@ -51,8 +51,165 @@ textarea {
   max-width: 1400px;
   margin: 0 auto;
   padding: 24px;
-  display: grid;
-  gap: 20px;
+}
+
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.logo-section h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.settings-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.compact-select {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  min-height: 32px;
+  cursor: pointer;
+}
+
+.compact-select:hover {
+  border-color: var(--accent);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.checkbox-label input {
+  width: auto;
+  min-height: auto;
+  cursor: pointer;
+}
+
+.compact-input {
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--panel-2);
+  color: var(--text);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  min-height: 32px;
+  min-width: 150px;
+}
+
+.compact-input:hover {
+  border-color: var(--accent);
+}
+
+.compact-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(110, 231, 249, 0.2);
+}
+
+.compact-button {
+  padding: 6px 16px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  min-height: 32px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.compact-button:hover {
+  border-color: var(--accent);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.ranking-status-bar {
+  padding: 12px 24px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.filters-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.position-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chip-filter {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  background: var(--header-bg);
+  color: var(--muted);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chip-filter:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.chip-filter.is-active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.ghost:hover {
+  border-color: var(--accent);
+  color: var(--text);
 }
 
 .hero,
@@ -65,6 +222,9 @@ textarea {
 
 .hero {
   padding: 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .eyebrow {
@@ -262,6 +422,85 @@ button.ghost {
   margin-bottom: 0;
 }
 
+.compact-input {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  min-height: 32px;
+  min-width: 150px;
+}
+
+.compact-input:hover {
+  border-color: var(--accent);
+}
+
+.compact-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.unmatched-section {
+  margin-top: 20px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.unmatched-section h3 {
+  margin: 0 0 8px 0;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.unmatched-section p {
+  margin: 0 0 12px 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.unmatched-list {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+  padding: 8px;
+  background: var(--bg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+}
+
+.unmatched-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  margin-bottom: 4px;
+  background: var(--panel-2);
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.unmatched-item:last-child {
+  margin-bottom: 0;
+}
+
+.unmatched-item .player-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.unmatched-item .pick-no {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .table-wrap {
   overflow-x: auto;
 }
@@ -304,8 +543,9 @@ table {
 }
 
 .comparison-table tbody tr.selected-row {
-  outline: 1px solid rgba(142, 231, 255, 0.7);
-  background: rgba(142, 231, 255, 0.12);
+  outline: 2px solid rgba(142, 231, 255, 0.9);
+  background: rgba(142, 231, 255, 0.2) !important;
+  box-shadow: 0 0 10px rgba(142, 231, 255, 0.3);
 }
 
 .player-cell {
@@ -316,6 +556,32 @@ table {
 
 .player-name {
   font-weight: 500;
+}
+
+.drag-handle {
+  cursor: grab;
+  color: var(--muted);
+  padding: 4px 8px 4px 4px;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  vertical-align: middle;
+}
+
+.drag-handle:hover {
+  color: var(--text);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.drag-handle::before {
+  content: '⋮⋮';
+  font-size: 1.2rem;
+  letter-spacing: -2px;
+  line-height: 1;
 }
 
 .table-tag {
@@ -361,10 +627,6 @@ table {
   opacity: 0.45;
 }
 
-.comparison-table .pos-pill {
-  min-width: 48px;
-}
-
 .pos-pill,
 .tier-pill {
   display: inline-flex;
@@ -375,6 +637,99 @@ table {
   font-size: 0.86rem;
   font-weight: 700;
   background: rgba(255, 255, 255, 0.08);
+  min-width: 50px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Position-specific colors */
+.pos-pill.pos-qb {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.pos-pill.pos-rb {
+  background: rgba(34, 197, 94, 0.2);
+  color: #86efac;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.pos-pill.pos-wr {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.pos-pill.pos-te {
+  background: rgba(168, 85, 247, 0.2);
+  color: #c4b5fd;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.pos-pill.pos-k {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fcd34d;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.pos-pill.pos-def {
+  background: rgba(107, 114, 128, 0.2);
+  color: #d1d5db;
+  border: 1px solid rgba(107, 114, 128, 0.3);
+}
+
+.pos-pill.pos-flex {
+  background: rgba(236, 72, 153, 0.2);
+  color: #f9a8d4;
+  border: 1px solid rgba(236, 72, 153, 0.3);
+}
+
+.tier-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  background: rgba(255, 255, 255, 0.1);
+  min-width: 50px;
+}
+
+.tier-pill.t1 { background: rgba(110, 231, 249, 0.16); color: var(--accent); }
+.tier-pill.t2 { background: rgba(122, 201, 255, 0.16); color: #94cfff; }
+.tier-pill.t3 { background: rgba(125, 139, 255, 0.16); color: #a2adff; }
+.tier-pill.t4 { background: rgba(151, 117, 255, 0.16); color: #bfa7ff; }
+.tier-pill.t5 { background: rgba(255, 153, 102, 0.16); color: #ffb47a; }
+.tier-pill.t6 { background: rgba(255, 107, 107, 0.16); color: var(--danger); }
+.tier-pill.t7 { background: rgba(255, 214, 102, 0.16); color: #ffd36a; }
+.tier-pill.t8 { background: rgba(131, 205, 146, 0.16); color: #b4e4b8; }
+.tier-pill.t9 { background: rgba(255, 125, 175, 0.16); color: #ffb1cf; }
+.tier-pill.t10 { background: rgba(255, 255, 255, 0.1); color: #e8ecf5; }
+
+.tier-divider td {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.tier-divider td:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tier-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.tier-divider-count {
+  margin-left: 10px;
+  color: var(--muted);
+  font-size: 0.86rem;
 }
 
 .tier-pill.t1 { background: rgba(110, 231, 249, 0.16); color: var(--accent); }
@@ -401,6 +756,7 @@ input.small::-webkit-inner-spin-button {
 
 input.small {
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 select.small {
@@ -414,42 +770,7 @@ select.small {
   gap: 4px;
 }
 
-.rank-arrow {
-  min-height: auto;
-  min-width: 28px;
-  height: 28px;
-  width: 28px;
-  padding: 0;
-  border-radius: 6px;
-  background: rgba(110, 231, 249, 0.12);
-  color: var(--accent);
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  border: 1px solid rgba(110, 231, 249, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-}
 
-.rank-arrow:hover:not(:disabled) {
-  background: rgba(110, 231, 249, 0.25);
-  border-color: rgba(110, 231, 249, 0.5);
-  transform: translateY(-1px);
-}
-
-.rank-arrow:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.rank-arrow:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.1);
-  color: var(--muted);
-}
 
 .tiers-grid {
   display: grid;
@@ -737,106 +1058,148 @@ select.small {
   }
 
 }
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 32px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+}
+
+.modal-content h2 {
+  margin: 0 0 12px;
+  color: var(--accent);
+}
+
+.modal-content p {
+  margin: 0 0 20px;
+  color: var(--muted);
+}
+
+.modal-content input {
+  width: 100%;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.modal-content button {
+  width: 100%;
+}
+
+.login-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 150px;
+  justify-content: flex-end;
+}
+
+.login-section span {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.login-section button {
+  min-width: 80px;
+}
+
+#login-button {
+  display: inline-block !important;
+}
     </style>
   </head>
   <body>
+    <div id="username-modal" class="modal-overlay" style="display: none;">
+      <div class="modal-content">
+        <h2>Enter your name</h2>
+        <p>Your draft sheet will be saved under this name with password protection.</p>
+        <input id="username-input" type="text" placeholder="Your name" maxlength="30" />
+        <input id="password-input" type="password" placeholder="Password" maxlength="50" />
+        <button id="username-submit">Start drafting</button>
+        <button id="username-cancel" class="ghost">Cancel</button>
+      </div>
+    </div>
     <div class="app-shell">
-      <header class="hero">
-        <div>
-          <p class="eyebrow">Fantasy football cheat sheet builder</p>
-          <h1>Build, compare, and tier your draft board</h1>
-          <p class="hero-copy">
-            Compare your personal rankings against ESPN and Yahoo ADP to shape your draft strategy.
-          </p>
+      <header class="top-bar">
+        <div class="logo-section">
+          <h1>Fantasy Draft Sheet</h1>
+        </div>
+        <div class="settings-bar">
+          <select id="scoring-format" class="compact-select">
+            <option value="standard">Standard</option>
+            <option value="half">Half-PPR</option>
+            <option value="ppr">PPR</option>
+          </select>
+          <select id="qb-slots" class="compact-select">
+            <option value="1">1 QB</option>
+            <option value="2">2 QB</option>
+            <option value="3">3 QB</option>
+            <option value="4">4 QB</option>
+          </select>
+          <select id="rb-slots" class="compact-select">
+            <option value="1">1 RB</option>
+            <option value="2">2 RB</option>
+            <option value="3">3 RB</option>
+            <option value="4">4 RB</option>
+            <option value="5">5 RB</option>
+            <option value="6">6 RB</option>
+          </select>
+          <select id="wr-slots" class="compact-select">
+            <option value="1">1 WR</option>
+            <option value="2">2 WR</option>
+            <option value="3">3 WR</option>
+            <option value="4">4 WR</option>
+            <option value="5">5 WR</option>
+            <option value="6">6 WR</option>
+          </select>
+          <select id="te-slots" class="compact-select">
+            <option value="1">1 TE</option>
+            <option value="2">2 TE</option>
+            <option value="3">3 TE</option>
+            <option value="4">4 TE</option>
+          </select>
+          <select id="flex-slots" class="compact-select">
+            <option value="0">0 FLEX</option>
+            <option value="1">1 FLEX</option>
+            <option value="2">2 FLEX</option>
+            <option value="3">3 FLEX</option>
+          </select>
+          <label class="checkbox-label">
+            <input id="superflex" type="checkbox" />
+            Superflex
+          </label>
+          <button id="auto-rank" class="compact-button">Auto-rank</button>
+          <input id="sleeper-draft-id" type="text" placeholder="Sleeper Draft ID" class="compact-input" />
+          <button id="submit-sleeper-id" class="compact-button">Submit</button>
+        </div>
+        <div class="user-section">
+          <span id="user-display"></span>
+          <button id="login-button" class="ghost compact-button">Login</button>
+          <button id="logout-button" class="ghost compact-button" style="display: none;">Logout</button>
         </div>
       </header>
 
-      <section class="panel settings-panel">
-        <div class="panel-heading">
-          <h2>League settings</h2>
-          <p>Adjust the fields below and create a ranking that fits your roster construction.</p>
-        </div>
-        <form id="settings-form" class="settings-grid">
-          <label>
-            Scoring format
-            <select id="scoring-format">
-              <option value="standard">Standard</option>
-              <option value="half">Half-PPR</option>
-              <option value="ppr">PPR</option>
-            </select>
-          </label>
+      <div id="ranking-status" class="ranking-status-bar"></div>
 
-          <label>
-            QB slots
-            <input id="qb-slots" type="number" min="1" max="4" value="1" />
-          </label>
-
-          <label>
-            RB slots
-            <input id="rb-slots" type="number" min="1" max="6" value="2" />
-          </label>
-
-          <label>
-            WR slots
-            <input id="wr-slots" type="number" min="1" max="6" value="3" />
-          </label>
-
-          <label>
-            TE slots
-            <input id="te-slots" type="number" min="1" max="4" value="1" />
-          </label>
-
-          <label>
-            Flex slots
-            <input id="flex-slots" type="number" min="0" max="3" value="1" />
-          </label>
-
-          <label>
-            Bench spots
-            <input id="bench-slots" type="number" min="1" max="8" value="5" />
-          </label>
-
-          <label>
-            Roster size
-            <input id="roster-size" type="number" min="12" max="20" value="16" />
-          </label>
-
-          <div class="button-row">
-            <button type="submit">Apply settings</button>
-            <button type="button" id="auto-rank">Auto-rank players</button>
-            <button type="button" id="load-live-data" class="ghost">Load live rankings</button>
-            <button type="button" id="save-rankings" class="ghost">Save custom rankings</button>
-            <button type="button" id="apply-saved-rankings" class="ghost">Apply saved rankings</button>
-            <button type="button" id="reset-data" class="ghost">Reset</button>
-          </div>
-
-          <div class="sleeper-sync-row">
-            <label for="sleeper-draft-id">Sleeper draft ID</label>
-            <input id="sleeper-draft-id" type="text" placeholder="Paste Sleeper draft URL or draft ID" />
-            <div class="button-row sleeper-sync-actions">
-              <button type="button" id="toggle-sleeper-sync" class="ghost">Start Sleeper sync</button>
-              <button type="button" id="sync-sleeper-now" class="ghost">Sync now</button>
-            </div>
-          </div>
-        </form>
-
-        <div id="settings-summary" class="summary-box"></div>
-        <div id="data-status" class="summary-box"></div>
-      </section>
-
-      <section class="panel draft-panel">
-        <div class="table-toolbar">
-          <div>
-            <h2>Draft board</h2>
-            <p>Drag players into a tier to move them inside the same board and compare them by ADP columns.</p>
-          </div>
-          <div class="legend">Tier 1 = elite, tiers expand automatically after 25 players</div>
-        </div>
-
-        <div id="draft-signals" class="draft-signals" aria-live="polite"></div>
-
+      <div class="filters-bar">
         <div class="position-filters" id="position-filters" aria-label="Position filters">
-          <button type="button" class="chip-filter is-active" data-filter="ALL">Overall</button>
+          <button type="button" class="chip-filter is-active" data-filter="ALL">All</button>
           <button type="button" class="chip-filter" data-filter="QB">QB</button>
           <button type="button" class="chip-filter" data-filter="RB">RB</button>
           <button type="button" class="chip-filter" data-filter="WR">WR</button>
@@ -844,18 +1207,28 @@ select.small {
           <button type="button" class="chip-filter" data-filter="K">K</button>
           <button type="button" class="chip-filter" data-filter="DEF">DEF</button>
         </div>
+        <div class="action-buttons">
+          <button id="add-tier" class="ghost compact-button">+ Add Tier</button>
+          <button id="delete-tier" class="ghost compact-button">- Delete Tier</button>
+          <button id="save-rankings" class="ghost compact-button">Save</button>
+          <button id="apply-saved-rankings" class="ghost compact-button">Load</button>
+          <button id="reset-board" class="ghost compact-button">Reset Board</button>
+        </div>
+      </div>
 
-        <div class="table-wrap comparison-wrap">
-          <table class="comparison-table">
+      <section class="panel draft-panel">
+        <div class="table-container">
+          <table class="rankings-table">
             <thead>
               <tr>
+                <th data-key="myRank">Rank</th>
                 <th data-key="player">Player</th>
-                <th data-key="myRank">My rank</th>
                 <th data-key="position">Pos</th>
                 <th data-key="team">Team</th>
-                <th data-key="espn">ESPN ADP</th>
-                <th data-key="yahoo">Yahoo ADP</th>
-                <th data-key="averageAdp">Draft ADP (Live)</th>
+                <th data-key="espn">ESPN</th>
+                <th data-key="yahoo">Yahoo</th>
+                <th data-key="sleeperAdp">Sleeper</th>
+                <th data-key="averageAdp">ADP</th>
               </tr>
             </thead>
             <tbody id="rankings-body"></tbody>
@@ -863,34 +1236,16 @@ select.small {
         </div>
       </section>
 
-      <section class="panel tracker-panel">
-        <div class="panel-heading">
-          <h2>Draft tracker</h2>
-          <p>Your list updates as you draft so the board stays in sync.</p>
-        </div>
-
-        <div class="tracker-grid">
-          <div class="tracker-column">
-            <h3>Drafted</h3>
-            <div id="drafted-list" class="draft-bin" data-action="draft"></div>
-          </div>
-          <div class="tracker-column">
-            <h3>Remaining</h3>
-            <div id="remaining-list" class="draft-bin"></div>
-          </div>
-        </div>
-
-        <div class="unmatched-panel">
-          <h3>Unmatched picks</h3>
-          <p>Sleeper picks we could not map to a player on your current board.</p>
-          <div id="unmatched-picks-panel" class="draft-bin unmatched-bin"></div>
-        </div>
+      <section class="panel unmatched-panel">
+        <h3>Unmatched picks</h3>
+        <p>Sleeper picks we could not map to a player on your current board.</p>
+        <div id="unmatched-picks-panel" class="draft-bin unmatched-bin"></div>
+        <button id="add-unmatched-to-board" data-action="add-unmatched-to-board" class="compact-button">Add to Board</button>
       </section>
     </div>
 
     <script>
 const STORAGE_KEY = 'fantasy-draft-sheet-state';
-const MAX_TIER_SIZE = 25;
 const OPENING_TIER_SIZES = [3, 8, 10, 12, 15];
 const SLEEPER_SYNC_INTERVAL_MS = 1000;
 const DEFAULT_FETCH_TIMEOUT_MS = 12000;
@@ -901,32 +1256,34 @@ let sleeperSyncTimer = null;
 let sleeperPlayersByIdCache = null;
 let sleeperSyncInFlight = false;
 let sleeperSyncLoopActive = false;
+let currentUsername = null;
+let currentPassword = null;
 
 const basePlayers = [
-  { id: 'allen', name: 'Josh Allen', position: 'QB', team: 'BUF', baseValue: 96, espn: 2.2, yahoo: 2.7 },
-  { id: 'mcaffrey', name: 'Christian McCaffrey', position: 'RB', team: 'SF', baseValue: 98, espn: 1.2, yahoo: 1.4 },
-  { id: 'hill', name: 'Tyreek Hill', position: 'WR', team: 'MIA', baseValue: 95, espn: 2.4, yahoo: 2.6 },
-  { id: 'ekeler', name: 'Austin Ekeler', position: 'RB', team: 'WAS', baseValue: 90, espn: 3.5, yahoo: 3.8 },
-  { id: 'lamb', name: 'CeeDee Lamb', position: 'WR', team: 'DAL', baseValue: 94, espn: 2.8, yahoo: 3.0 },
-  { id: 'hurts', name: 'Jalen Hurts', position: 'QB', team: 'PHI', baseValue: 92, espn: 4.8, yahoo: 4.9 },
-  { id: 'breece', name: 'Breece Hall', position: 'RB', team: 'NYJ', baseValue: 88, espn: 4.2, yahoo: 4.6 },
-  { id: 'waller', name: 'Darren Waller', position: 'TE', team: 'MIA', baseValue: 85, espn: 5.1, yahoo: 5.3 },
-  { id: 'murray', name: 'Kyler Murray', position: 'QB', team: 'ARI', baseValue: 89, espn: 6.5, yahoo: 6.7 },
-  { id: 'achane', name: "De'Von Achane", position: 'RB', team: 'MIA', baseValue: 86, espn: 7.0, yahoo: 7.2 },
-  { id: 'nabers', name: 'Malik Nabers', position: 'WR', team: 'NYG', baseValue: 87, espn: 7.3, yahoo: 7.6 },
-  { id: 'puka', name: 'Puka Nacua', position: 'WR', team: 'LAR', baseValue: 84, espn: 8.1, yahoo: 8.3 },
-  { id: 'kelce', name: 'Travis Kelce', position: 'TE', team: 'KC', baseValue: 91, espn: 4.1, yahoo: 4.3 },
-  { id: 'diggs', name: 'Stefon Diggs', position: 'WR', team: 'HOU', baseValue: 83, espn: 8.8, yahoo: 9.0 },
-  { id: 'gibbs', name: 'Jahmyr Gibbs', position: 'RB', team: 'DET', baseValue: 93, espn: 3.2, yahoo: 3.4 },
-  { id: 'herbert', name: 'Justin Herbert', position: 'QB', team: 'LAC', baseValue: 82, espn: 9.6, yahoo: 9.7 },
-  { id: 'kincaid', name: 'Dalton Kincaid', position: 'TE', team: 'BUF', baseValue: 81, espn: 9.8, yahoo: 10.0 },
-  { id: 'dobbins', name: 'Gus Edwards', position: 'RB', team: 'LAC', baseValue: 79, espn: 10.2, yahoo: 10.4 },
-  { id: 'rice', name: 'Rashee Rice', position: 'WR', team: 'KC', baseValue: 80, espn: 10.5, yahoo: 10.7 },
-  { id: 'lawrence', name: 'Trevor Lawrence', position: 'QB', team: 'JAX', baseValue: 78, espn: 11.1, yahoo: 11.2 },
-  { id: 'sam', name: 'Sam LaPorta', position: 'TE', team: 'DET', baseValue: 88, espn: 6.8, yahoo: 7.0 },
-  { id: 'djk', name: 'D.J. Moore', position: 'WR', team: 'CHI', baseValue: 77, espn: 12.0, yahoo: 12.1 },
-  { id: 'davis', name: 'Mike Davis', position: 'RB', team: 'FA', baseValue: 74, espn: 15.0, yahoo: 15.2 },
-  { id: 'matt', name: 'Matthew Stafford', position: 'QB', team: 'LAR', baseValue: 76, espn: 13.2, yahoo: 13.3 }
+  { id: 'allen', name: 'Josh Allen', position: 'QB', team: 'BUF', baseValue: 96, espn: 2.2, yahoo: 2.7, sleeperAdp: null },
+  { id: 'mcaffrey', name: 'Christian McCaffrey', position: 'RB', team: 'SF', baseValue: 98, espn: 1.2, yahoo: 1.4, sleeperAdp: null },
+  { id: 'hill', name: 'Tyreek Hill', position: 'WR', team: 'MIA', baseValue: 95, espn: 2.4, yahoo: 2.6, sleeperAdp: null },
+  { id: 'ekeler', name: 'Austin Ekeler', position: 'RB', team: 'WAS', baseValue: 90, espn: 3.5, yahoo: 3.8, sleeperAdp: null },
+  { id: 'lamb', name: 'CeeDee Lamb', position: 'WR', team: 'DAL', baseValue: 94, espn: 2.8, yahoo: 3.0, sleeperAdp: null },
+  { id: 'hurts', name: 'Jalen Hurts', position: 'QB', team: 'PHI', baseValue: 92, espn: 4.8, yahoo: 4.9, sleeperAdp: null },
+  { id: 'breece', name: 'Breece Hall', position: 'RB', team: 'NYJ', baseValue: 88, espn: 4.2, yahoo: 4.6, sleeperAdp: null },
+  { id: 'waller', name: 'Darren Waller', position: 'TE', team: 'MIA', baseValue: 85, espn: 5.1, yahoo: 5.3, sleeperAdp: null },
+  { id: 'murray', name: 'Kyler Murray', position: 'QB', team: 'ARI', baseValue: 89, espn: 6.5, yahoo: 6.7, sleeperAdp: null },
+  { id: 'achane', name: "De'Von Achane", position: 'RB', team: 'MIA', baseValue: 86, espn: 7.0, yahoo: 7.2, sleeperAdp: null },
+  { id: 'nabers', name: 'Malik Nabers', position: 'WR', team: 'NYG', baseValue: 87, espn: 7.3, yahoo: 7.6, sleeperAdp: null },
+  { id: 'puka', name: 'Puka Nacua', position: 'WR', team: 'LAR', baseValue: 84, espn: 8.1, yahoo: 8.3, sleeperAdp: null },
+  { id: 'kelce', name: 'Travis Kelce', position: 'TE', team: 'KC', baseValue: 91, espn: 4.1, yahoo: 4.3, sleeperAdp: null },
+  { id: 'diggs', name: 'Stefon Diggs', position: 'WR', team: 'HOU', baseValue: 83, espn: 8.8, yahoo: 9.0, sleeperAdp: null },
+  { id: 'gibbs', name: 'Jahmyr Gibbs', position: 'RB', team: 'DET', baseValue: 93, espn: 3.2, yahoo: 3.4, sleeperAdp: null },
+  { id: 'herbert', name: 'Justin Herbert', position: 'QB', team: 'LAC', baseValue: 82, espn: 9.6, yahoo: 9.7, sleeperAdp: null },
+  { id: 'kincaid', name: 'Dalton Kincaid', position: 'TE', team: 'BUF', baseValue: 81, espn: 9.8, yahoo: 10.0, sleeperAdp: null },
+  { id: 'dobbins', name: 'Gus Edwards', position: 'RB', team: 'LAC', baseValue: 79, espn: 10.2, yahoo: 10.4, sleeperAdp: null },
+  { id: 'rice', name: 'Rashee Rice', position: 'WR', team: 'KC', baseValue: 80, espn: 10.5, yahoo: 10.7, sleeperAdp: null },
+  { id: 'lawrence', name: 'Trevor Lawrence', position: 'QB', team: 'JAX', baseValue: 78, espn: 11.1, yahoo: 11.2, sleeperAdp: null },
+  { id: 'sam', name: 'Sam LaPorta', position: 'TE', team: 'DET', baseValue: 88, espn: 6.8, yahoo: 7.0, sleeperAdp: null },
+  { id: 'djk', name: 'D.J. Moore', position: 'WR', team: 'CHI', baseValue: 77, espn: 12.0, yahoo: 12.1, sleeperAdp: null },
+  { id: 'davis', name: 'Mike Davis', position: 'RB', team: 'FA', baseValue: 74, espn: 15.0, yahoo: 15.2, sleeperAdp: null },
+  { id: 'matt', name: 'Matthew Stafford', position: 'QB', team: 'LAR', baseValue: 76, espn: 13.2, yahoo: 13.3, sleeperAdp: null }
 ];
 
 const defaultState = {
@@ -956,7 +1313,9 @@ const defaultState = {
     draftProgress: {},
     acceptedUnmatchedByDraft: {},
     unmatchedCount: 0,
-    unmatchedPicks: []
+    unmatchedPicks: [],
+    // Store all Sleeper draft picks for ADP calculation
+    allDraftPicks: []
   },
   customAdpProfile: {
     totalSamples: 0,
@@ -966,14 +1325,14 @@ const defaultState = {
     selectedPlayerId: null
   },
   draftedPlayerIds: [],
-  autoTiering: true,
+  autoTiering: false,
   positionFilter: 'ALL'
 };
 
 const state = loadState();
 
 if (typeof state.autoTiering !== 'boolean') {
-  state.autoTiering = true;
+  state.autoTiering = false;
 }
 if (!state.positionFilter) {
   state.positionFilter = 'ALL';
@@ -1030,55 +1389,157 @@ if (state.sort?.key === 'sleeper') {
   state.sort.key = 'averageAdp';
 }
 
+// Check for saved username in localStorage
+const savedUsername = localStorage.getItem('fantasy-draft-username');
+const savedPassword = localStorage.getItem('fantasy-draft-password');
+if (savedUsername && savedPassword) {
+  currentUsername = savedUsername;
+  currentPassword = savedPassword;
+  userDisplay.textContent = currentUsername;
+  loginButton.style.display = 'none';
+  logoutButton.style.display = 'inline-block';
+  loadStateFromServer().then((loaded) => {
+    if (!loaded) {
+      autoFillPlayers();
+    }
+    render();
+  });
+} else {
+  userDisplay.textContent = '';
+  loginButton.style.display = 'inline-block';
+  logoutButton.style.display = 'none';
+  autoFillPlayers();
+  render();
+}
+
+// Ensure login button is visible
+if (loginButton) {
+  loginButton.style.display = 'inline-block';
+}
+
 autoFillPlayers();
 
-const settingsForm = document.getElementById('settings-form');
 const autoRankButton = document.getElementById('auto-rank');
-const liveDataButton = document.getElementById('load-live-data');
 const saveRankingsButton = document.getElementById('save-rankings');
 const applySavedRankingsButton = document.getElementById('apply-saved-rankings');
 const sleeperDraftIdInput = document.getElementById('sleeper-draft-id');
-const sleeperSyncToggleButton = document.getElementById('toggle-sleeper-sync');
-const sleeperSyncNowButton = document.getElementById('sync-sleeper-now');
-const resetButton = document.getElementById('reset-data');
 const rankingsBody = document.getElementById('rankings-body');
 const positionFilters = document.getElementById('position-filters');
-const settingsSummary = document.getElementById('settings-summary');
-const dataStatus = document.getElementById('data-status');
-const draftSignals = document.getElementById('draft-signals');
-const draftedList = document.getElementById('drafted-list');
-const remainingList = document.getElementById('remaining-list');
+const usernameModal = document.getElementById('username-modal');
+const usernameInput = document.getElementById('username-input');
+const passwordInput = document.getElementById('password-input');
+const usernameSubmit = document.getElementById('username-submit');
+const usernameCancel = document.getElementById('username-cancel');
+const loginButton = document.getElementById('login-button');
+const logoutButton = document.getElementById('logout-button');
+const userDisplay = document.getElementById('user-display');
 const unmatchedPicksPanel = document.getElementById('unmatched-picks-panel');
 
 document.querySelectorAll('th[data-key]').forEach((header) => {
   header.addEventListener('click', () => sortBy(header.dataset.key));
 });
 
-rankingsBody.addEventListener('input', handleTableInput);
-rankingsBody.addEventListener('change', handleTableInput);
-rankingsBody.addEventListener('click', handleRankArrowClick);
-positionFilters.addEventListener('click', handlePositionFilterClick);
+const addTierButton = document.getElementById('add-tier');
+if (addTierButton) {
+  addTierButton.addEventListener('click', handleTierAction);
+}
 
-settingsForm.addEventListener('submit', (event) => {
-  event.preventDefault();
-  collectSettings();
-  state.autoTiering = true;
-  autoFillPlayers();
-  saveState();
-  render();
+const deleteTierButton = document.getElementById('delete-tier');
+if (deleteTierButton) {
+  deleteTierButton.addEventListener('click', handleTierAction);
+}
+
+const submitSleeperIdButton = document.getElementById('submit-sleeper-id');
+if (submitSleeperIdButton) {
+  submitSleeperIdButton.addEventListener('click', async () => {
+    collectSettings();
+    saveState();
+    
+    // Start Sleeper sync if draft ID is provided
+    const draftId = state.sleeperSync?.draftId;
+    if (draftId) {
+      state.sleeperSync.enabled = true;
+      startSleeperSyncTimer();
+      await syncSleeperDraft({ initiatedByUser: true });
+    }
+    
+    render();
+    alert('Sleeper draft ID updated! Sync started.');
+  });
+}
+
+usernameSubmit.addEventListener('click', async () => {
+  const username = usernameInput.value.trim();
+  const password = passwordInput.value.trim();
+  if (!username || !password) {
+    return;
+  }
+
+  currentUsername = username;
+  currentPassword = password;
+  localStorage.setItem('fantasy-draft-username', username);
+  localStorage.setItem('fantasy-draft-password', password);
+  userDisplay.textContent = currentUsername;
+  loginButton.style.display = 'none';
+  logoutButton.style.display = 'inline-block';
+  hideUsernameModal();
+  
+  const loaded = await loadStateFromServer();
+  if (loaded) {
+    render();
+    alert('Your saved rankings have been loaded!');
+  } else {
+    // No saved state on server, use current state (first time login)
+    render();
+    // Don't show alert for first-time login
+  }
 });
+
+usernameCancel.addEventListener('click', () => {
+  hideUsernameModal();
+});
+
+loginButton.addEventListener('click', () => {
+  showUsernameModal();
+});
+
+logoutButton.addEventListener('click', () => {
+  currentUsername = null;
+  currentPassword = null;
+  localStorage.removeItem('fantasy-draft-username');
+  localStorage.removeItem('fantasy-draft-password');
+  userDisplay.textContent = '';
+  loginButton.style.display = 'inline-block';
+  logoutButton.style.display = 'none';
+  localStorage.removeItem(STORAGE_KEY);
+  Object.assign(state, structuredClone(defaultState));
+  autoFillPlayers();
+  render();
+  
+  // Don't delete from server - keep the data for next login
+  console.log('[SERVER] Logged out, keeping server data intact');
+});
+
+usernameInput.addEventListener('keypress', async (event) => {
+  if (event.key === 'Enter') {
+    usernameSubmit.click();
+  }
+});
+
+passwordInput.addEventListener('keypress', async (event) => {
+  if (event.key === 'Enter') {
+    usernameSubmit.click();
+  }
+});
+
+positionFilters.addEventListener('click', handlePositionFilterClick);
 
 autoRankButton.addEventListener('click', () => {
   collectSettings();
-  state.autoTiering = true;
+
   autoFillPlayers();
   saveState();
   render();
-});
-
-liveDataButton.addEventListener('click', () => {
-  collectSettings();
-  loadLiveRankings();
 });
 
 saveRankingsButton.addEventListener('click', () => {
@@ -1089,7 +1550,7 @@ applySavedRankingsButton.addEventListener('click', () => {
   const before = state.players.map((player) => player.myRank).join('|');
   const changed = applySavedCustomRanksToPlayers(state.players);
   if (changed) {
-    state.autoTiering = true;
+  
     applyAutoTiering();
   }
   const after = state.players.map((player) => player.myRank).join('|');
@@ -1177,9 +1638,30 @@ sleeperDraftIdInput.addEventListener('change', () => {
 });
 
 sleeperDraftIdInput.addEventListener('input', () => {
-  const value = `${sleeperDraftIdInput.value || ''}`;
-  if (value.includes('sleeper.com/draft') || value.includes('draft_id=')) {
-    normalizeSleeperDraftIdInput();
+  // Auto-normalize on any input change
+  const current = sleeperDraftIdInput.value;
+  const normalized = extractSleeperDraftId(current);
+  if (normalized && normalized !== current) {
+    sleeperDraftIdInput.value = normalized;
+  }
+});
+
+sleeperDraftIdInput.addEventListener('keypress', async (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    collectSettings();
+    saveState();
+    
+    // Start Sleeper sync if draft ID is provided
+    const draftId = state.sleeperSync?.draftId;
+    if (draftId) {
+      state.sleeperSync.enabled = true;
+      startSleeperSyncTimer();
+      await syncSleeperDraft({ initiatedByUser: true });
+    }
+    
+    render();
+    alert('Sleeper draft ID updated! Sync started.');
   }
 });
 
@@ -1197,29 +1679,24 @@ sleeperDraftIdInput.addEventListener('paste', () => {
   }, 0);
 });
 
-resetButton.addEventListener('click', () => {
-  const preservedCustomAdpProfile = normalizeCustomAdpProfile(state.customAdpProfile);
-  stopSleeperSync('Sleeper sync stopped.');
-  localStorage.removeItem(STORAGE_KEY);
-  Object.assign(state, loadState());
-  state.customAdpProfile = preservedCustomAdpProfile;
-  state.autoTiering = true;
-  autoFillPlayers();
-  render();
-});
-
 rankingsBody.addEventListener('dragstart', handleDragStart);
 rankingsBody.addEventListener('click', handleBoardClick);
 rankingsBody.addEventListener('dragover', handleDragOver);
 rankingsBody.addEventListener('drop', handleDrop);
-draftedList.addEventListener('click', handleTrackerClick);
-remainingList.addEventListener('click', handleTrackerClick);
-draftedList.addEventListener('dragover', handleDragOver);
-draftedList.addEventListener('drop', handleDrop);
-remainingList.addEventListener('dragover', handleDragOver);
-remainingList.addEventListener('drop', handleDrop);
+rankingsBody.addEventListener('dragend', handleDragEnd);
+rankingsBody.addEventListener('click', handleTierAction);
+
 if (unmatchedPicksPanel) {
   unmatchedPicksPanel.addEventListener('click', handleUnmatchedPicksPanelClick);
+}
+
+const resetBoardButton = document.getElementById('reset-board');
+if (resetBoardButton) {
+  resetBoardButton.addEventListener('click', () => {
+    if (confirm('Reset the draft board? This will clear all drafted status but keep your player rankings and unmatched players.')) {
+      resetDraftBoard();
+    }
+  });
 }
 
 function loadState() {
@@ -1235,7 +1712,105 @@ function loadState() {
 }
 
 function saveState() {
+  console.log('[STATE] Saving state, user logged in:', !!currentUsername);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (currentUsername) {
+    saveStateToServer().catch(error => {
+      console.error('[SERVER] Failed to save state:', error);
+      alert('Failed to save to server. Your data is saved locally only.');
+    });
+  }
+}
+
+async function saveStateToServer() {
+  if (!currentUsername || !currentPassword) {
+    console.log('[SERVER] Skipping server save - no credentials');
+    return;
+  }
+
+  console.log('[SERVER] Saving state to server for user:', currentUsername);
+  try {
+    const response = await fetch('/api/user-state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: currentUsername,
+        password: currentPassword,
+        state: JSON.stringify(state)
+      })
+    });
+    console.log('[SERVER] Save response status:', response.status);
+    if (response.ok) {
+      console.log('[SERVER] State saved successfully');
+    } else {
+      const errorText = await response.text();
+      console.error('[SERVER] Save failed - status:', response.status, 'error:', errorText);
+      alert(`Failed to save to server: ${response.status} - ${errorText}`);
+    }
+  } catch (error) {
+    console.error('[SERVER] Failed to save state:', error);
+    alert(`Failed to save to server: ${error.message}`);
+  }
+}
+
+async function loadStateFromServer() {
+  if (!currentUsername || !currentPassword) {
+    console.log('[SERVER] Skipping server load - no credentials');
+    return false;
+  }
+
+  console.log('[SERVER] Loading state from server for user:', currentUsername);
+  try {
+    const response = await fetch(`/api/user-state?username=${encodeURIComponent(currentUsername)}&password=${encodeURIComponent(currentPassword)}`);
+    console.log('[SERVER] Load response status:', response.status);
+    if (response.ok) {
+      const data = await response.json();
+      console.log('[SERVER] Load response data:', data);
+      if (data.state) {
+        try {
+          const loadedState = JSON.parse(data.state);
+          console.log('[SERVER] Parsed loaded state, players count:', loadedState.players?.length);
+          // Replace the entire state instead of shallow merge
+          Object.keys(state).forEach(key => delete state[key]);
+          Object.assign(state, loadedState);
+          // Disable auto-tiering to preserve manual tier assignments
+          state.autoTiering = false;
+          console.log('[SERVER] State loaded successfully, current players:', state.players?.length);
+          return true;
+        } catch (error) {
+          console.error('[SERVER] Failed to parse state:', error);
+          alert('Failed to load saved data from server.');
+          return false;
+        }
+      } else {
+        console.log('[SERVER] No saved state found (first time login)');
+        return false; // First time login, no error
+      }
+    } else {
+      const errorText = await response.text();
+      console.log('[SERVER] Failed to load state - server returned', response.status, errorText);
+      if (response.status === 401) {
+        alert('Invalid username or password');
+      } else {
+        alert(`Failed to load from server: ${response.status} - ${errorText}`);
+      }
+      return false;
+    }
+  } catch (error) {
+    console.error('[SERVER] Failed to load state:', error);
+    alert(`Failed to load from server: ${error.message}`);
+    return false;
+  }
+}
+
+function showUsernameModal() {
+  const modal = document.getElementById('username-modal');
+  modal.style.display = 'flex';
+}
+
+function hideUsernameModal() {
+  const modal = document.getElementById('username-modal');
+  modal.style.display = 'none';
 }
 
 function normalizeCustomAdpProfile(profile) {
@@ -1384,10 +1959,12 @@ function getTierSizes(totalPlayers) {
     remaining -= count;
   }
 
+  // For remaining players, use larger, more flexible chunks
   while (remaining > 0) {
-    const count = remaining > MAX_TIER_SIZE ? 15 : remaining;
-    sizes.push(count);
-    remaining -= count;
+    // Use progressively larger chunks as we go down the rankings
+    const chunkSize = Math.min(remaining, Math.max(15, Math.floor(remaining / 4)));
+    sizes.push(chunkSize);
+    remaining -= chunkSize;
   }
 
   return sizes.length ? sizes : [1];
@@ -1425,7 +2002,7 @@ function sortBy(key) {
     state.sort.direction = 'asc';
   }
 
-  state.autoTiering = true;
+
   applyAutoTiering();
   render();
 }
@@ -1436,11 +2013,11 @@ function render() {
   renderSummary();
   renderDataStatus();
   renderDraftSignals();
+  // Only apply auto-tiering if explicitly enabled
   if (state.autoTiering) {
     applyAutoTiering();
   }
   renderDraftBoard();
-  renderDraftLists();
   renderUnmatchedPicksPanel();
   saveState();
 }
@@ -1453,11 +2030,7 @@ function populateSettingsFields() {
   document.getElementById('wr-slots').value = settings.wrSlots;
   document.getElementById('te-slots').value = settings.teSlots;
   document.getElementById('flex-slots').value = settings.flexSlots;
-  document.getElementById('bench-slots').value = settings.benchSlots;
-  document.getElementById('roster-size').value = settings.rosterSize;
   sleeperDraftIdInput.value = state.sleeperSync?.draftId || '';
-
-  sleeperSyncToggleButton.textContent = state.sleeperSync?.enabled ? 'Stop Sleeper sync' : 'Start Sleeper sync';
 }
 
 function renderSummary() {
@@ -1614,7 +2187,7 @@ function clearSyncDraftedPlayers(includeManual = false) {
 
   if (cleared > 0) {
     syncDraftedPlayerIds();
-    state.autoTiering = true;
+  
     applyAutoTiering();
   }
 
@@ -1776,18 +2349,23 @@ function playerMatchesPickRecord(player, record) {
 
   const sameTeam = record.team && normalizeSleeperTeamCode(player.team) === record.team;
   const samePosition = record.position && normalizePositionCode(player.position) === record.position;
+  
+  // Check name matching with suffix handling
+  const playerNames = getNameMatchKeys(player.name);
+  const recordNames = getNameMatchKeys(record.name);
+  const nameMatches = playerNames.some(pn => recordNames.includes(pn));
 
   if (record.team && record.position) {
-    return sameTeam && samePosition;
+    return nameMatches && sameTeam && samePosition;
   }
   if (record.team) {
-    return sameTeam;
+    return nameMatches && sameTeam;
   }
   if (record.position) {
-    return samePosition;
+    return nameMatches && samePosition;
   }
 
-  return true;
+  return nameMatches;
 }
 
 function syncDraftedPlayersFromLookup(pickedLookup) {
@@ -2000,6 +2578,31 @@ function updateCustomAdpProfileFromRecords(records, draftId) {
   return applied;
 }
 
+function calculateSleeperAdp() {
+  // Calculate Sleeper ADP from all saved draft picks
+  const picksByPlayer = {};
+  
+  state.sleeperSync.allDraftPicks.forEach(pick => {
+    // Store multiple normalized name keys for each pick
+    const nameKeys = getNameMatchKeys(pick.name);
+    nameKeys.forEach(key => {
+      if (!picksByPlayer[key]) {
+        picksByPlayer[key] = { totalPickNo: 0, count: 0 };
+      }
+      picksByPlayer[key].totalPickNo += pick.pickNo;
+      picksByPlayer[key].count += 1;
+    });
+  });
+  
+  const sleeperAdpByPlayer = {};
+  Object.keys(picksByPlayer).forEach(key => {
+    const data = picksByPlayer[key];
+    sleeperAdpByPlayer[key] = data.totalPickNo / data.count;
+  });
+  
+  return sleeperAdpByPlayer;
+}
+
 function recalculateRoomAdpShift() {
   const diffs = (state.players || [])
     .filter((player) => player.draftedSource === 'sync' && Number.isFinite(player.roomPickNo))
@@ -2098,13 +2701,28 @@ async function syncSleeperDraft({ initiatedByUser = false } = {}) {
 
     const pickedLookup = buildPickedLookup(picks, sleeperPlayersById);
     const learnedSamples = updateCustomAdpProfileFromRecords(pickedLookup.allRecords || [], draftId);
+    
+    // Save all draft picks for Sleeper ADP calculation
+    state.sleeperSync.allDraftPicks = pickedLookup.allRecords || [];
+    
     const { newlyMarked, newlyCleared, matchedTotal, unmatchedRecords } = syncDraftedPlayersFromLookup(pickedLookup);
     recalculateRoomAdpShift();
     if (newlyMarked > 0 || newlyCleared > 0) {
       syncDraftedPlayerIds();
-      state.autoTiering = true;
+    
       applyAutoTiering();
     }
+    
+    // Update Sleeper ADP for all players based on saved draft picks
+    const sleeperAdpByPlayer = calculateSleeperAdp();
+    (state.players || []).forEach(player => {
+      const playerNames = getNameMatchKeys(player.name);
+      // Check if any of the player's name keys match Sleeper ADP data
+      const matchingKey = playerNames.find(nameKey => sleeperAdpByPlayer[nameKey]);
+      if (matchingKey) {
+        player.sleeperAdp = sleeperAdpByPlayer[matchingKey];
+      }
+    });
 
     const visibleUnmatchedRecords = unmatchedRecords.filter((record) => !isAcceptedUnmatchedRecord(record, draftId));
     state.sleeperSync.unmatchedCount = visibleUnmatchedRecords.length;
@@ -2307,7 +2925,11 @@ async function fetchJsonWithProxyFallback(url, errorLabel, { timeoutMs = DEFAULT
 }
 
 function getAverageAdp(player) {
-  return (player.espn + player.yahoo) / 2;
+  const values = [player.espn, player.yahoo];
+  if (player.sleeperAdp !== null && player.sleeperAdp !== undefined) {
+    values.push(player.sleeperAdp);
+  }
+  return values.reduce((sum, val) => sum + val, 0) / values.length;
 }
 
 function getDraftAdjustedAdp(player) {
@@ -2315,13 +2937,8 @@ function getDraftAdjustedAdp(player) {
     return player.roomPickNo;
   }
 
-  const profileKey = getCustomAdpProfileKey(player?.name, player?.position, a?.team);
-  const profile = profileKey ? state.customAdpProfile?.players?.[profileKey] : null;
-  const baseline = Number.isFinite(profile?.averagePickNo)
-    ? profile.averagePickNo
-    : getAverageAdp(player);
-  const shift = Number.isFinite(state.sleeperSync?.adpShift) ? state.sleeperSync.adpShift : 0;
-  return Math.max(1, baseline + shift);
+  // Return true average of ESPN + Yahoo + Sleeper (no shift)
+  return getAverageAdp(player);
 }
 
 function renderPositionFilterChips() {
@@ -2380,11 +2997,23 @@ async function loadLiveRankings() {
           team: player.team,
           espn: player.adp,
           yahoo: standardMatch?.adp ?? player.adp,
+          sleeperAdp: null,
           baseValue: Math.max(70, 100 - player.adp * 4),
           tier: 1,
           myRank: 0
         };
       });
+
+    // Calculate Sleeper ADP from saved draft picks
+    const sleeperAdpByPlayer = calculateSleeperAdp();
+    mergedPlayers.forEach(player => {
+      const playerNames = getNameMatchKeys(player.name);
+      // Check if any of the player's name keys match Sleeper ADP data
+      const matchingKey = playerNames.find(nameKey => sleeperAdpByPlayer[nameKey]);
+      if (matchingKey) {
+        player.sleeperAdp = sleeperAdpByPlayer[matchingKey];
+      }
+    });
 
     const existingById = new Map((state.players || []).map((player) => [player.id, player]));
     const rankedPlayers = mergedPlayers
@@ -2404,7 +3033,7 @@ async function loadLiveRankings() {
 
     state.players = rankedPlayers;
     const appliedSavedRanks = applySavedCustomRanksToPlayers(state.players);
-    state.autoTiering = true;
+  
     state.liveDataStatus = `Loaded ${state.players.length} players from Fantasy Football Calculator (${getScoringLabel(selectedScoring)}/Standard). API type: ${selectedResponse?.meta?.type || getScoringLabel(selectedScoring)}.${appliedSavedRanks ? ' Applied saved custom rankings.' : ''}`;
     render();
   } catch (error) {
@@ -2442,66 +3071,64 @@ function normalizePositionCode(value) {
   return value;
 }
 
+function normalizePositionForCss(value) {
+  const normalized = normalizePositionCode(value).toLowerCase();
+  if (normalized === 'pk') return 'k';
+  if (normalized === 'd' || normalized === 'dst') return 'def';
+  return normalized;
+}
+
 function renderDraftBoard() {
   const sortedPlayers = [...state.players].sort(comparePlayers);
   const visiblePlayers = sortedPlayers.filter((player) => !player.drafted && matchesPositionFilter(player));
+
+  let groupedRows = [];
+  
+  // Always show tier dividers
   const tiersToRender = [...new Set(visiblePlayers.map((player) => Number(player.tier)).filter((tier) => Number.isFinite(tier) && tier > 0))]
     .sort((a, b) => a - b);
 
-  const tierTotalCounts = new Map();
-  state.players
-    .filter((player) => matchesPositionFilter(player))
-    .forEach((player) => {
-      const tier = Number(player.tier);
-      if (!Number.isFinite(tier) || tier <= 0) {
-        return;
-      }
-      tierTotalCounts.set(tier, (tierTotalCounts.get(tier) || 0) + 1);
-    });
-
-  const groupedRows = tiersToRender.flatMap((tier) => {
+  tiersToRender.forEach((tier) => {
     const players = visiblePlayers.filter((player) => Number(player.tier) === tier);
-    const tierCount = tierTotalCounts.get(tier) || players.length;
-
-    return [
-      `
-        <tr class="tier-divider" data-tier="${tier}">
-          <td colspan="7">
+    
+    groupedRows.push(`
+      <tr class="tier-divider" data-tier="${tier}">
+        <td colspan="8">
+          <div class="tier-bar">
             <span class="tier-pill t${tier}">Tier ${tier}</span>
-            <span class="tier-divider-count">${players.length}/${tierCount} players</span>
-            <span class="tier-divider-hint">Drop here to move players into this tier</span>
+            <span class="tier-divider-count">${players.length} players</span>
+          </div>
+        </td>
+      </tr>
+    `);
+    
+    players.forEach((player) => {
+      const avgAdp = getDraftAdjustedAdp(player).toFixed(1);
+      const isSelected = state.ui?.selectedPlayerId === player.id;
+      const posRankDisplay = player.posRank ? `${player.position}${player.posRank}` : player.position;
+      const normalizedPosition = normalizePositionForCss(player.position);
+      
+      groupedRows.push(`
+        <tr data-player-id="${player.id}" draggable="true" class="${player.drafted ? 'drafted-row' : ''} ${isSelected ? 'selected-row' : ''}">
+          <td>
+            <span class="drag-handle" data-player-id="${player.id}"></span>
+            ${player.myRank}
           </td>
+          <td>
+            <div class="player-cell">
+              <span class="player-name">${player.name}</span>
+              ${player.draftedSource === 'manual' ? '<span class="table-tag table-tag-manual">MANUAL</span>' : ''}
+            </div>
+          </td>
+          <td><span class="pos-pill pos-${normalizedPosition}">${posRankDisplay}</span></td>
+          <td>${player.team}</td>
+          <td>${player.espn.toFixed(1)}</td>
+          <td>${player.yahoo.toFixed(1)}</td>
+          <td>${player.sleeperAdp ? player.sleeperAdp.toFixed(1) : '-'}</td>
+          <td>${avgAdp}</td>
         </tr>
-      `,
-      ...players.map((player) => {
-        const avgAdp = getDraftAdjustedAdp(player).toFixed(1);
-        const isSelected = state.ui?.selectedPlayerId === player.id;
-        const canMoveUp = player.myRank > 1;
-        const canMoveDown = player.myRank < state.players.length;
-        return `
-          <tr data-player-id="${player.id}" draggable="true" class="${player.drafted ? 'drafted-row' : ''} ${isSelected ? 'selected-row' : ''}">
-            <td>
-              <div class="player-cell">
-                <span class="player-name">${player.name}</span>
-                ${player.draftedSource === 'manual' ? '<span class="table-tag table-tag-manual">MANUAL</span>' : ''}
-              </div>
-            </td>
-            <td>
-              <div class="rank-controls">
-                <button class="rank-arrow rank-up" data-player-id="${player.id}" ${canMoveUp ? '' : 'disabled'}>↑</button>
-                <input class="small" type="number" min="1" max="999" value="${player.myRank}" data-field="myRank" />
-                <button class="rank-arrow rank-down" data-player-id="${player.id}" ${canMoveDown ? '' : 'disabled'}>↓</button>
-              </div>
-            </td>
-            <td><span class="pos-pill">${player.position}</span></td>
-            <td>${player.team}</td>
-            <td>${player.espn.toFixed(1)}</td>
-            <td>${player.yahoo.toFixed(1)}</td>
-            <td>${avgAdp}</td>
-          </tr>
-        `;
-      })
-    ];
+      `);
+    });
   });
 
   rankingsBody.innerHTML = groupedRows.join('');
@@ -2733,10 +3360,65 @@ function addUnmatchedPicksToBoard() {
   state.sort.key = 'myRank';
   state.sort.direction = 'asc';
   syncDraftedPlayerIds();
-  state.autoTiering = true;
+
   applyAutoTiering();
   state.liveDataStatus = `Imported ${added} unmatched Sleeper picks into your board as drafted players.`;
   return added;
+}
+
+function resetDraftBoard() {
+  // Clear drafted status from all players except manually drafted
+  state.players = state.players.map((player) => {
+    // Keep manually drafted players as is
+    if (player.draftedSource === 'manual') {
+      return player;
+    }
+    
+    // For unmatched Sleeper imports, make them undrafted but preserve their rank
+    if (player.draftedSource === 'sync' && player.id?.startsWith('sleeper-')) {
+      return {
+        ...player,
+        drafted: false,
+        draftedAt: null,
+        draftedSource: null,
+        roomPickNo: null,
+        // Keep their myRank as their draft position
+        myRank: player.roomPickNo || player.myRank
+      };
+    }
+    
+    // Clear drafted status for all other players
+    return {
+      ...player,
+      drafted: false,
+      draftedAt: null,
+      draftedSource: null,
+      roomPickNo: null
+    };
+  });
+  
+  // Clear Sleeper sync state
+  state.sleeperSync = {
+    ...state.sleeperSync,
+    enabled: false,
+    lastPickCount: 0,
+    lastSyncAt: null,
+    lastResult: 'Draft board reset. Ready for new draft.',
+    unmatchedCount: 0,
+    unmatchedPicks: []
+  };
+  
+  stopSleeperSync('Draft board reset.');
+  
+  // Recalculate everything
+  syncDraftedPlayerIds();
+  calculatePositionalRanks();
+
+  applyAutoTiering();
+  
+  saveState();
+  render();
+  console.log('Draft board reset complete');
 }
 
 function handleUnmatchedPicksPanelClick(event) {
@@ -2807,16 +3489,30 @@ function movePlayerToRank(playerId, requestedRank) {
 }
 
 function handleDragStart(event) {
-  const draggable = event.target.closest('[data-player-id]');
-  if (!draggable) {
+  // Find the player row - drag can start from anywhere in the row
+  const playerRow = event.target.closest('tr[data-player-id]');
+  if (!playerRow) {
+    console.log('Drag start: no player row found, target:', event.target);
     return;
   }
 
-  state.draggedPlayerId = draggable.dataset.playerId;
+  // Check if the drag started from the first column (rank column with drag handle)
+  const firstCell = event.target.closest('td');
+  if (firstCell && firstCell.cellIndex !== 0) {
+    console.log('Drag start: not from first column, ignoring');
+    return;
+  }
+
+  state.draggedPlayerId = playerRow.dataset.playerId;
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', draggable.dataset.playerId);
+    event.dataTransfer.setData('text/plain', playerRow.dataset.playerId);
   }
+  
+  console.log('Drag started for player:', state.draggedPlayerId);
+  
+  // Add visual feedback
+  playerRow.style.opacity = '0.5';
 }
 
 function handleDragOver(event) {
@@ -2831,26 +3527,72 @@ function handleDragOver(event) {
 function handleDrop(event) {
   event.preventDefault();
   const playerId = state.draggedPlayerId;
+  console.log('Drop event, dragged player:', playerId);
+  
   if (!playerId) {
+    console.log('Drop: no dragged player ID');
     return;
   }
 
   const player = state.players.find((entry) => entry.id === playerId);
   if (!player) {
+    console.log('Drop: player not found');
     return;
   }
 
-  const targetTierRow = event.target.closest('.tier-divider');
   const targetPlayerRow = event.target.closest('tr[data-player-id]');
+  const targetTierRow = event.target.closest('.tier-divider');
   const targetDraftBin = event.target.closest('.draft-bin');
 
-  if (targetTierRow) {
-    player.tier = Number(targetTierRow.dataset.tier);
-    state.autoTiering = false;
-  } else if (targetPlayerRow) {
+  console.log('Drop targets - player row:', !!targetPlayerRow, 'tier row:', !!targetTierRow, 'draft bin:', !!targetDraftBin);
+
+  if (targetPlayerRow) {
     const targetPlayer = state.players.find((entry) => entry.id === targetPlayerRow.dataset.playerId);
-    if (targetPlayer) {
-      player.tier = Number(targetPlayer.tier);
+    if (targetPlayer && targetPlayer.id !== player.id) {
+      console.log('Reordering players, from:', player.name, 'to:', targetPlayer.name);
+      
+      // Reorder players based on visible list
+      const sortedPlayers = [...state.players].sort(comparePlayers);
+      const visiblePlayers = sortedPlayers.filter((p) => !p.drafted && matchesPositionFilter(p));
+      
+      const fromIndex = visiblePlayers.findIndex((p) => p.id === player.id);
+      const toIndex = visiblePlayers.findIndex((p) => p.id === targetPlayer.id);
+      
+      console.log('Reorder indices - from:', fromIndex, 'to:', toIndex);
+      
+      if (fromIndex !== -1 && toIndex !== -1) {
+        // Reorder in the visible list
+        const [moving] = visiblePlayers.splice(fromIndex, 1);
+        visiblePlayers.splice(toIndex, 0, moving);
+        
+        // Reassign myRank based on new order
+        visiblePlayers.forEach((p, index) => {
+          p.myRank = index + 1;
+        });
+        
+        // Update myRank for drafted players to maintain gaps
+        const draftedPlayers = sortedPlayers.filter(p => p.drafted);
+        draftedPlayers.forEach((p, index) => {
+          p.myRank = visiblePlayers.length + index + 1;
+        });
+        
+        // Update the moved player's tier to match the target position's tier
+        if (targetPlayer) {
+          moving.tier = targetPlayer.tier;
+        }
+        
+        calculatePositionalRanks();
+        state.autoTiering = false; // Don't auto-tier after manual reordering
+        
+        console.log('Reorder complete');
+      }
+    }
+  } else if (targetTierRow) {
+    // Move player to this tier
+    const targetTier = Number(targetTierRow.dataset.tier);
+    console.log('Moving player to tier:', targetTier);
+    if (Number.isFinite(targetTier)) {
+      player.tier = targetTier;
       state.autoTiering = false;
     }
   } else if (targetDraftBin?.dataset.action === 'draft') {
@@ -2862,6 +3604,15 @@ function handleDrop(event) {
   syncDraftedPlayerIds();
   saveState();
   render();
+}
+
+function handleDragEnd(event) {
+  // Clean up visual effects
+  document.querySelectorAll('tr[data-player-id]').forEach(row => {
+    row.style.opacity = '';
+    row.style.background = '';
+  });
+  state.draggedPlayerId = null;
 }
 
 function handleBoardClick(event) {
@@ -2893,10 +3644,98 @@ function handleBoardClick(event) {
     player.draftedSource = 'manual';
     player.roomPickNo = null;
     syncDraftedPlayerIds();
+    calculatePositionalRanks();
     saveState();
     render();
   }
 }
+
+function handleTierSelect(event) {
+  const target = event.target;
+  if (!target.classList.contains('tier-select')) {
+    return;
+  }
+
+  const row = target.closest('tr[data-player-id]');
+  if (!row) {
+    return;
+  }
+
+  const player = state.players.find((entry) => entry.id === row.dataset.playerId);
+  if (!player) {
+    return;
+  }
+
+  const newTier = Number(target.value);
+  if (Number.isFinite(newTier)) {
+    player.tier = newTier;
+    state.autoTiering = false;
+    saveState();
+    render();
+  }
+}
+
+function handleTierAction(event) {
+  const actionButton = event.target.closest('button');
+  if (!actionButton) {
+    return;
+  }
+
+  const action = actionButton.dataset.action || actionButton.id;
+  
+  console.log('Tier action clicked:', action, 'Button:', actionButton);
+  
+  if (action === 'add-tier' || actionButton.id === 'add-tier') {
+    console.log('Add tier clicked');
+    
+    // Add a new empty tier at the bottom
+    const maxTier = Math.max(...state.players.map(p => p.tier || 0), 0);
+    const newTier = maxTier + 1;
+    
+    console.log('Adding new tier:', newTier);
+    
+    state.autoTiering = false;
+    saveState();
+    render();
+    console.log('New tier added successfully');
+  } else if (action === 'delete-tier' || actionButton.id === 'delete-tier') {
+    // Check if a player is selected
+    const selectedPlayerId = state.ui?.selectedPlayerId;
+    
+    if (selectedPlayerId) {
+      const selectedPlayer = state.players.find(p => p.id === selectedPlayerId);
+      if (selectedPlayer) {
+        const selectedTier = selectedPlayer.tier || 1;
+        
+        // Don't allow deleting tier 1 (merge into nothing)
+        if (selectedTier <= 1) {
+          alert('Cannot delete Tier 1. Select a player in a higher tier to delete it.');
+          return;
+        }
+        
+        // Merge selected tier into the previous tier
+        const previousTier = selectedTier - 1;
+        
+        // Move all players from selected tier to previous tier
+        state.players.forEach(player => {
+          if (player.tier === selectedTier) {
+            player.tier = previousTier;
+          } else if (player.tier > selectedTier) {
+            player.tier = player.tier - 1;
+          }
+        });
+        
+        state.autoTiering = false;
+        saveState();
+        render();
+        console.log('Tier deleted successfully');
+      }
+    } else {
+      alert('Select a player in the tier you want to delete.');
+    }
+  }
+}
+
 
 function handleTableInput(event) {
   const target = event.target;
@@ -2923,40 +3762,9 @@ function handleTableInput(event) {
     movePlayerToRank(player.id, requestedRank);
     state.sort.key = 'myRank';
     state.sort.direction = 'asc';
-    state.autoTiering = true;
-    applyAutoTiering();
+    state.autoTiering = false; // Don't auto-tier after manual rank change
   }
 
-  saveState();
-  render();
-}
-
-function handleRankArrowClick(event) {
-  const target = event.target;
-  if (!target.classList.contains('rank-arrow')) {
-    return;
-  }
-
-  const row = target.closest('tr[data-player-id]');
-  if (!row) {
-    return;
-  }
-
-  const player = state.players.find((entry) => entry.id === row.dataset.playerId);
-  if (!player) {
-    return;
-  }
-
-  if (target.classList.contains('rank-up')) {
-    movePlayerToRank(player.id, player.myRank - 1);
-  } else if (target.classList.contains('rank-down')) {
-    movePlayerToRank(player.id, player.myRank + 1);
-  }
-
-  state.sort.key = 'myRank';
-  state.sort.direction = 'asc';
-  state.autoTiering = true;
-  applyAutoTiering();
   saveState();
   render();
 }

@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory, send_file
-from server import init_db, load_adp_profile, save_adp_profile
+from server import init_db, load_adp_profile, save_adp_profile, save_user_state, load_user_state
 import os
 from pathlib import Path
 
@@ -61,6 +61,38 @@ def proxy():
             return jsonify(json.loads(data.decode('utf-8')))
     except Exception as exc:
         return jsonify({'error': str(exc)}), 502
+
+@app.route('/api/user-state', methods=['POST'])
+def save_user_state_api():
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+        state_json = data.get('state')
+        
+        if not username or not password or not state_json:
+            return jsonify({'error': 'Missing username, password, or state'}), 400
+        
+        save_user_state(username, password, state_json)
+        return jsonify({'ok': True})
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+@app.route('/api/user-state', methods=['GET'])
+def load_user_state_api():
+    try:
+        username = request.args.get('username')
+        password = request.args.get('password')
+        if not username or not password:
+            return jsonify({'error': 'Missing username or password'}), 400
+        
+        state_json = load_user_state(username, password)
+        if state_json:
+            return jsonify({'state': state_json})
+        else:
+            return jsonify({'state': None})
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))
