@@ -68,6 +68,10 @@
             Superflex
           </label>
           <button id="auto-rank" class="compact-button">Auto-rank</button>
+          <label for="csv-upload" class="compact-button ghost hidden" id="csv-upload-label" style="display: none;">
+            📁 Import Rankings
+          </label>
+          <input type="file" id="csv-upload" accept=".csv" style="display: none;">
           <input id="sleeper-draft-id" type="text" placeholder="Sleeper Draft ID" class="compact-input" />
           <button id="submit-sleeper-id" class="compact-button">Submit</button>
         </div>
@@ -89,12 +93,23 @@
             <button type="button" class="chip-filter" data-filter="K">K</button>
             <button type="button" class="chip-filter" data-filter="DEF">DEF</button>
           </div>
+          <div class="adp-selector">
+            <select id="adp-source" class="compact-select">
+              <option value="all">All ADP Sources</option>
+              <option value="espn">ESPN</option>
+              <option value="yahoo">Yahoo</option>
+              <option value="rotoballer">Underdog</option>
+              <option value="ffpc">FFPC</option>
+              <option value="average">Average ADP</option>
+            </select>
+          </div>
           <div class="action-buttons">
             <button id="add-tier" class="ghost compact-button">+ Add Tier</button>
             <button id="delete-tier" class="ghost compact-button">- Delete Tier</button>
             <button id="save-rankings" class="ghost compact-button">Save</button>
             <button id="apply-saved-rankings" class="ghost compact-button">Load</button>
             <button id="reset-board" class="ghost compact-button">Reset Board</button>
+            <button id="toggle-help" class="ghost compact-button">CSV Help</button>
           </div>
         </div>
 
@@ -103,15 +118,16 @@
         <div class="table-container">
           <table class="rankings-table comparison-table">
             <thead>
-              <tr>
+              <tr id="table-header">
                 <th data-key="myRank">Rank</th>
                 <th data-key="player">Player</th>
                 <th data-key="position">Pos</th>
                 <th data-key="team">Team</th>
-                <th data-key="espn">ESPN</th>
-                <th data-key="yahoo">Yahoo</th>
-                <th data-key="sleeperAdp">Sleeper</th>
-                <th data-key="averageAdp">ADP</th>
+                <th data-key="adp">ADP</th>
+                <th data-key="expertRank">Expert</th>
+                <th data-key="adpDiff">Diff</th>
+                <th data-key="personalDiff">My Diff</th>
+                <th data-key="sosRank">SoS</th>
               </tr>
             </thead>
             <tbody id="rankings-body"></tbody>
@@ -120,6 +136,10 @@
 
         <div id="settings-summary" class="status-bar"></div>
         <div id="data-status" class="status-bar"></div>
+        
+        <div id="csv-help" class="status-bar" style="display: none; background-color: #f0f8ff; border-left: 4px solid #2196f3;">
+          <strong>Update Rankings:</strong> To update rankings, download new CSV files from Rotoballer and replace the files in the project folder: <code>espn-rankings.csv</code>, <code>yahoo-rankings.csv</code>, <code>rotoballer-rankings.csv</code>, <code>ffpc-rankings.csv</code>
+        </div>
         
         <div id="unmatched-picks-section" class="unmatched-section" style="display: none;">
           <h3>Unmatched Sleeper Picks</h3>

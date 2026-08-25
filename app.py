@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory, send_file
-from server import init_db, load_adp_profile, save_adp_profile, save_user_state, load_user_state
+from server import init_db, load_adp_profile, save_adp_profile, save_user_state, load_user_state, load_rotoballer_rankings, load_ffpc_rankings, load_yahoo_rankings, load_espn_rankings, load_ghost_rankings
 import os
 from pathlib import Path
 
@@ -91,6 +91,46 @@ def load_user_state_api():
             return jsonify({'state': state_json})
         else:
             return jsonify({'state': None})
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+@app.route('/api/rotoballer', methods=['GET'])
+def get_underdog_rankings():
+    try:
+        data = load_rotoballer_rankings()
+        return jsonify(data)
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+@app.route('/api/ffpc', methods=['GET'])
+def get_ffpc_rankings():
+    try:
+        data = load_ffpc_rankings()
+        return jsonify(data)
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+@app.route('/api/yahoo', methods=['GET'])
+def get_yahoo_rankings():
+    try:
+        data = load_yahoo_rankings()
+        return jsonify(data)
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+@app.route('/api/espn', methods=['GET'])
+def get_espn_rankings():
+    try:
+        data = load_espn_rankings()
+        return jsonify(data)
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+@app.route('/api/ghost', methods=['GET'])
+def get_ghost_rankings():
+    try:
+        data = load_ghost_rankings()
+        return jsonify(data)
     except Exception as exc:
         return jsonify({'error': str(exc)}), 500
 

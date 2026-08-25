@@ -4,6 +4,7 @@ import sqlite3
 import time
 import hashlib
 import urllib.request
+import csv
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse, unquote
@@ -18,6 +19,218 @@ FANTASYPROS_API_KEY = 'PNnzNP9Brm5ZdldankRwc8l6Z1z9HpJR1KKEQTjF'
 FANTASYNERDS_API_KEY = 'TEST'
 THE_ODDS_API_KEY = '14c838df8c4ec407c40336ca9594213b'
 
+
+def load_rotoballer_rankings():
+    """Load and parse the Underdog/Rotoballer CSV rankings file"""
+    csv_path = ROOT / 'rotoballer-rankings.csv'
+    if not csv_path.exists():
+        return {'error': 'Underdog rankings file not found'}
+    
+    try:
+        players = []
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                try:
+                    player = {
+                        'rank': int(row.get('RK', 0)),
+                        'name': row.get('Player', ''),
+                        'position': row.get('Pos', ''),
+                        'team': row.get('Team', ''),
+                        'bye': row.get('BYE', ''),
+                        'opponent': row.get('Opp', ''),
+                        'points': float(row.get('PTS', 0)) if row.get('PTS') else 0,
+                        'sosRank': int(row.get('SoS Rank', 0)) if row.get('SoS Rank') else 0,
+                        'adpUnderdog': float(row.get('ADP (Underdog)', 0)) if row.get('ADP (Underdog)') else 0,
+                        'posRank': row.get('P-RK', ''),
+                        'auctionValue': row.get('Auction $', ''),
+                        'targetRound': row.get('Target Round', ''),
+                        'expertRank': int(row.get('RK', 0))  # Rotoballer's expert ranking
+                    }
+                    players.append(player)
+                except (ValueError, KeyError) as e:
+                    print(f'[UNDERDOG] Error parsing row: {e}', flush=True)
+                    continue
+        
+        return {'players': players}
+    except Exception as exc:
+        print(f'[UNDERDOG] Error loading CSV: {exc}', flush=True)
+        return {'error': str(exc)}
+
+def load_ghost_rankings():
+    """Load and parse Ghost's personal rankings CSV file"""
+    csv_path = ROOT / 'ghost-underdog-rankings.csv'
+    if not csv_path.exists():
+        return {'error': 'Ghost rankings file not found'}
+    
+    try:
+        players = []
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                try:
+                    player = {
+                        'rank': int(row.get('RK', 0)),
+                        'name': row.get('Player', ''),
+                        'position': row.get('Pos', ''),
+                        'team': row.get('Team', ''),
+                        'personalRank': float(row.get('Personal Rank', 0)) if row.get('Personal Rank') else 0
+                    }
+                    players.append(player)
+                except (ValueError, KeyError) as e:
+                    print(f'[GHOST] Error parsing row: {e}', flush=True)
+                    continue
+        
+        return {'players': players}
+    except Exception as exc:
+        print(f'[GHOST] Error loading CSV: {exc}', flush=True)
+        return {'error': str(exc)}
+
+def load_ffpc_rankings():
+    """Load and parse the FFPC CSV rankings file"""
+    csv_path = ROOT / 'ffpc-rankings.csv'
+    if not csv_path.exists():
+        return {'error': 'FFPC rankings file not found'}
+    
+    try:
+        players = []
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                try:
+                    player = {
+                        'rank': int(row.get('RK', 0)),
+                        'name': row.get('Player', ''),
+                        'position': row.get('Pos', ''),
+                        'team': row.get('Team', ''),
+                        'bye': row.get('BYE', ''),
+                        'opponent': row.get('Opp', ''),
+                        'points': float(row.get('PTS', 0)) if row.get('PTS') else 0,
+                        'sosRank': int(row.get('SoS Rank', 0)) if row.get('SoS Rank') else 0,
+                        'adpFFPC': float(row.get('ADP (FFPC)', 0)) if row.get('ADP (FFPC)') else 0,
+                        'posRank': row.get('P-RK', ''),
+                        'auctionValue': row.get('Auction $', ''),
+                        'targetRound': row.get('Target Round', ''),
+                        'expertRank': int(row.get('RK', 0))  # Rotoballer's expert ranking
+                    }
+                    players.append(player)
+                except (ValueError, KeyError) as e:
+                    print(f'[FFPC] Error parsing row: {e}', flush=True)
+                    continue
+        
+        return {'players': players}
+    except Exception as exc:
+        print(f'[FFPC] Error loading CSV: {exc}', flush=True)
+        return {'error': str(exc)}
+    """Load and parse the FFPC CSV rankings file"""
+    csv_path = ROOT / 'ffpc-rankings.csv'
+    if not csv_path.exists():
+        return {'error': 'FFPC rankings file not found'}
+    
+    try:
+        players = []
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                try:
+                    player = {
+                        'rank': int(row.get('RK', 0)),
+                        'name': row.get('Player', ''),
+                        'position': row.get('Pos', ''),
+                        'team': row.get('Team', ''),
+                        'bye': row.get('BYE', ''),
+                        'opponent': row.get('Opp', ''),
+                        'points': float(row.get('PTS', 0)) if row.get('PTS') else 0,
+                        'sosRank': int(row.get('SoS Rank', 0)) if row.get('SoS Rank') else 0,
+                        'adpFFPC': float(row.get('ADP (FFPC)', 0)) if row.get('ADP (FFPC)') else 0,
+                        'posRank': row.get('P-RK', ''),
+                        'auctionValue': row.get('Auction $', ''),
+                        'targetRound': row.get('Target Round', ''),
+                        'expertRank': int(row.get('RK', 0))  # Rotoballer's expert ranking
+                    }
+                    players.append(player)
+                except (ValueError, KeyError) as e:
+                    print(f'[FFPC] Error parsing row: {e}', flush=True)
+                    continue
+        
+        return {'players': players}
+    except Exception as exc:
+        print(f'[FFPC] Error loading CSV: {exc}', flush=True)
+        return {'error': str(exc)}
+
+def load_yahoo_rankings():
+    """Load and parse the Yahoo CSV rankings file"""
+    csv_path = ROOT / 'yahoo-rankings.csv'
+    if not csv_path.exists():
+        return {'error': 'Yahoo rankings file not found'}
+    
+    try:
+        players = []
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                try:
+                    player = {
+                        'rank': int(row.get('RK', 0)),
+                        'name': row.get('Player', ''),
+                        'position': row.get('Pos', ''),
+                        'team': row.get('Team', ''),
+                        'bye': row.get('BYE', ''),
+                        'opponent': row.get('Opp', ''),
+                        'points': float(row.get('PTS', 0)) if row.get('PTS') else 0,
+                        'sosRank': int(row.get('SoS Rank', 0)) if row.get('SoS Rank') else 0,
+                        'adpYahoo': float(row.get('ADP (Y!)', 0)) if row.get('ADP (Y!)') else 0,
+                        'posRank': row.get('P-RK', ''),
+                        'auctionValue': row.get('Auction $', ''),
+                        'targetRound': row.get('Target Round', ''),
+                        'expertRank': int(row.get('RK', 0))  # Rotoballer's expert ranking
+                    }
+                    players.append(player)
+                except (ValueError, KeyError) as e:
+                    print(f'[YAHOO] Error parsing row: {e}', flush=True)
+                    continue
+        
+        return {'players': players}
+    except Exception as exc:
+        print(f'[YAHOO] Error loading CSV: {exc}', flush=True)
+        return {'error': str(exc)}
+
+def load_espn_rankings():
+    """Load and parse the ESPN CSV rankings file"""
+    csv_path = ROOT / 'espn-rankings.csv'
+    if not csv_path.exists():
+        return {'error': 'ESPN rankings file not found'}
+    
+    try:
+        players = []
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                try:
+                    player = {
+                        'rank': int(row.get('RK', 0)),
+                        'name': row.get('Player', ''),
+                        'position': row.get('Pos', ''),
+                        'team': row.get('Team', ''),
+                        'bye': row.get('BYE', ''),
+                        'opponent': row.get('Opp', ''),
+                        'points': float(row.get('PTS', 0)) if row.get('PTS') else 0,
+                        'sosRank': int(row.get('SoS Rank', 0)) if row.get('SoS Rank') else 0,
+                        'adpESPN': float(row.get('ADP (ESPN)', 0)) if row.get('ADP (ESPN)') else 0,
+                        'posRank': row.get('P-RK', ''),
+                        'auctionValue': row.get('Auction $', ''),
+                        'targetRound': row.get('Target Round', ''),
+                        'expertRank': int(row.get('RK', 0))  # Rotoballer's expert ranking
+                    }
+                    players.append(player)
+                except (ValueError, KeyError) as e:
+                    print(f'[ESPN] Error parsing row: {e}', flush=True)
+                    continue
+        
+        return {'players': players}
+    except Exception as exc:
+        print(f'[ESPN] Error loading CSV: {exc}', flush=True)
+        return {'error': str(exc)}
 
 def init_db():
     with sqlite3.connect(DB_PATH) as conn:
@@ -245,6 +458,26 @@ class Handler(BaseHTTPRequestHandler):
             self.handle_theodds(parsed)
             return
 
+        if parsed.path == '/api/rotoballer':
+            self.handle_rotoballer(parsed)
+            return
+
+        if parsed.path == '/api/ffpc':
+            self.handle_ffpc(parsed)
+            return
+
+        if parsed.path == '/api/ghost':
+            self.handle_ghost(parsed)
+            return
+
+        if parsed.path == '/api/yahoo':
+            self.handle_yahoo(parsed)
+            return
+
+        if parsed.path == '/api/espn':
+            self.handle_espn(parsed)
+            return
+
         if parsed.path in ('/', '/index.html'):
             target = ROOT / 'index.html'
         else:
@@ -383,6 +616,101 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as exc:
             print(f'[THEODDS] ERROR: {type(exc).__name__}: {exc}', flush=True)
             self.send_response(502)
+            self._set_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': str(exc)}).encode('utf-8'))
+
+    def handle_rotoballer(self, parsed):
+        """Serve Underdog rankings from local CSV file"""
+        try:
+            data = load_rotoballer_rankings()
+            result_json = json.dumps(data).encode('utf-8')
+            print(f'[UNDERDOG] Serving {len(data.get("players", []))} players', flush=True)
+            
+            self.send_response(200)
+            self._set_cors_headers()
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(result_json)
+        except Exception as exc:
+            print(f'[UNDERDOG] ERROR: {type(exc).__name__}: {exc}', flush=True)
+            self.send_response(500)
+            self._set_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': str(exc)}).encode('utf-8'))
+
+    def handle_ffpc(self, parsed):
+        """Serve FFPC rankings from local CSV file"""
+        try:
+            data = load_ffpc_rankings()
+            result_json = json.dumps(data).encode('utf-8')
+            print(f'[FFPC] Serving {len(data.get("players", []))} players', flush=True)
+            
+            self.send_response(200)
+            self._set_cors_headers()
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(result_json)
+        except Exception as exc:
+            print(f'[FFPC] ERROR: {type(exc).__name__}: {exc}', flush=True)
+            self.send_response(500)
+            self._set_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': str(exc)}).encode('utf-8'))
+
+    def handle_ghost(self, parsed):
+        """Serve Ghost's personal rankings from local CSV file"""
+        try:
+            data = load_ghost_rankings()
+            result_json = json.dumps(data).encode('utf-8')
+            print(f'[GHOST] Serving {len(data.get("players", []))} players', flush=True)
+            
+            self.send_response(200)
+            self._set_cors_headers()
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(result_json)
+        except Exception as exc:
+            print(f'[GHOST] ERROR: {type(exc).__name__}: {exc}', flush=True)
+            self.send_response(500)
+            self._set_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': str(exc)}).encode('utf-8'))
+
+    def handle_yahoo(self, parsed):
+        """Serve Yahoo rankings from local CSV file"""
+        try:
+            data = load_yahoo_rankings()
+            result_json = json.dumps(data).encode('utf-8')
+            print(f'[YAHOO] Serving {len(data.get("players", []))} players', flush=True)
+            
+            self.send_response(200)
+            self._set_cors_headers()
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(result_json)
+        except Exception as exc:
+            print(f'[YAHOO] ERROR: {type(exc).__name__}: {exc}', flush=True)
+            self.send_response(500)
+            self._set_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': str(exc)}).encode('utf-8'))
+
+    def handle_espn(self, parsed):
+        """Serve ESPN rankings from local CSV file"""
+        try:
+            data = load_espn_rankings()
+            result_json = json.dumps(data).encode('utf-8')
+            print(f'[ESPN] Serving {len(data.get("players", []))} players', flush=True)
+            
+            self.send_response(200)
+            self._set_cors_headers()
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(result_json)
+        except Exception as exc:
+            print(f'[ESPN] ERROR: {type(exc).__name__}: {exc}', flush=True)
+            self.send_response(500)
             self._set_cors_headers()
             self.end_headers()
             self.wfile.write(json.dumps({'error': str(exc)}).encode('utf-8'))

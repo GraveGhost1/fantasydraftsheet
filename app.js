@@ -26,30 +26,30 @@ let currentUsername = null;
 let currentPassword = null;
 
 const basePlayers = [
-  { id: 'allen', name: 'Josh Allen', position: 'QB', team: 'BUF', baseValue: 96, espn: 2.2, yahoo: 2.7, posRank: 0, sleeperAdp: null },
-  { id: 'mcaffrey', name: 'Christian McCaffrey', position: 'RB', team: 'SF', baseValue: 98, espn: 1.2, yahoo: 1.4, posRank: 0, sleeperAdp: null },
-  { id: 'hill', name: 'Tyreek Hill', position: 'WR', team: 'MIA', baseValue: 95, espn: 2.4, yahoo: 2.6, posRank: 0, sleeperAdp: null },
-  { id: 'ekeler', name: 'Austin Ekeler', position: 'RB', team: 'WAS', baseValue: 90, espn: 3.5, yahoo: 3.8, posRank: 0, sleeperAdp: null },
-  { id: 'lamb', name: 'CeeDee Lamb', position: 'WR', team: 'DAL', baseValue: 94, espn: 2.8, yahoo: 3.0, posRank: 0, sleeperAdp: null },
-  { id: 'hurts', name: 'Jalen Hurts', position: 'QB', team: 'PHI', baseValue: 92, espn: 4.8, yahoo: 4.9, posRank: 0, sleeperAdp: null },
-  { id: 'breece', name: 'Breece Hall', position: 'RB', team: 'NYJ', baseValue: 88, espn: 4.2, yahoo: 4.6, posRank: 0, sleeperAdp: null },
-  { id: 'waller', name: 'Darren Waller', position: 'TE', team: 'MIA', baseValue: 85, espn: 5.1, yahoo: 5.3, posRank: 0, sleeperAdp: null },
-  { id: 'murray', name: 'Kyler Murray', position: 'QB', team: 'ARI', baseValue: 89, espn: 6.5, yahoo: 6.7, posRank: 0, sleeperAdp: null },
-  { id: 'achane', name: "De'Von Achane", position: 'RB', team: 'MIA', baseValue: 86, espn: 7.0, yahoo: 7.2, posRank: 0, sleeperAdp: null },
-  { id: 'nabers', name: 'Malik Nabers', position: 'WR', team: 'NYG', baseValue: 87, espn: 7.3, yahoo: 7.6, posRank: 0, sleeperAdp: null },
-  { id: 'puka', name: 'Puka Nacua', position: 'WR', team: 'LAR', baseValue: 84, espn: 8.1, yahoo: 8.3, posRank: 0, sleeperAdp: null },
-  { id: 'kelce', name: 'Travis Kelce', position: 'TE', team: 'KC', baseValue: 91, espn: 4.1, yahoo: 4.3, posRank: 0, sleeperAdp: null },
-  { id: 'diggs', name: 'Stefon Diggs', position: 'WR', team: 'HOU', baseValue: 83, espn: 8.8, yahoo: 9.0, posRank: 0, sleeperAdp: null },
-  { id: 'gibbs', name: 'Jahmyr Gibbs', position: 'RB', team: 'DET', baseValue: 93, espn: 3.2, yahoo: 3.4, posRank: 0, sleeperAdp: null },
-  { id: 'herbert', name: 'Justin Herbert', position: 'QB', team: 'LAC', baseValue: 82, espn: 9.6, yahoo: 9.7, posRank: 0, sleeperAdp: null },
-  { id: 'kincaid', name: 'Dalton Kincaid', position: 'TE', team: 'BUF', baseValue: 81, espn: 9.8, yahoo: 10.0, posRank: 0, sleeperAdp: null },
-  { id: 'dobbins', name: 'Gus Edwards', position: 'RB', team: 'LAC', baseValue: 79, espn: 10.2, yahoo: 10.4, posRank: 0, sleeperAdp: null },
-  { id: 'rice', name: 'Rashee Rice', position: 'WR', team: 'KC', baseValue: 80, espn: 10.5, yahoo: 10.7, posRank: 0, sleeperAdp: null },
-  { id: 'lawrence', name: 'Trevor Lawrence', position: 'QB', team: 'JAX', baseValue: 78, espn: 11.1, yahoo: 11.2, posRank: 0, sleeperAdp: null },
-  { id: 'sam', name: 'Sam LaPorta', position: 'TE', team: 'DET', baseValue: 88, espn: 6.8, yahoo: 7.0, posRank: 0, sleeperAdp: null },
-  { id: 'djk', name: 'D.J. Moore', position: 'WR', team: 'CHI', baseValue: 77, espn: 12.0, yahoo: 12.1, posRank: 0, sleeperAdp: null },
-  { id: 'davis', name: 'Mike Davis', position: 'RB', team: 'FA', baseValue: 74, espn: 15.0, yahoo: 15.2, posRank: 0, sleeperAdp: null },
-  { id: 'matt', name: 'Matthew Stafford', position: 'QB', team: 'LAR', baseValue: 76, espn: 13.2, yahoo: 13.3, posRank: 0, sleeperAdp: null }
+  { id: 'allen', name: 'Josh Allen', position: 'QB', team: 'BUF', baseValue: 96, espn: 2.2, yahoo: 2.7, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'mcaffrey', name: 'Christian McCaffrey', position: 'RB', team: 'SF', baseValue: 98, espn: 1.2, yahoo: 1.4, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'hill', name: 'Tyreek Hill', position: 'WR', team: 'MIA', baseValue: 95, espn: 2.4, yahoo: 2.6, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'ekeler', name: 'Austin Ekeler', position: 'RB', team: 'WAS', baseValue: 90, espn: 3.5, yahoo: 3.8, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'lamb', name: 'CeeDee Lamb', position: 'WR', team: 'DAL', baseValue: 94, espn: 2.8, yahoo: 3.0, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'hurts', name: 'Jalen Hurts', position: 'QB', team: 'PHI', baseValue: 92, espn: 4.8, yahoo: 4.9, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'breece', name: 'Breece Hall', position: 'RB', team: 'NYJ', baseValue: 88, espn: 4.2, yahoo: 4.6, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'waller', name: 'Darren Waller', position: 'TE', team: 'MIA', baseValue: 85, espn: 5.1, yahoo: 5.3, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'murray', name: 'Kyler Murray', position: 'QB', team: 'ARI', baseValue: 89, espn: 6.5, yahoo: 6.7, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'achane', name: "De'Von Achane", position: 'RB', team: 'MIA', baseValue: 86, espn: 7.0, yahoo: 7.2, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'nabers', name: 'Malik Nabers', position: 'WR', team: 'NYG', baseValue: 87, espn: 7.3, yahoo: 7.6, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'puka', name: 'Puka Nacua', position: 'WR', team: 'LAR', baseValue: 84, espn: 8.1, yahoo: 8.3, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'kelce', name: 'Travis Kelce', position: 'TE', team: 'KC', baseValue: 91, espn: 4.1, yahoo: 4.3, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'diggs', name: 'Stefon Diggs', position: 'WR', team: 'HOU', baseValue: 83, espn: 8.8, yahoo: 9.0, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'gibbs', name: 'Jahmyr Gibbs', position: 'RB', team: 'DET', baseValue: 93, espn: 3.2, yahoo: 3.4, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'herbert', name: 'Justin Herbert', position: 'QB', team: 'LAC', baseValue: 82, espn: 9.6, yahoo: 9.7, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'kincaid', name: 'Dalton Kincaid', position: 'TE', team: 'BUF', baseValue: 81, espn: 9.8, yahoo: 10.0, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'dobbins', name: 'Gus Edwards', position: 'RB', team: 'LAC', baseValue: 79, espn: 10.2, yahoo: 10.4, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'rice', name: 'Rashee Rice', position: 'WR', team: 'KC', baseValue: 80, espn: 10.5, yahoo: 10.7, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'lawrence', name: 'Trevor Lawrence', position: 'QB', team: 'JAX', baseValue: 78, espn: 11.1, yahoo: 11.2, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'sam', name: 'Sam LaPorta', position: 'TE', team: 'DET', baseValue: 88, espn: 6.8, yahoo: 7.0, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'djk', name: 'D.J. Moore', position: 'WR', team: 'CHI', baseValue: 77, espn: 12.0, yahoo: 12.1, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'davis', name: 'Mike Davis', position: 'RB', team: 'FA', baseValue: 74, espn: 15.0, yahoo: 15.2, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'matt', name: 'Matthew Stafford', position: 'QB', team: 'LAR', baseValue: 76, espn: 13.2, yahoo: 13.3, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null }
 ];
 
 const defaultState = {
@@ -92,7 +92,8 @@ const defaultState = {
   },
   draftedPlayerIds: [],
   autoTiering: false,
-  positionFilter: 'ALL'
+  positionFilter: 'ALL',
+  adpSource: 'all'
 };
 
 const state = loadState();
@@ -181,6 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const loginButton = document.getElementById('login-button');
   const logoutButton = document.getElementById('logout-button');
   const userDisplay = document.getElementById('user-display');
+  const csvUploadLabel = document.getElementById('csv-upload-label');
   const sleeperDraftIdInput = document.getElementById('sleeper-draft-id');
 
   console.log('DOM elements:', {
@@ -193,6 +195,30 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('th[data-key]').forEach((header) => {
     header.addEventListener('click', () => sortBy(header.dataset.key));
   });
+
+  const adpSourceSelector = document.getElementById('adp-source');
+  if (adpSourceSelector) {
+    adpSourceSelector.addEventListener('change', (e) => {
+      state.adpSource = e.target.value;
+      // Sort by the selected ADP source when changed, always in ascending order
+      if (state.adpSource === 'average') {
+        state.sort = { key: 'averageAdp', direction: 'asc' };
+      } else {
+        state.sort = { key: 'adp', direction: 'asc' };
+      }
+      render();
+    });
+  }
+
+  const toggleHelpButton = document.getElementById('toggle-help');
+  if (toggleHelpButton) {
+    toggleHelpButton.addEventListener('click', () => {
+      const csvHelp = document.getElementById('csv-help');
+      if (csvHelp) {
+        csvHelp.style.display = csvHelp.style.display === 'none' ? 'block' : 'none';
+      }
+    });
+  }
 
   const addTierButton = document.getElementById('add-tier');
   if (addTierButton) {
@@ -252,8 +278,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (sleeperDraftIdInput) {
-    sleeperDraftIdInput.addEventListener('blur', normalizeSleeperDraftIdInput);
-    sleeperDraftIdInput.addEventListener('change', normalizeSleeperDraftIdInput);
+    sleeperDraftIdInput.addEventListener('blur', () => normalizeSleeperDraftIdInput(sleeperDraftIdInput));
+    sleeperDraftIdInput.addEventListener('change', () => normalizeSleeperDraftIdInput(sleeperDraftIdInput));
     sleeperDraftIdInput.addEventListener('input', () => {
       // Auto-normalize on any input change
       const current = sleeperDraftIdInput.value;
@@ -263,7 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
     sleeperDraftIdInput.addEventListener('paste', () => {
-      setTimeout(normalizeSleeperDraftIdInput, 0);
+      setTimeout(() => normalizeSleeperDraftIdInput(sleeperDraftIdInput), 0);
     });
     sleeperDraftIdInput.addEventListener('keypress', async (event) => {
       if (event.key === 'Enter') {
@@ -320,21 +346,27 @@ document.addEventListener('DOMContentLoaded', () => {
     if (userDisplay) userDisplay.textContent = currentUsername;
     if (loginButton) loginButton.style.display = 'none';
     if (logoutButton) logoutButton.style.display = 'inline-block';
-    loadStateFromServer().then((loaded) => {
-      if (loaded) {
+    
+    // Show CSV upload button for logged-in users
+    if (csvUploadLabel) csvUploadLabel.style.display = 'inline-block';
+    
+    // First load CSV data, then load saved state
+    loadLiveRankings().then(() => {
+      loadStateFromServer().then((loaded) => {
         render();
-        // Don't load live rankings if we loaded saved state - use the saved tiers
-      } else {
-        // First time or no saved state
-        render();
-        loadLiveRankings();
-      }
+      });
     });
   } else {
     if (userDisplay) userDisplay.textContent = '';
     if (loginButton) loginButton.style.display = 'inline-block';
     if (logoutButton) logoutButton.style.display = 'none';
-    loadLiveRankings();
+    
+    // Hide CSV upload button for logged-out users
+    if (csvUploadLabel) csvUploadLabel.style.display = 'none';
+    
+    loadLiveRankings().then(() => {
+      render();
+    });
   }
 
   if (loginButton) {
@@ -352,11 +384,16 @@ document.addEventListener('DOMContentLoaded', () => {
       if (userDisplay) userDisplay.textContent = '';
       if (loginButton) loginButton.style.display = 'inline-block';
       if (logoutButton) logoutButton.style.display = 'none';
+      
+      // Hide CSV upload button for logged-out users
+      if (csvUploadLabel) csvUploadLabel.style.display = 'none';
+      
       localStorage.removeItem(STORAGE_KEY);
       Object.assign(state, structuredClone(defaultState));
       autoFillPlayers();
-      render();
-      loadLiveRankings();
+      loadLiveRankings().then(() => {
+        render();
+      });
       
       // Don't delete from server - keep the data for next login
       console.log('[SERVER] Logged out, keeping server data intact');
@@ -378,18 +415,21 @@ document.addEventListener('DOMContentLoaded', () => {
       userDisplay.textContent = currentUsername;
       loginButton.style.display = 'none';
       logoutButton.style.display = 'inline-block';
+      
+      // Show CSV upload button for logged-in users
+      if (csvUploadLabel) csvUploadLabel.style.display = 'inline-block';
+      
       hideUsernameModal();
       
       const loaded = await loadStateFromServer();
       if (loaded) {
-        render();
         alert('Your saved rankings have been loaded!');
+        render();
       } else {
         // No saved state on server, use current state (first time login)
         render();
         // Don't show alert for first-time login
       }
-      loadLiveRankings();
     });
   }
 
@@ -412,6 +452,13 @@ document.addEventListener('DOMContentLoaded', () => {
     saveRankingsButton.addEventListener('click', () => {
       saveCustomRankings();
     });
+  }
+
+  // CSV upload functionality
+  const csvUpload = document.getElementById('csv-upload');
+  
+  if (csvUpload && csvUploadLabel) {
+    csvUpload.addEventListener('change', handleCsvUpload);
   }
 
   if (applySavedRankingsButton) {
@@ -520,9 +567,44 @@ async function loadStateFromServer() {
         try {
           const loadedState = JSON.parse(data.state);
           console.log('[SERVER] Parsed loaded state, players count:', loadedState.players?.length);
+          
+          // Merge loaded state with current state to preserve new fields
+          // Save current players if they have new fields that old state doesn't
+          const currentPlayersWithNewFields = state.players.filter(p => p.expertRank !== undefined || p.sosRank !== undefined);
+          
           // Replace the entire state instead of shallow merge
           Object.keys(state).forEach(key => delete state[key]);
           Object.assign(state, loadedState);
+          
+          // Restore players that have new fields if they don't exist in loaded state
+          if (currentPlayersWithNewFields.length > 0) {
+            currentPlayersWithNewFields.forEach(currentPlayer => {
+              const existsInLoaded = state.players.find(p => 
+                normalizeName(p.name) === normalizeName(currentPlayer.name) && 
+                normalizeName(p.position) === normalizeName(currentPlayer.position) &&
+                normalizeName(p.team) === normalizeName(currentPlayer.team)
+              );
+              if (!existsInLoaded) {
+                // Add player with new fields if not in loaded state
+                state.players.push(currentPlayer);
+              } else {
+                // Update existing player with new fields if missing
+                if (!existsInLoaded.expertRank && currentPlayer.expertRank) {
+                  existsInLoaded.expertRank = currentPlayer.expertRank;
+                }
+                if (!existsInLoaded.sosRank && currentPlayer.sosRank) {
+                  existsInLoaded.sosRank = currentPlayer.sosRank;
+                }
+                if (!existsInLoaded.rotoballer && currentPlayer.rotoballer) {
+                  existsInLoaded.rotoballer = currentPlayer.rotoballer;
+                }
+                if (!existsInLoaded.ffpc && currentPlayer.ffpc) {
+                  existsInLoaded.ffpc = currentPlayer.ffpc;
+                }
+              }
+            });
+          }
+          
           // Disable auto-tiering to preserve manual tier assignments
           state.autoTiering = false;
           console.log('[SERVER] State loaded successfully, current players:', state.players?.length);
@@ -779,7 +861,7 @@ function collectSettings() {
   // Update Sleeper draft ID
   if (sleeperDraftId) {
     const normalized = extractSleeperDraftId(sleeperDraftId.value);
-    if (normalized !== state.sleeperSync.draftId) {
+    if (normalized && normalized !== state.sleeperSync.draftId) {
       state.sleeperSync.draftId = normalized;
       state.sleeperSync.lastPickCount = 0;
       state.sleeperSync.lastSyncAt = null;
@@ -854,7 +936,15 @@ function populateSettingsFields() {
   if (benchSlots) benchSlots.value = settings.benchSlots;
   
   const sleeperDraftId = document.getElementById('sleeper-draft-id');
-  if (sleeperDraftId) sleeperDraftId.value = state.sleeperSync?.draftId || '';
+  if (sleeperDraftId) {
+    const draftId = state.sleeperSync?.draftId || '';
+    // Only set if it's not "Ghost" (this shouldn't happen but acts as a safety check)
+    if (draftId !== 'Ghost') {
+      sleeperDraftId.value = draftId;
+    } else {
+      sleeperDraftId.value = '';
+    }
+  }
 
 }
 
@@ -1087,10 +1177,10 @@ function extractSleeperDraftId(value) {
   return '';
 }
 
-function normalizeSleeperDraftIdInput() {
-  const extracted = extractSleeperDraftId(sleeperDraftIdInput.value);
+function normalizeSleeperDraftIdInput(inputElement) {
+  const extracted = extractSleeperDraftId(inputElement.value);
   if (extracted) {
-    sleeperDraftIdInput.value = extracted;
+    inputElement.value = extracted;
   }
   return extracted;
 }
@@ -1410,6 +1500,10 @@ function calculateSleeperAdp() {
   // Calculate Sleeper ADP from all saved draft picks
   const picksByPlayer = {};
   
+  if (!state.sleeperSync?.allDraftPicks || !Array.isArray(state.sleeperSync.allDraftPicks)) {
+    return {};
+  }
+  
   state.sleeperSync.allDraftPicks.forEach(pick => {
     // Store multiple normalized name keys for each pick
     const nameKeys = getNameMatchKeys(pick.name);
@@ -1708,6 +1802,22 @@ async function fetchJsonWithProxyFallback(url, errorLabel, { timeoutMs = DEFAULT
   } catch (error) {
     console.log(`[FETCH] Direct fetch failed for ${errorLabel}:`, error?.message || error);
     
+    // Try local server proxy first (since we're running python server.py)
+    const localProxyUrl = `/proxy?url=${encodeURIComponent(url)}`;
+    console.log(`[FETCH] Trying local server proxy for: ${errorLabel}`);
+    try {
+      const localResponse = await fetchWithTimeout(localProxyUrl, {}, timeoutMs);
+      console.log(`[FETCH] Local proxy response status: ${localResponse.status}`);
+      if (!localResponse.ok) {
+        throw new Error(`Local proxy returned ${localResponse.status}`);
+      }
+      const data = await localResponse.json();
+      console.log(`[FETCH] Local proxy success for: ${errorLabel}`);
+      return data;
+    } catch (localError) {
+      console.log(`[FETCH] Local proxy failed:`, localError?.message || localError);
+    }
+    
     // Try multiple CORS proxies as fallbacks
     const proxies = [
       { name: 'corsproxy.io', url: `https://corsproxy.io/?${encodeURIComponent(url)}` },
@@ -1741,10 +1851,23 @@ async function fetchJsonWithProxyFallback(url, errorLabel, { timeoutMs = DEFAULT
 }
 
 function getAverageAdp(player) {
-  const values = [player.espn, player.yahoo];
+  const values = [];
+  if (player.espn !== null && player.espn !== undefined) {
+    values.push(player.espn);
+  }
+  if (player.yahoo !== null && player.yahoo !== undefined) {
+    values.push(player.yahoo);
+  }
   if (player.sleeperAdp !== null && player.sleeperAdp !== undefined) {
     values.push(player.sleeperAdp);
   }
+  if (player.rotoballer !== null && player.rotoballer !== undefined) {
+    values.push(player.rotoballer);
+  }
+  if (player.ffpc !== null && player.ffpc !== undefined) {
+    values.push(player.ffpc);
+  }
+  if (values.length === 0) return 0;
   return values.reduce((sum, val) => sum + val, 0) / values.length;
 }
 
@@ -1783,9 +1906,11 @@ function renderRankingStatus() {
   // Show what's being sorted by
   const sortLabels = {
     myRank: 'My Rankings',
-    espn: 'ESPN ADP',
-    yahoo: 'Yahoo ADP',
-    averageAdp: 'Draft ADP',
+    adp: 'ADP',
+    expertRank: 'Expert Ranking',
+    adpDiff: 'ADP Difference',
+    sosRank: 'Strength of Schedule',
+    averageAdp: 'Average ADP',
     player: 'Player Name',
     position: 'Position',
     team: 'Team'
@@ -1794,6 +1919,18 @@ function renderRankingStatus() {
   const currentSort = sortLabels[state.sort.key] || state.sort.key;
   const direction = state.sort.direction === 'asc' ? '↑' : '↓';
   statusText = `Sort: ${currentSort} ${direction}`;
+  
+  // Show which ADP source is selected
+  const adpSourceLabels = {
+    all: 'All',
+    espn: 'ESPN',
+    yahoo: 'Yahoo',
+    rotoballer: 'Underdog',
+    ffpc: 'FFPC',
+    average: 'Average'
+  };
+  const adpSourceLabel = adpSourceLabels[state.adpSource] || 'All';
+  statusText += ` | ADP: ${adpSourceLabel}`;
   
   // Show if custom rankings are applied
   const hasCustomRanks = state.players.some(p => p.customRank !== undefined);
@@ -1954,36 +2091,206 @@ async function fetchFantasyNerdsProjections() {
 }
 
 async function loadLiveRankings() {
-  const selectedScoring = state.settings.scoringFormat;
-  const selectedScoringApiType = getScoringApiType(selectedScoring);
-  state.liveDataStatus = `Fetching ${getScoringLabel(selectedScoring)} rankings from Fantasy Football Calculator...`;
+  state.liveDataStatus = `Loading rankings from local CSV files...`;
   render();
 
   try {
-    // Fetch FFC data (this works via proxy)
-    const [selectedResponse, standardResponse] = await Promise.all([
-      fetchJsonWithProxyFallback(`https://fantasyfootballcalculator.com/api/v1/adp/${selectedScoringApiType}`, `${getScoringLabel(selectedScoring)} ADP`),
-      fetchJsonWithProxyFallback('https://fantasyfootballcalculator.com/api/v1/adp/standard', 'Standard ADP')
+    // Fetch local CSV rankings for ESPN, Yahoo, Underdog, and FFPC
+    const [espnResponse, yahooResponse, rotoballerResponse, ffpcResponse] = await Promise.all([
+      fetchJsonWithProxyFallback('/api/espn', 'ESPN rankings'),
+      fetchJsonWithProxyFallback('/api/yahoo', 'Yahoo rankings'),
+      fetchJsonWithProxyFallback('/api/rotoballer', 'Underdog rankings'),
+      fetchJsonWithProxyFallback('/api/ffpc', 'FFPC rankings')
     ]);
 
-    const mergedPlayers = (selectedResponse.players || [])
-      .map((player) => {
-        const standardMatch = (standardResponse.players || []).find((entry) => normalizeName(entry.name) === normalizeName(player.name));
+    // Don't fetch Ghost rankings here - they will be applied after login
+    let ghostResponse = null;
 
-        return {
+    // Create a map of ESPN rankings by normalized name for quick lookup
+    const espnMap = new Map();
+    if (espnResponse && espnResponse.players) {
+      espnResponse.players.forEach(espnPlayer => {
+        const normalizedName = normalizeName(espnPlayer.name);
+        espnMap.set(normalizedName, espnPlayer.adpESPN || espnPlayer.rank);
+      });
+    }
+
+    // Create a map of Yahoo rankings by normalized name for quick lookup
+    const yahooMap = new Map();
+    if (yahooResponse && yahooResponse.players) {
+      yahooResponse.players.forEach(yahooPlayer => {
+        const normalizedName = normalizeName(yahooPlayer.name);
+        yahooMap.set(normalizedName, yahooPlayer.adpYahoo || yahooPlayer.rank);
+      });
+    }
+
+    // Create a map of Underdog rankings by normalized name for quick lookup
+    const rotoballerMap = new Map();
+    if (rotoballerResponse && rotoballerResponse.players) {
+      rotoballerResponse.players.forEach(rbPlayer => {
+        const normalizedName = normalizeName(rbPlayer.name);
+        rotoballerMap.set(normalizedName, rbPlayer.adpUnderdog || rbPlayer.rank);
+      });
+    }
+
+    // Create a map of FFPC rankings by normalized name for quick lookup
+    const ffpcMap = new Map();
+    if (ffpcResponse && ffpcResponse.players) {
+      ffpcResponse.players.forEach(ffpcPlayer => {
+        const normalizedName = normalizeName(ffpcPlayer.name);
+        ffpcMap.set(normalizedName, ffpcPlayer.adpFFPC || ffpcPlayer.rank);
+      });
+    }
+
+    // Create a combined player list from all CSV sources
+    const allPlayers = new Map();
+    
+    // Add players from ESPN data
+    if (espnResponse && espnResponse.players) {
+      espnResponse.players.forEach(player => {
+        const normalizedName = normalizeName(player.name);
+        if (!allPlayers.has(normalizedName)) {
+          allPlayers.set(normalizedName, {
+            name: player.name,
+            position: player.position,
+            team: player.team,
+            espn: player.adpESPN || player.rank,
+            yahoo: null,
+            rotoballer: null,
+            ffpc: null,
+            sosRank: player.sosRank || null,
+            expertRank: player.expertRank || null
+          });
+        } else {
+          allPlayers.get(normalizedName).espn = player.adpESPN || player.rank;
+          if (player.sosRank) allPlayers.get(normalizedName).sosRank = player.sosRank;
+          if (player.expertRank) allPlayers.get(normalizedName).expertRank = player.expertRank;
+        }
+      });
+    }
+
+    // Add Yahoo data
+    if (yahooResponse && yahooResponse.players) {
+      yahooResponse.players.forEach(player => {
+        const normalizedName = normalizeName(player.name);
+        if (!allPlayers.has(normalizedName)) {
+          allPlayers.set(normalizedName, {
+            name: player.name,
+            position: player.position,
+            team: player.team,
+            espn: null,
+            yahoo: player.adpYahoo || player.rank,
+            rotoballer: null,
+            ffpc: null,
+            sosRank: player.sosRank || null,
+            expertRank: player.expertRank || null
+          });
+        } else {
+          allPlayers.get(normalizedName).yahoo = player.adpYahoo || player.rank;
+          if (player.sosRank) allPlayers.get(normalizedName).sosRank = player.sosRank;
+          if (player.expertRank) allPlayers.get(normalizedName).expertRank = player.expertRank;
+        }
+      });
+    }
+
+    // Add Underdog data
+    if (rotoballerResponse && rotoballerResponse.players) {
+      rotoballerResponse.players.forEach(player => {
+        const normalizedName = normalizeName(player.name);
+        if (!allPlayers.has(normalizedName)) {
+          allPlayers.set(normalizedName, {
+            name: player.name,
+            position: player.position,
+            team: player.team,
+            espn: null,
+            yahoo: null,
+            rotoballer: player.adpUnderdog || player.rank,
+            ffpc: null,
+            sosRank: player.sosRank || null,
+            expertRank: player.expertRank || null
+          });
+        } else {
+          allPlayers.get(normalizedName).rotoballer = player.adpUnderdog || player.rank;
+          if (player.sosRank) allPlayers.get(normalizedName).sosRank = player.sosRank;
+          if (player.expertRank) allPlayers.get(normalizedName).expertRank = player.expertRank;
+        }
+      });
+    }
+
+    // Add FFPC data
+    if (ffpcResponse && ffpcResponse.players) {
+      ffpcResponse.players.forEach(player => {
+        const normalizedName = normalizeName(player.name);
+        if (!allPlayers.has(normalizedName)) {
+          allPlayers.set(normalizedName, {
+            name: player.name,
+            position: player.position,
+            team: player.team,
+            espn: null,
+            yahoo: null,
+            rotoballer: null,
+            ffpc: player.adpFFPC || player.rank,
+            sosRank: player.sosRank || null,
+            expertRank: player.expertRank || null
+          });
+        } else {
+          allPlayers.get(normalizedName).ffpc = player.adpFFPC || player.rank;
+          if (player.sosRank) allPlayers.get(normalizedName).sosRank = player.sosRank;
+          if (player.expertRank) allPlayers.get(normalizedName).expertRank = player.expertRank;
+        }
+      });
+    }
+
+    // Convert to array and filter players that have at least one ranking
+    const mergedPlayers = Array.from(allPlayers.values())
+      .filter(player => player.espn || player.yahoo || player.rotoballer || player.ffpc)
+      .map((player, index) => {
+        // Use ESPN as primary if available, otherwise Yahoo, otherwise first available
+        const primaryAdp = player.espn || player.yahoo || player.rotoballer || player.ffpc || 100;
+        
+        // Check if this player already exists in state (to preserve custom rankings, drafted status, etc.)
+        const existingPlayer = state.players.find(p => 
+          normalizeName(p.name) === normalizeName(player.name) && 
+          normalizeName(p.position) === normalizeName(player.position) &&
+          normalizeName(p.team) === normalizeName(player.team)
+        );
+        
+        // Build the player object, starting with CSV data
+        const mergedPlayer = {
           id: `live-${normalizeName(player.name)}-${normalizeName(player.position)}-${normalizeName(player.team)}`,
           rankKey: getRankKey(player),
           name: player.name,
           position: normalizePositionCode(player.position),
           team: player.team,
-          espn: player.adp,
-          yahoo: standardMatch?.adp ?? player.adp,
+          espn: player.espn || null,
+          yahoo: player.yahoo || null,
           sleeperAdp: null,
-          baseValue: Math.max(70, 100 - player.adp * 4),
+          rotoballer: player.rotoballer || null,
+          ffpc: player.ffpc || null,
+          sosRank: player.sosRank || null,
+          expertRank: player.expertRank || null,
+          baseValue: Math.max(70, 100 - primaryAdp * 4),
           tier: 1,
           myRank: 0,
-          posRank: 0
+          posRank: 0,
+          drafted: false,
+          draftedAt: null,
+          draftedSource: null,
+          roomPickNo: null
         };
+        
+        // If existing player found, preserve their customizations
+        if (existingPlayer) {
+          mergedPlayer.tier = existingPlayer.tier ?? 1;
+          mergedPlayer.myRank = existingPlayer.myRank ?? 0;
+          mergedPlayer.posRank = existingPlayer.posRank ?? 0;
+          mergedPlayer.drafted = existingPlayer.drafted ?? false;
+          mergedPlayer.draftedAt = existingPlayer.draftedAt ?? null;
+          mergedPlayer.draftedSource = existingPlayer.draftedSource ?? null;
+          mergedPlayer.roomPickNo = existingPlayer.roomPickNo ?? null;
+        }
+        
+        return mergedPlayer;
       });
 
     // Calculate Sleeper ADP from saved draft picks
@@ -2013,19 +2320,294 @@ async function loadLiveRankings() {
         };
       });
 
+    // Completely replace state.players with merged data to ensure new fields are present
     state.players = rankedPlayers;
     calculatePositionalRanks();
-    const appliedSavedRanks = applySavedCustomRanksToPlayers(state.players);
-    state.liveDataStatus = `Loaded ${state.players.length} players from Fantasy Football Calculator (${getScoringLabel(selectedScoring)}/Standard). API type: ${selectedResponse?.meta?.type || getScoringLabel(selectedScoring)}.${appliedSavedRanks ? ' Applied saved custom rankings.' : ''}`;
-    render();
+    
+    const espnCount = espnResponse && espnResponse.players ? espnResponse.players.length : 0;
+    const yahooCount = yahooResponse && yahooResponse.players ? yahooResponse.players.length : 0;
+    const underdogCount = rotoballerResponse && rotoballerResponse.players ? rotoballerResponse.players.length : 0;
+    const ffpcCount = ffpcResponse && ffpcResponse.players ? ffpcResponse.players.length : 0;
+    state.liveDataStatus = `Loaded ${state.players.length} players from local CSV files (${espnCount} ESPN, ${yahooCount} Yahoo, ${underdogCount} Underdog, ${ffpcCount} FFPC).`;
+    
+    console.log('[CSV] Sample player data:', {
+      name: state.players[0]?.name,
+      expertRank: state.players[0]?.expertRank,
+      rotoballer: state.players[0]?.rotoballer,
+      ffpc: state.players[0]?.ffpc
+    });
   } catch (error) {
-    state.liveDataStatus = `Live rankings unavailable. Using the starter board. ${error.message}`;
-    render();
+    console.error('[CSV] Error loading rankings:', error);
+    state.liveDataStatus = `Error loading rankings: ${error.message}`;
+  }
+}
+
+async function applyGhostRankings() {
+  console.log('[GHOST] Applying Ghost personal rankings...');
+  
+  try {
+    const ghostResponse = await fetchJsonWithProxyFallback('/api/ghost', 'Ghost personal rankings');
+    
+    if (ghostResponse && ghostResponse.players) {
+      console.log('[GHOST] Found Ghost rankings data:', ghostResponse.players.length, 'players');
+      
+      const ghostRankingsMap = new Map();
+      ghostResponse.players.forEach(ghostPlayer => {
+        const normalizedName = normalizeName(ghostPlayer.name);
+        ghostRankingsMap.set(normalizedName, ghostPlayer.personalRank);
+        console.log(`[GHOST] Mapping ${ghostPlayer.name} -> ${ghostPlayer.personalRank}`);
+      });
+      
+      let appliedGhostRanks = 0;
+      state.players.forEach(player => {
+        const normalizedName = normalizeName(player.name);
+        const ghostRank = ghostRankingsMap.get(normalizedName);
+        if (ghostRank) {
+          player.myRank = Math.round(ghostRank);
+          appliedGhostRanks++;
+          console.log(`[GHOST] Applied rank ${player.myRank} to ${player.name}`);
+        }
+      });
+      
+      // Re-sort by myRank after applying Ghost's rankings
+      state.players.sort((a, b) => a.myRank - b.myRank || a.name.localeCompare(b.name));
+      state.players.forEach((player, index) => {
+        player.myRank = index + 1;
+      });
+      
+      console.log(`[GHOST] Applied ${appliedGhostRanks} personal rankings for Ghost user`);
+      saveState();
+    } else {
+      console.log('[GHOST] No Ghost rankings data found');
+    }
+  } catch (error) {
+    console.error('[GHOST] Error applying Ghost rankings:', error);
+  }
+}
+
+// CSV upload handling
+function handleCsvUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  // Security checks
+  if (!file.name.endsWith('.csv')) {
+    alert('Please upload a CSV file only.');
+    event.target.value = '';
+    return;
+  }
+  
+  if (file.size > 5 * 1024 * 1024) { // 5MB limit
+    alert('File is too large. Maximum size is 5MB.');
+    event.target.value = '';
+    return;
+  }
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const csvContent = e.target.result;
+      const result = parseAndApplyCsvRankings(csvContent);
+      
+      if (result.success) {
+        alert(`Successfully imported ${result.applied} rankings!`);
+        saveState();
+        render();
+      } else {
+        alert(`Error: ${result.error}`);
+      }
+    } catch (error) {
+      alert('Error reading CSV file: ' + error.message);
+    }
+    
+    // Reset file input
+    event.target.value = '';
+  };
+  
+  reader.onerror = function() {
+    alert('Error reading file.');
+    event.target.value = '';
+  };
+  
+  reader.readAsText(file);
+}
+
+function parseAndApplyCsvRankings(csvContent) {
+  try {
+    // Integrity check: validate CSV structure
+    const lines = csvContent.split('\n').filter(line => line.trim());
+    if (lines.length < 2) {
+      return { success: false, error: 'CSV file is empty or has no data rows.' };
+    }
+    
+    // Parse header
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    console.log('[CSV] Headers found:', headers);
+    
+    // Required columns: at minimum, we need player name and some form of ranking
+    const nameIndex = headers.findIndex(h => h.includes('name') || h.includes('player'));
+    
+    // Prioritize "RK" column first (this is the actual ranking order), then "Personal Rank"
+    const rkIndex = headers.findIndex(h => h === 'rk');
+    const personalRankIndex = headers.findIndex(h => h.includes('personal') && h.includes('rank'));
+    const rankIndex = rkIndex !== -1 ? rkIndex : (personalRankIndex !== -1 ? personalRankIndex : headers.findIndex(h => h.includes('rank') && !h.includes('personal')));
+    const adpIndex = rankIndex === -1 ? headers.findIndex(h => h.includes('adp')) : -1;
+    const valueIndex = rankIndex === -1 && adpIndex === -1 ? headers.findIndex(h => h.includes('value')) : -1;
+    
+    const finalRankIndex = rkIndex !== -1 ? rkIndex : (personalRankIndex !== -1 ? personalRankIndex : (rankIndex !== -1 ? rankIndex : (adpIndex !== -1 ? adpIndex : valueIndex)));
+    
+    console.log('[CSV] Using column index', finalRankIndex, 'for rankings:', headers[finalRankIndex]);
+    
+    if (nameIndex === -1) {
+      return { success: false, error: 'CSV must contain a "Name" or "Player" column.' };
+    }
+    
+    if (finalRankIndex === -1) {
+      return { success: false, error: 'CSV must contain a "RK", "Personal Rank", "Rank", "ADP", or "Value" column.' };
+    }
+    
+    // Parse data rows
+    let appliedCount = 0;
+    const rankingsMap = new Map();
+    
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      // Handle CSV with quoted fields containing commas
+      const columns = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (let char of line) {
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          columns.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      columns.push(current.trim());
+      
+      if (columns.length <= nameIndex || columns.length <= finalRankIndex) {
+        continue; // Skip malformed rows
+      }
+      
+      const playerName = columns[nameIndex].replace(/"/g, '').trim();
+      const rankValue = parseFloat(columns[finalRankIndex].replace(/"/g, '').trim());
+      
+      if (playerName && !isNaN(rankValue)) {
+        // Use getNameMatchKeys to handle suffixes like III, Jr., etc.
+        const nameKeys = getNameMatchKeys(playerName);
+        nameKeys.forEach(key => {
+          rankingsMap.set(key, rankValue);
+        });
+        
+        if (i <= 5) { // Log first 5 players for debugging
+          console.log('[CSV] Parsed:', playerName, '->', rankValue, 'keys:', nameKeys);
+        }
+      }
+    }
+    
+    if (rankingsMap.size === 0) {
+      return { success: false, error: 'No valid rankings found in CSV.' };
+    }
+    
+    console.log('[CSV] Parsed', rankingsMap.size, 'rankings from CSV');
+    
+    // Apply rankings to existing players
+    state.players.forEach(player => {
+      // Use getNameMatchKeys to handle suffixes like III, Jr., etc.
+      const playerKeys = getNameMatchKeys(player.name);
+      let csvRank = undefined;
+      
+      // Check if any of the player's name keys match the CSV
+      for (const key of playerKeys) {
+        if (rankingsMap.has(key)) {
+          csvRank = rankingsMap.get(key);
+          break;
+        }
+      }
+      
+      if (csvRank !== undefined) {
+        player.myRank = csvRank; // Use exact value from CSV, don't round
+        appliedCount++;
+        if (appliedCount <= 5) { // Log first 5 applications for debugging
+          console.log('[CSV] Applied:', player.name, 'rank', player.myRank, 'from CSV value', csvRank, 'keys:', playerKeys);
+        }
+      }
+    });
+    
+    console.log('[CSV] Applied', appliedCount, 'rankings out of', state.players.length, 'players');
+    
+    // Remove duplicate players (same normalized name, position, team)
+    const seenPlayers = new Map();
+    const uniquePlayers = [];
+    
+    state.players.forEach(player => {
+      const matchKey = getNameMatchKeys(player.name)[0] + player.position + player.team;
+      if (!seenPlayers.has(matchKey)) {
+        seenPlayers.set(matchKey, true);
+        uniquePlayers.push(player);
+      } else {
+        console.log('[CSV] Removed duplicate:', player.name, player.position, player.team);
+      }
+    });
+    
+    state.players = uniquePlayers;
+    console.log('[CSV] Removed duplicates, now have', state.players.length, 'unique players');
+    
+    // Sort by myRank (use exact CSV values)
+    state.players.sort((a, b) => {
+      // Handle players without CSV ranks (put them at the end)
+      if (!a.myRank && b.myRank) return 1;
+      if (a.myRank && !b.myRank) return -1;
+      if (!a.myRank && !b.myRank) return a.name.localeCompare(b.name);
+      
+      // Sort by CSV rank
+      const rankDiff = a.myRank - b.myRank;
+      if (rankDiff !== 0) return rankDiff;
+      
+      // Tie-breaker by name
+      return a.name.localeCompare(b.name);
+    });
+    
+    // Renumber to sequential 1, 2, 3, etc. to match the RK column
+    state.players.forEach((player, index) => {
+      player.myRank = index + 1;
+    });
+    
+    // Log top 10 players after sorting
+    console.log('[CSV] Top 10 players after CSV import:');
+    state.players.slice(0, 10).forEach((player, index) => {
+      console.log(`  ${index + 1}. ${player.name} (${player.position}) - Rank: ${player.myRank}`);
+    });
+    
+    // Recalculate positional ranks and tiers
+    calculatePositionalRanks();
+    applyAutoTiering();
+    
+    console.log('[CSV] Applied', appliedCount, 'rankings and recalculated tiers/positions');
+    
+    return { success: true, applied: appliedCount };
+    
+  } catch (error) {
+    console.error('[CSV] Error parsing CSV:', error);
+    return { success: false, error: 'Error parsing CSV: ' + error.message };
   }
 }
 
 function normalizeName(value) {
-  return `${value || ''}`.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  // Remove common suffixes for better matching
+  let name = `${value || ''}`.toLowerCase();
+  
+  // Remove common suffixes like Jr., Sr., II, III, IV, etc.
+  name = name.replace(/\s+(jr\.?|sr\.?|ii|iii|iv|vi|vii|viii|ix|x)$/g, '');
+  
+  // Remove non-alphanumeric characters
+  name = name.replace(/[^a-z0-9]+/g, '');
+  
+  return name;
 }
 
 function normalizeNameForMatch(value) {
@@ -2083,7 +2665,7 @@ function renderDraftBoard() {
     
     rows.push(`
       <tr class="tier-divider" data-tier="${tier}">
-        <td colspan="8">
+        <td colspan="9">
           <div class="tier-bar">
             <span class="tier-pill t${tier}">Tier ${tier}</span>
             <span class="tier-divider-count">${players.length} players</span>
@@ -2093,7 +2675,11 @@ function renderDraftBoard() {
     `);
     
     players.forEach((player) => {
-      const avgAdp = getDraftAdjustedAdp(player).toFixed(1);
+      const adpValue = getAdpValue(player, state.adpSource);
+      const expertValue = player.expertRank ? player.expertRank : '-';
+      const adpDiff = calculateAdpDifference(player, state.adpSource);
+      const personalDiff = calculatePersonalDifference(player, state.adpSource);
+      const sosValue = player.sosRank ? player.sosRank : '-';
       const isSelected = state.ui?.selectedPlayerId === player.id;
       const posRankDisplay = player.posRank ? `${player.position}${player.posRank}` : player.position;
       const normalizedPosition = normalizePositionForCss(player.position);
@@ -2111,10 +2697,11 @@ function renderDraftBoard() {
           </td>
           <td><span class="pos-pill pos-${normalizedPosition}">${posRankDisplay}</span></td>
           <td>${player.team}</td>
-          <td>${player.espn.toFixed(1)}</td>
-          <td>${player.yahoo.toFixed(1)}</td>
-          <td>${player.sleeperAdp ? player.sleeperAdp.toFixed(1) : '-'}</td>
-          <td>${avgAdp}</td>
+          <td>${adpValue}</td>
+          <td>${expertValue}</td>
+          <td style="color: ${adpDiff.color}; font-weight: ${adpDiff.weight};">${adpDiff.display}</td>
+          <td style="color: ${personalDiff.color}; font-weight: ${personalDiff.weight};">${personalDiff.display}</td>
+          <td>${sosValue}</td>
         </tr>
       `);
     });
@@ -2123,8 +2710,62 @@ function renderDraftBoard() {
   rankingsBodyEl.innerHTML = rows.join('');
   console.log('Rendered', rows.length, 'rows');
   
+  // Update table header based on selected ADP source
+  updateTableHeader();
+  
   // Render unmatched picks section
   renderUnmatchedPicksSection();
+}
+
+function getAdpValue(player, source) {
+  switch(source) {
+    case 'espn':
+      return player.espn ? player.espn.toFixed(1) : '-';
+    case 'yahoo':
+      return player.yahoo ? player.yahoo.toFixed(1) : '-';
+    case 'rotoballer':
+      return player.rotoballer ? player.rotoballer.toFixed(1) : '-';
+    case 'ffpc':
+      return player.ffpc ? player.ffpc.toFixed(1) : '-';
+    case 'average':
+      return getDraftAdjustedAdp(player).toFixed(1);
+    case 'all':
+    default:
+      return getDraftAdjustedAdp(player).toFixed(1);
+  }
+}
+
+function updateTableHeader() {
+  const headerRow = document.getElementById('table-header');
+  if (!headerRow) return;
+  
+  const adpLabels = {
+    all: 'ADP',
+    espn: 'ESPN',
+    yahoo: 'Yahoo', 
+    rotoballer: 'Underdog',
+    ffpc: 'FFPC',
+    average: 'Average'
+  };
+  
+  const currentLabel = adpLabels[state.adpSource] || 'ADP';
+  
+  headerRow.innerHTML = `
+    <th data-key="myRank">Rank</th>
+    <th data-key="player">Player</th>
+    <th data-key="position">Pos</th>
+    <th data-key="team">Team</th>
+    <th data-key="adp">${currentLabel}</th>
+    <th data-key="expertRank">Expert</th>
+    <th data-key="adpDiff">Diff</th>
+    <th data-key="personalDiff">My Diff</th>
+    <th data-key="sosRank">SoS</th>
+  `;
+  
+  // Re-attach event listeners to the new header
+  document.querySelectorAll('th[data-key]').forEach((header) => {
+    header.addEventListener('click', () => sortBy(header.dataset.key));
+  });
 }
 
 function comparePlayers(a, b) {
@@ -2139,15 +2780,175 @@ function comparePlayers(a, b) {
     result = (POSITION_ORDER[a.position] || 99) - (POSITION_ORDER[b.position] || 99) || a.position.localeCompare(b.position);
   } else if (key === 'team') {
     result = a.team.localeCompare(b.team);
+  } else if (key === 'adp') {
+    result = getAdpValueForSort(a) - getAdpValueForSort(b);
+  } else if (key === 'expertRank') {
+    result = (a.expertRank || 999) - (b.expertRank || 999);
+  } else if (key === 'adpDiff') {
+    const diffA = calculateAdpDifference(a, state.adpSource);
+    const diffB = calculateAdpDifference(b, state.adpSource);
+    // Parse the numeric value from the display string
+    const numA = parseFloat(diffA.display) || 0;
+    const numB = parseFloat(diffB.display) || 0;
+    result = numA - numB;
+  } else if (key === 'personalDiff') {
+    const diffA = calculatePersonalDifference(a, state.adpSource);
+    const diffB = calculatePersonalDifference(b, state.adpSource);
+    // Parse the numeric value from the display string
+    const numA = parseFloat(diffA.display) || 0;
+    const numB = parseFloat(diffB.display) || 0;
+    result = numA - numB;
+  } else if (key === 'sosRank') {
+    result = (a.sosRank || 999) - (b.sosRank || 999);
   } else if (key === 'espn') {
-    result = a.espn - b.espn;
+    result = (a.espn || 999) - (b.espn || 999);
   } else if (key === 'yahoo') {
-    result = a.yahoo - b.yahoo;
+    result = (a.yahoo || 999) - (b.yahoo || 999);
+  } else if (key === 'rotoballer') {
+    result = (a.rotoballer || 999) - (b.rotoballer || 999);
+  } else if (key === 'ffpc') {
+    result = (a.ffpc || 999) - (b.ffpc || 999);
   } else if (key === 'averageAdp') {
     result = getDraftAdjustedAdp(a) - getDraftAdjustedAdp(b);
   }
 
   return direction === 'asc' ? result : -result;
+}
+
+function getAdpValueForSort(player) {
+  switch(state.adpSource) {
+    case 'espn':
+      return player.espn || 999;
+    case 'yahoo':
+      return player.yahoo || 999;
+    case 'rotoballer':
+      return player.rotoballer || 999;
+    case 'ffpc':
+      return player.ffpc || 999;
+    case 'average':
+      return getDraftAdjustedAdp(player);
+    case 'all':
+    default:
+      return getDraftAdjustedAdp(player);
+  }
+}
+
+function calculateAdpDifference(player, adpSource) {
+  // Get the current ADP value based on selected source
+  let currentAdp = null;
+  switch(adpSource) {
+    case 'espn':
+      currentAdp = player.espn;
+      break;
+    case 'yahoo':
+      currentAdp = player.yahoo;
+      break;
+    case 'rotoballer':
+      currentAdp = player.rotoballer;
+      break;
+    case 'ffpc':
+      currentAdp = player.ffpc;
+      break;
+    case 'average':
+      currentAdp = getDraftAdjustedAdp(player);
+      break;
+    case 'all':
+    default:
+      currentAdp = getDraftAdjustedAdp(player);
+  }
+
+  // If no ADP or no expert rank, return empty
+  if (!currentAdp || !player.expertRank) {
+    return { display: '-', color: '#666', weight: 'normal' };
+  }
+
+  // Calculate difference: ADP - Rank (flipped for user intuition)
+  // If expert rank is 7 and ADP is 9.2, difference is 9.2 - 7 = +2.2 (rank higher = undervalued)
+  // If expert rank is 8 and ADP is 5, difference is 5 - 8 = -3 (rank lower = overvalued)
+  const difference = currentAdp - player.expertRank;
+  
+  // Format the display
+  const diffFormatted = difference >= 0 ? `+${difference.toFixed(1)}` : difference.toFixed(1);
+  
+  // Color coding:
+  // Green (undervalued): difference > 0 (rank higher/lower number than ADP = good value)
+  // Red (overvalued): difference < 0 (rank lower/higher number than ADP = bad value)
+  // Neutral: difference close to 0
+  let color = '#666';
+  let weight = 'normal';
+  
+  if (difference > 1) {
+    color = '#28a745'; // Green - significantly undervalued
+    weight = 'bold';
+  } else if (difference > 0) {
+    color = '#90EE90'; // Light green - slightly undervalued
+  } else if (difference < -1) {
+    color = '#dc3545'; // Red - significantly overvalued
+    weight = 'bold';
+  } else if (difference < 0) {
+    color = '#FF6B6B'; // Light red - slightly overvalued
+  }
+  
+  return { display: diffFormatted, color, weight };
+}
+
+function calculatePersonalDifference(player, adpSource) {
+  // Calculate difference between the selected ADP source and your personal ranking (myRank)
+  let currentAdp = null;
+  switch(adpSource) {
+    case 'espn':
+      currentAdp = player.espn;
+      break;
+    case 'yahoo':
+      currentAdp = player.yahoo;
+      break;
+    case 'rotoballer':
+      currentAdp = player.rotoballer;
+      break;
+    case 'ffpc':
+      currentAdp = player.ffpc;
+      break;
+    case 'average':
+      currentAdp = getDraftAdjustedAdp(player);
+      break;
+    case 'all':
+    default:
+      currentAdp = getDraftAdjustedAdp(player);
+  }
+
+  // If no ADP or no personal rank, return empty
+  if (!currentAdp || !player.myRank) {
+    return { display: '-', color: '#666', weight: 'normal' };
+  }
+
+  // Calculate difference: ADP - My Rank (flipped for user intuition)
+  // If my rank is 5 and ADP is 6.5, difference is 6.5 - 5 = +1.5 (rank higher = undervalued)
+  // If my rank is 8 and ADP is 5.5, difference is 5.5 - 8 = -2.5 (rank lower = overvalued)
+  const difference = currentAdp - player.myRank;
+  
+  // Format the display
+  const diffFormatted = difference >= 0 ? `+${difference.toFixed(1)}` : difference.toFixed(1);
+  
+  // Color coding:
+  // Teal (undervalued): difference > 0 (rank higher/lower number than ADP = good value)
+  // Magenta (overvalued): difference < 0 (rank lower/higher number than ADP = bad value)
+  // Neutral: difference close to 0
+  let color = '#666';
+  let weight = 'normal';
+  
+  if (difference > 1) {
+    color = '#008080'; // Teal - significantly undervalued by you
+    weight = 'bold';
+  } else if (difference > 0) {
+    color = '#00CED1'; // Light teal - slightly undervalued by you
+  } else if (difference < -1) {
+    color = '#FF00FF'; // Magenta - significantly overvalued by you
+    weight = 'bold';
+  } else if (difference < 0) {
+    color = '#FF77FF'; // Light magenta - slightly overvalued by you
+  }
+  
+  return { display: diffFormatted, color, weight };
 }
 
 function resetDraftBoard() {
