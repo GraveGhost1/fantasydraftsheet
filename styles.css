@@ -207,7 +207,7 @@ select {
 }
 
 .rankings-table thead {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--header-bg);
   position: sticky;
   top: 0;
   z-index: 10;

@@ -4,21 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Fantasy Draft Sheet</title>
-    <style>
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap');
+    <style>@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap');
 
 :root {
   color-scheme: dark;
-  --bg: #0e1622;
-  --panel: #152232;
-  --panel-2: #1c2d41;
-  --text: #f5f8ff;
-  --muted: #9ab0c8;
-  --accent: #69d8ff;
-  --accent-2: #9ed0ff;
-  --danger: #ff7f7f;
-  --selected: #8ee7ff;
-  --chip-bg: rgba(255, 255, 255, 0.07);
+  --bg: #0a0e14;
+  --header-bg: #111827;
+  --border: #1f2937;
+  --text: #f9fafb;
+  --muted: #9ca3af;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --danger: #ef4444;
+  --success: #10b981;
 }
 
 * {
@@ -30,7 +28,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: "Manrope", "Segoe UI", sans-serif;
-  line-height: 1.45;
+  line-height: 1.5;
   -webkit-text-size-adjust: 100%;
 }
 
@@ -40,28 +38,20 @@ select {
   font: inherit;
 }
 
-button,
-input,
-select,
-textarea {
-  min-height: 44px;
-}
-
 .app-shell {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 24px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .top-bar {
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  margin-bottom: 16px;
+  justify-content: space-between;
+  gap: 24px;
 }
 
 .logo-section h1 {
@@ -110,10 +100,10 @@ textarea {
 
 .compact-input {
   padding: 6px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: var(--panel-2);
+  border: 1px solid var(--border);
+  background: var(--bg);
   color: var(--text);
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: 0.85rem;
   min-height: 32px;
   min-width: 150px;
@@ -126,45 +116,42 @@ textarea {
 .compact-input:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(110, 231, 249, 0.2);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 .compact-button {
-  padding: 6px 16px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
+  padding: 6px 14px;
   border-radius: 6px;
   font-size: 0.85rem;
+  font-weight: 600;
   min-height: 32px;
-  cursor: pointer;
-  transition: all 0.15s ease;
 }
 
-.compact-button:hover {
-  border-color: var(--accent);
-  background: rgba(59, 130, 246, 0.1);
+.user-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.ranking-status-bar {
-  padding: 12px 24px;
-  background: rgba(59, 130, 246, 0.08);
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  border-radius: 8px;
-  margin-bottom: 16px;
-  font-size: 0.85rem;
-  color: var(--muted);
+.user-display {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.main-content {
+  flex: 1;
+  padding: 20px 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .filters-bar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  justify-content: space-between;
   margin-bottom: 16px;
+  gap: 16px;
 }
 
 .position-filters {
@@ -201,256 +188,211 @@ textarea {
   gap: 8px;
 }
 
-.ghost {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--muted);
+.ranking-status-bar {
+  padding: 8px 12px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+  color: var(--accent);
+  font-weight: 500;
 }
 
-.ghost:hover {
-  border-color: var(--accent);
+.table-container {
+  background: var(--header-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 70vh;
+}
+
+.rankings-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.rankings-table thead {
+  background: var(--header-bg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.rankings-table th,
+.rankings-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.rankings-table th {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.rankings-table th:hover {
   color: var(--text);
 }
 
-.hero,
-.panel {
-  background: rgba(21, 34, 50, 0.97);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
-  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.24);
-}
-
-.hero {
-  padding: 28px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.eyebrow {
-  margin: 0 0 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.24em;
-  font-size: 0.8rem;
+.rankings-table th.is-sorted {
   color: var(--accent);
 }
 
-h1,
-h2,
-p {
-  margin: 0;
+.rankings-table th.is-sorted::after {
+  content: ' ▾';
+  font-size: 0.8em;
 }
 
-h1,
-h2,
-h3 {
-  letter-spacing: 0;
+.rankings-table th.is-sorted.asc::after {
+  content: ' ▴';
 }
 
-h1 {
-  font-size: clamp(1.8rem, 3.2vw, 2.6rem);
-  margin-bottom: 8px;
+/* Mobile & Tablet Responsive Design */
+@media (max-width: 768px) {
+  .top-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+  
+  .logo-section h1 {
+    font-size: 1rem;
+  }
+  
+  .settings-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .rankings-table,
+  .comparison-table th,
+  .comparison-table td {
+    padding: 8px 6px;
+    font-size: 0.75rem;
+  }
+  
+  .rankings-table th:nth-child(5),
+  .rankings-table th:nth-child(6),
+  .rankings-table th:nth-child(7),
+  .rankings-table td:nth-child(5),
+  .rankings-table td:nth-child(6),
+  .rankings-table td:nth-child(7),
+  .comparison-table th:nth-child(5),
+  .comparison-table th:nth-child(6),
+  .comparison-table th:nth-child(7),
+  .comparison-table td:nth-child(5),
+  .comparison-table td:nth-child(6),
+  .comparison-table td:nth-child(7) {
+    display: none; /* Hide less important columns on mobile */
+  }
+  
+  .player-name {
+    font-size: 0.85rem;
+  }
+  
+  .pos-pill {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+  }
+  
+  .drag-handle {
+    display: none; /* Hide drag handle on mobile */
+  }
+  
+  .summary-panel {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .summary-item {
+    font-size: 0.85rem;
+  }
 }
 
-.hero-copy,
-.panel-heading p,
-.table-toolbar p,
-.legend {
-  color: var(--muted);
+@media (min-width: 769px) and (max-width: 1024px) {
+  .top-bar {
+    padding: 12px 20px;
+  }
+  
+  .settings-bar {
+    gap: 6px;
+  }
+  
+  .compact-select,
+  .compact-input {
+    font-size: 0.8rem;
+    padding: 5px 8px;
+  }
+  
+  .rankings-table,
+  .comparison-table th,
+  .comparison-table td {
+    padding: 10px 12px;
+    font-size: 0.8rem;
+  }
 }
 
-.panel {
-  padding: 24px;
+@media (max-width: 480px) {
+  .rankings-table th:nth-child(4),
+  .rankings-table td:nth-child(4),
+  .comparison-table th:nth-child(4),
+  .comparison-table td:nth-child(4) {
+    display: none; /* Hide team column on very small screens */
+  }
+  
+  .rankings-table th:nth-child(5),
+  .rankings-table td:nth-child(5),
+  .comparison-table th:nth-child(5),
+  .comparison-table td:nth-child(5) {
+    display: table-cell; /* Show ESPN again on very small */
+  }
 }
 
-.panel-heading,
-.table-toolbar {
+.rankings-table tbody tr {
+  transition: background 0.15s ease;
+}
+
+.rankings-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.rankings-table tbody tr.drafted-row {
+  opacity: 0.4;
+}
+
+.rankings-table td {
+  font-size: 0.9rem;
+}
+
+.player-cell {
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: end;
-  margin-bottom: 16px;
-}
-
-.position-filters {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
-}
-
-.chip-filter {
-  min-height: auto;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--text);
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.chip-filter.is-active {
-  background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  color: #04080d;
-  border-color: transparent;
-}
-
-.settings-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
-  align-items: end;
-}
-
-label {
-  display: grid;
-  gap: 6px;
-  font-size: 0.95rem;
-  color: var(--muted);
-}
-
-input,
-select {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: var(--panel-2);
-  color: var(--text);
-  border-radius: 10px;
-  padding: 10px 12px;
-}
-
-.button-row {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
   align-items: center;
-  grid-column: 1 / -1;
-}
-
-.sleeper-sync-row {
-  grid-column: 1 / -1;
-  display: grid;
   gap: 8px;
-  margin-top: 4px;
 }
 
-.sleeper-sync-actions {
-  margin-top: 2px;
+.player-name {
+  font-weight: 500;
 }
 
-button {
-  border: none;
-  border-radius: 999px;
-  padding: 10px 16px;
-  cursor: pointer;
-  background: var(--accent);
-  color: #0c1726;
-  font-weight: 700;
-}
-
-button.ghost {
-  background: transparent;
-  color: var(--text);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-}
-
-.summary-box {
-  margin-top: 16px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-  padding: 12px 14px;
-  color: var(--muted);
-}
-
-.draft-signals {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
-.signal-chip {
-  display: grid;
-  gap: 4px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.signal-label {
-  color: var(--muted);
-  font-size: 0.76rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.signal-value {
-  color: var(--text);
-  font-size: 0.95rem;
-  font-weight: 700;
-}
-
-.signal-chip-selected {
-  border-color: rgba(142, 231, 255, 0.45);
-  background: rgba(142, 231, 255, 0.08);
-}
-
-.signal-chip-warn {
-  border-color: rgba(255, 127, 127, 0.45);
-  background: rgba(255, 127, 127, 0.08);
-}
-
-.board-layout {
-  display: grid;
-  grid-template-columns: minmax(320px, 1fr) minmax(420px, 1.25fr);
-  gap: 16px;
-  align-items: start;
-}
-
-.board-column {
-  min-width: 0;
-}
-
-.board-table {
-  display: grid;
-  gap: 12px;
-}
-
-.compact {
-  margin-bottom: 0;
-}
-
-.compact-input {
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
-  border-radius: 6px;
-  font-size: 0.85rem;
-  min-height: 32px;
-  min-width: 150px;
-}
-
-.compact-input:hover {
-  border-color: var(--accent);
-}
-
-.compact-input:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+.selected-row {
+  outline: 2px solid var(--accent);
+  background: rgba(59, 130, 246, 0.2) !important;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
 }
 
 .unmatched-section {
   margin-top: 20px;
   padding: 16px;
-  background: var(--panel);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  -webkit-appearance: none;
-  appearance: none;
 }
 
 .unmatched-section h3 {
@@ -470,8 +412,8 @@ button.ghost {
   overflow-y: auto;
   margin-bottom: 12px;
   padding: 8px;
-  background: var(--bg);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--panel);
+  border: 1px solid var(--border);
   border-radius: 6px;
 }
 
@@ -481,7 +423,7 @@ button.ghost {
   align-items: center;
   padding: 8px;
   margin-bottom: 4px;
-  background: var(--panel-2);
+  background: var(--bg);
   border-radius: 4px;
   font-size: 0.85rem;
 }
@@ -499,63 +441,6 @@ button.ghost {
 .unmatched-item .pick-no {
   color: var(--accent);
   font-weight: 600;
-}
-
-.table-wrap {
-  overflow-x: auto;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 100%;
-}
-
-.comparison-wrap {
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.comparison-table {
-  min-width: 760px;
-}
-
-.comparison-table thead {
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.comparison-table th,
-.comparison-table td {
-  padding: 12px;
-  text-align: left;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.comparison-table th {
-  cursor: pointer;
-  color: var(--accent);
-  user-select: none;
-}
-
-.comparison-table tbody tr:hover {
-  background: rgba(110, 231, 249, 0.06);
-}
-
-.comparison-table tbody tr.selected-row {
-  outline: 2px solid rgba(142, 231, 255, 0.9);
-  background: rgba(142, 231, 255, 0.2) !important;
-  box-shadow: 0 0 10px rgba(142, 231, 255, 0.3);
-}
-
-.player-cell {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.player-name {
-  font-weight: 500;
 }
 
 .drag-handle {
@@ -584,59 +469,16 @@ table {
   line-height: 1;
 }
 
-.table-tag {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 0.7rem;
-  letter-spacing: 0.04em;
-  font-weight: 700;
-  background: var(--chip-bg);
-  color: var(--text);
-}
-
-.table-tag-manual {
-  border: 1px solid rgba(241, 182, 122, 0.45);
-  color: #ffd6ab;
-}
-
-.tier-divider td {
-  padding-top: 10px;
-  padding-bottom: 10px;
-  background: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-.tier-divider td:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.tier-divider-count,
-.tier-divider-hint {
-  margin-left: 10px;
-  color: var(--muted);
-  font-size: 0.86rem;
-}
-
-.tier-divider-hint {
-  font-style: italic;
-}
-
-.drafted-row {
-  opacity: 0.45;
-}
-
-.pos-pill,
-.tier-pill {
+.pos-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 0.86rem;
-  font-weight: 700;
-  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  background: rgba(255, 255, 255, 0.1);
   min-width: 50px;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -732,254 +574,93 @@ table {
   font-size: 0.86rem;
 }
 
-.tier-pill.t1 { background: rgba(110, 231, 249, 0.16); color: var(--accent); }
-.tier-pill.t2 { background: rgba(122, 201, 255, 0.16); color: #94cfff; }
-.tier-pill.t3 { background: rgba(125, 139, 255, 0.16); color: #a2adff; }
-.tier-pill.t4 { background: rgba(151, 117, 255, 0.16); color: #bfa7ff; }
-.tier-pill.t5 { background: rgba(255, 153, 102, 0.16); color: #ffb47a; }
-.tier-pill.t6 { background: rgba(255, 107, 107, 0.16); color: var(--danger); }
-.tier-pill.t7 { background: rgba(255, 214, 102, 0.16); color: #ffd36a; }
-.tier-pill.t8 { background: rgba(131, 205, 146, 0.16); color: #b4e4b8; }
-.tier-pill.t9 { background: rgba(255, 125, 175, 0.16); color: #ffb1cf; }
-.tier-pill.t10 { background: rgba(255, 255, 255, 0.1); color: #e8ecf5; }
-
-input.small {
-  width: 74px;
-  padding: 8px;
-}
-
-input.small::-webkit-outer-spin-button,
-input.small::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-input.small {
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-
-select.small {
-  width: 90px;
-  padding: 8px;
-}
-
-.rank-controls {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-
-
-.tiers-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-}
-
-.tier-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  padding: 12px;
-  min-height: 180px;
-}
-
-.tier-card-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.tier-count {
-  color: var(--muted);
+.status-bar {
+  padding: 10px 14px;
+  background: var(--header-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-top: 12px;
   font-size: 0.85rem;
+  color: var(--muted);
 }
 
-.tier-player-list {
-  display: grid;
-  gap: 8px;
+button {
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  transition: background 0.15s ease;
 }
 
-.player-chip,
-.draft-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
+button:hover {
+  background: var(--accent-hover);
+}
+
+button.ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+button.ghost:hover {
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  padding: 8px 10px;
-  color: var(--text);
+  border-color: var(--accent);
 }
 
-.player-chip {
-  cursor: grab;
-}
-
-.player-chip:hover,
-.draft-item:hover,
-.comparison-table tbody tr:hover {
-  transform: translateY(-1px);
-}
-
-.player-chip:active {
-  cursor: grabbing;
-}
-
-.chip-actions {
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  justify-content: center;
+  z-index: 1000;
 }
 
-.chip-rank {
-  color: var(--accent);
-  font-size: 0.82rem;
-  font-weight: 700;
+.modal-content {
+  background: var(--header-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.chip-action {
-  min-height: auto;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  background: rgba(110, 231, 249, 0.12);
-  color: var(--text);
-}
-
-.chip-tag {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  padding: 4px 8px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--text);
-  background: var(--chip-bg);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.chip-tag-recent {
-  border-color: rgba(102, 226, 217, 0.5);
-  color: #8ef5ef;
-}
-
-.chip-tag-sync {
-  border-color: rgba(142, 231, 255, 0.45);
-  color: var(--selected);
-}
-
-.chip-tag-manual {
-  border-color: rgba(241, 182, 122, 0.45);
-  color: #ffd6ab;
-}
-
-.empty-state {
-  color: var(--muted);
-  font-size: 0.9rem;
-  padding: 8px 2px;
-}
-
-.tracker-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 12px;
-}
-
-.tracker-column {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  padding: 12px;
-}
-
-.tracker-column h3 {
-  margin: 0 0 10px;
-  color: var(--accent);
-}
-
-.draft-bin {
-  display: grid;
-  gap: 8px;
-}
-
-.draft-item.is-selected {
-  border-color: rgba(142, 231, 255, 0.7);
-  box-shadow: 0 0 0 1px rgba(142, 231, 255, 0.28);
-  background: rgba(142, 231, 255, 0.12);
-}
-
-.unmatched-panel {
-  margin-top: 14px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  padding: 12px;
-}
-
-.unmatched-panel h3 {
+.modal-content h2 {
   margin: 0;
-  color: #ffd36a;
-}
-
-.unmatched-panel p {
-  margin: 4px 0 10px;
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.unmatched-bin {
-  max-height: 280px;
-  overflow: auto;
-}
-
-.unmatched-summary {
-  color: #ffd36a;
-  font-weight: 700;
-  font-size: 0.9rem;
-}
-
-.unmatched-list {
-  display: grid;
-  gap: 8px;
-}
-
-.unmatched-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin: 6px 0 8px;
-}
-
-.unmatched-item {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 8px;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  padding: 8px 10px;
-}
-
-.unmatched-pickno {
-  color: #ffd36a;
-  font-weight: 700;
-}
-
-.unmatched-name {
   color: var(--text);
 }
 
-.unmatched-meta {
+.modal-buttons {
+
+
+.modal-content p {
+  margin: 0;
   color: var(--muted);
-  font-size: 0.82rem;
-  white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+.modal-content input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.modal-content button {
+  margin-top: 8px;
 }
 
 @media (max-width: 760px) {
@@ -1056,7 +737,6 @@ select.small {
     padding: 8px 6px;
     font-size: 0.86rem;
   }
-
 }
 
 .modal-overlay {
@@ -1122,104 +802,7 @@ select.small {
 #login-button {
   display: inline-block !important;
 }
-
-/* Mobile & Tablet Responsive Design */
-@media (max-width: 768px) {
-  .top-bar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-    padding: 12px 16px;
-  }
-  
-  .logo-section h1 {
-    font-size: 1rem;
-  }
-  
-  .settings-bar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  table,
-  .rankings-table th,
-  .rankings-table td,
-  .comparison-table th,
-  .comparison-table td {
-    padding: 8px 6px;
-    font-size: 0.75rem;
-  }
-  
-  table th:nth-child(5),
-  table th:nth-child(6),
-  table th:nth-child(7),
-  table td:nth-child(5),
-  table td:nth-child(6),
-  table td:nth-child(7) {
-    display: none; /* Hide less important columns on mobile */
-  }
-  
-  .player-name {
-    font-size: 0.85rem;
-  }
-  
-  .pos-pill {
-    font-size: 0.7rem;
-    padding: 2px 6px;
-  }
-  
-  .drag-handle {
-    display: none; /* Hide drag handle on mobile */
-  }
-  
-  .table-toolbar {
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .compact-select,
-  .compact-input {
-    width: 100%;
-  }
-}
-
-@media (min-width: 769px) and (max-width: 1024px) {
-  .top-bar {
-    padding: 12px 20px;
-  }
-  
-  .settings-bar {
-    gap: 6px;
-  }
-  
-  .compact-select,
-  .compact-input {
-    font-size: 0.8rem;
-    padding: 5px 8px;
-  }
-  
-  table,
-  .rankings-table th,
-  .rankings-table td,
-  .comparison-table th,
-  .comparison-table td {
-    padding: 10px 12px;
-    font-size: 0.8rem;
-  }
-}
-
-@media (max-width: 480px) {
-  table th:nth-child(4),
-  table td:nth-child(4) {
-    display: none; /* Hide team column on very small screens */
-  }
-  
-  table th:nth-child(5),
-  table td:nth-child(5) {
-    display: table-cell; /* Show ESPN again on very small */
-  }
-}
-    </style>
+</style>
   </head>
   <body>
     <div id="username-modal" class="modal-overlay" style="display: none;">
@@ -1232,6 +815,7 @@ select.small {
         <button id="username-cancel" class="ghost">Cancel</button>
       </div>
     </div>
+    
     <div class="app-shell">
       <header class="top-bar">
         <div class="logo-section">
@@ -1282,6 +866,10 @@ select.small {
             Superflex
           </label>
           <button id="auto-rank" class="compact-button">Auto-rank</button>
+          <label for="csv-upload" class="compact-button ghost hidden" id="csv-upload-label" style="display: none;">
+            📁 Import Rankings
+          </label>
+          <input type="file" id="csv-upload" accept=".csv" style="display: none;">
           <input id="sleeper-draft-id" type="text" placeholder="Sleeper Draft ID" class="compact-input" />
           <button id="submit-sleeper-id" class="compact-button">Submit</button>
         </div>
@@ -1292,58 +880,89 @@ select.small {
         </div>
       </header>
 
-      <div id="ranking-status" class="ranking-status-bar"></div>
-
-      <div class="filters-bar">
-        <div class="position-filters" id="position-filters" aria-label="Position filters">
-          <button type="button" class="chip-filter is-active" data-filter="ALL">All</button>
-          <button type="button" class="chip-filter" data-filter="QB">QB</button>
-          <button type="button" class="chip-filter" data-filter="RB">RB</button>
-          <button type="button" class="chip-filter" data-filter="WR">WR</button>
-          <button type="button" class="chip-filter" data-filter="TE">TE</button>
-          <button type="button" class="chip-filter" data-filter="K">K</button>
-          <button type="button" class="chip-filter" data-filter="DEF">DEF</button>
+      <div class="main-content">
+        <div class="filters-bar">
+          <div class="position-filters" id="position-filters" aria-label="Position filters">
+            <button type="button" class="chip-filter is-active" data-filter="ALL">All</button>
+            <button type="button" class="chip-filter" data-filter="QB">QB</button>
+            <button type="button" class="chip-filter" data-filter="RB">RB</button>
+            <button type="button" class="chip-filter" data-filter="WR">WR</button>
+            <button type="button" class="chip-filter" data-filter="TE">TE</button>
+            <button type="button" class="chip-filter" data-filter="K">K</button>
+            <button type="button" class="chip-filter" data-filter="DEF">DEF</button>
+          </div>
+          <div class="adp-selector">
+            <select id="adp-source" class="compact-select">
+              <option value="all">All ADP Sources</option>
+              <option value="espn">ESPN</option>
+              <option value="yahoo">Yahoo</option>
+              <option value="rotoballer">Underdog</option>
+              <option value="ffpc">FFPC</option>
+              <option value="average">Average ADP</option>
+            </select>
+          </div>
+          <div class="action-buttons">
+            <button id="add-tier" class="ghost compact-button">+ Add Tier</button>
+            <button id="delete-tier" class="ghost compact-button">- Delete Tier</button>
+            <button id="save-rankings" class="ghost compact-button">Save</button>
+            <button id="apply-saved-rankings" class="ghost compact-button">Load</button>
+            <button id="reset-board" class="ghost compact-button">Reset Board</button>
+            <button id="toggle-help" class="ghost compact-button">CSV Help</button>
+          </div>
         </div>
-        <div class="action-buttons">
-          <button id="add-tier" class="ghost compact-button">+ Add Tier</button>
-          <button id="delete-tier" class="ghost compact-button">- Delete Tier</button>
-          <button id="save-rankings" class="ghost compact-button">Save</button>
-          <button id="apply-saved-rankings" class="ghost compact-button">Load</button>
-          <button id="reset-board" class="ghost compact-button">Reset Board</button>
-        </div>
-      </div>
 
-      <section class="panel draft-panel">
+        <div id="ranking-status" class="ranking-status-bar"></div>
+
         <div class="table-container">
           <table class="rankings-table comparison-table">
             <thead>
-              <tr>
+              <tr id="table-header">
                 <th data-key="myRank">Rank</th>
                 <th data-key="player">Player</th>
                 <th data-key="position">Pos</th>
                 <th data-key="team">Team</th>
-                <th data-key="espn">ESPN</th>
-                <th data-key="yahoo">Yahoo</th>
-                <th data-key="sleeperAdp">Sleeper</th>
-                <th data-key="averageAdp">ADP</th>
+                <th data-key="adp">ADP</th>
+                <th data-key="expertRank">Expert</th>
+                <th data-key="adpDiff">Diff</th>
+                <th data-key="personalDiff">My Diff</th>
+                <th data-key="sosRank">SoS</th>
               </tr>
             </thead>
             <tbody id="rankings-body"></tbody>
           </table>
         </div>
-      </section>
 
-      <section class="panel unmatched-panel">
-        <h3>Unmatched picks</h3>
-        <p>Sleeper picks we could not map to a player on your current board.</p>
-        <div id="unmatched-picks-panel" class="draft-bin unmatched-bin"></div>
-        <button id="add-unmatched-to-board" data-action="add-unmatched-to-board" class="compact-button">Add to Board</button>
-      </section>
+        <div id="settings-summary" class="status-bar"></div>
+        <div id="data-status" class="status-bar"></div>
+        
+        <div id="csv-help" class="status-bar" style="display: none; background-color: #f0f8ff; border-left: 4px solid #2196f3;">
+          <strong>Update Rankings:</strong> To update rankings, download new CSV files from Rotoballer and replace the files in the project folder: <code>espn-rankings.csv</code>, <code>yahoo-rankings.csv</code>, <code>rotoballer-rankings.csv</code>, <code>ffpc-rankings.csv</code>
+        </div>
+        
+        <div id="unmatched-picks-section" class="unmatched-section" style="display: none;">
+          <h3>Unmatched Sleeper Picks</h3>
+          <p>These players were drafted in Sleeper but couldn't be matched to your board. Click "Add to Board" to add them.</p>
+          <div id="unmatched-picks-list" class="unmatched-list"></div>
+          <button id="add-unmatched-to-board" data-action="add-unmatched-to-board" class="compact-button">Add to Board</button>
+        </div>
+      </div>
     </div>
 
-    <script>
+    <script>// API Configuration
+const API_CONFIG = {
+  fantasyPros: {
+    baseUrl: 'https://api.fantasypros.com/public/v2/json',
+    apiKey: 'PNnzNP9Brm5ZdldankRwc8l6Z1z9HpJR1KKEQTjF'
+  },
+  sleeper: {
+    baseUrl: 'https://api.sleeper.com',
+    apiKey: '' // No key required
+  }
+};
+
 const STORAGE_KEY = 'fantasy-draft-sheet-state';
 const OPENING_TIER_SIZES = [3, 8, 10, 12, 15];
+
 const SLEEPER_SYNC_INTERVAL_MS = 1000;
 const DEFAULT_FETCH_TIMEOUT_MS = 12000;
 const SLEEPER_PICKS_FETCH_TIMEOUT_MS = 5000;
@@ -1357,42 +976,42 @@ let currentUsername = null;
 let currentPassword = null;
 
 const basePlayers = [
-  { id: 'allen', name: 'Josh Allen', position: 'QB', team: 'BUF', baseValue: 96, espn: 2.2, yahoo: 2.7, sleeperAdp: null },
-  { id: 'mcaffrey', name: 'Christian McCaffrey', position: 'RB', team: 'SF', baseValue: 98, espn: 1.2, yahoo: 1.4, sleeperAdp: null },
-  { id: 'hill', name: 'Tyreek Hill', position: 'WR', team: 'MIA', baseValue: 95, espn: 2.4, yahoo: 2.6, sleeperAdp: null },
-  { id: 'ekeler', name: 'Austin Ekeler', position: 'RB', team: 'WAS', baseValue: 90, espn: 3.5, yahoo: 3.8, sleeperAdp: null },
-  { id: 'lamb', name: 'CeeDee Lamb', position: 'WR', team: 'DAL', baseValue: 94, espn: 2.8, yahoo: 3.0, sleeperAdp: null },
-  { id: 'hurts', name: 'Jalen Hurts', position: 'QB', team: 'PHI', baseValue: 92, espn: 4.8, yahoo: 4.9, sleeperAdp: null },
-  { id: 'breece', name: 'Breece Hall', position: 'RB', team: 'NYJ', baseValue: 88, espn: 4.2, yahoo: 4.6, sleeperAdp: null },
-  { id: 'waller', name: 'Darren Waller', position: 'TE', team: 'MIA', baseValue: 85, espn: 5.1, yahoo: 5.3, sleeperAdp: null },
-  { id: 'murray', name: 'Kyler Murray', position: 'QB', team: 'ARI', baseValue: 89, espn: 6.5, yahoo: 6.7, sleeperAdp: null },
-  { id: 'achane', name: "De'Von Achane", position: 'RB', team: 'MIA', baseValue: 86, espn: 7.0, yahoo: 7.2, sleeperAdp: null },
-  { id: 'nabers', name: 'Malik Nabers', position: 'WR', team: 'NYG', baseValue: 87, espn: 7.3, yahoo: 7.6, sleeperAdp: null },
-  { id: 'puka', name: 'Puka Nacua', position: 'WR', team: 'LAR', baseValue: 84, espn: 8.1, yahoo: 8.3, sleeperAdp: null },
-  { id: 'kelce', name: 'Travis Kelce', position: 'TE', team: 'KC', baseValue: 91, espn: 4.1, yahoo: 4.3, sleeperAdp: null },
-  { id: 'diggs', name: 'Stefon Diggs', position: 'WR', team: 'HOU', baseValue: 83, espn: 8.8, yahoo: 9.0, sleeperAdp: null },
-  { id: 'gibbs', name: 'Jahmyr Gibbs', position: 'RB', team: 'DET', baseValue: 93, espn: 3.2, yahoo: 3.4, sleeperAdp: null },
-  { id: 'herbert', name: 'Justin Herbert', position: 'QB', team: 'LAC', baseValue: 82, espn: 9.6, yahoo: 9.7, sleeperAdp: null },
-  { id: 'kincaid', name: 'Dalton Kincaid', position: 'TE', team: 'BUF', baseValue: 81, espn: 9.8, yahoo: 10.0, sleeperAdp: null },
-  { id: 'dobbins', name: 'Gus Edwards', position: 'RB', team: 'LAC', baseValue: 79, espn: 10.2, yahoo: 10.4, sleeperAdp: null },
-  { id: 'rice', name: 'Rashee Rice', position: 'WR', team: 'KC', baseValue: 80, espn: 10.5, yahoo: 10.7, sleeperAdp: null },
-  { id: 'lawrence', name: 'Trevor Lawrence', position: 'QB', team: 'JAX', baseValue: 78, espn: 11.1, yahoo: 11.2, sleeperAdp: null },
-  { id: 'sam', name: 'Sam LaPorta', position: 'TE', team: 'DET', baseValue: 88, espn: 6.8, yahoo: 7.0, sleeperAdp: null },
-  { id: 'djk', name: 'D.J. Moore', position: 'WR', team: 'CHI', baseValue: 77, espn: 12.0, yahoo: 12.1, sleeperAdp: null },
-  { id: 'davis', name: 'Mike Davis', position: 'RB', team: 'FA', baseValue: 74, espn: 15.0, yahoo: 15.2, sleeperAdp: null },
-  { id: 'matt', name: 'Matthew Stafford', position: 'QB', team: 'LAR', baseValue: 76, espn: 13.2, yahoo: 13.3, sleeperAdp: null }
+  { id: 'allen', name: 'Josh Allen', position: 'QB', team: 'BUF', baseValue: 96, espn: 2.2, yahoo: 2.7, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'mcaffrey', name: 'Christian McCaffrey', position: 'RB', team: 'SF', baseValue: 98, espn: 1.2, yahoo: 1.4, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'hill', name: 'Tyreek Hill', position: 'WR', team: 'MIA', baseValue: 95, espn: 2.4, yahoo: 2.6, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'ekeler', name: 'Austin Ekeler', position: 'RB', team: 'WAS', baseValue: 90, espn: 3.5, yahoo: 3.8, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'lamb', name: 'CeeDee Lamb', position: 'WR', team: 'DAL', baseValue: 94, espn: 2.8, yahoo: 3.0, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'hurts', name: 'Jalen Hurts', position: 'QB', team: 'PHI', baseValue: 92, espn: 4.8, yahoo: 4.9, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'breece', name: 'Breece Hall', position: 'RB', team: 'NYJ', baseValue: 88, espn: 4.2, yahoo: 4.6, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'waller', name: 'Darren Waller', position: 'TE', team: 'MIA', baseValue: 85, espn: 5.1, yahoo: 5.3, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'murray', name: 'Kyler Murray', position: 'QB', team: 'ARI', baseValue: 89, espn: 6.5, yahoo: 6.7, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'achane', name: "De'Von Achane", position: 'RB', team: 'MIA', baseValue: 86, espn: 7.0, yahoo: 7.2, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'nabers', name: 'Malik Nabers', position: 'WR', team: 'NYG', baseValue: 87, espn: 7.3, yahoo: 7.6, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'puka', name: 'Puka Nacua', position: 'WR', team: 'LAR', baseValue: 84, espn: 8.1, yahoo: 8.3, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'kelce', name: 'Travis Kelce', position: 'TE', team: 'KC', baseValue: 91, espn: 4.1, yahoo: 4.3, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'diggs', name: 'Stefon Diggs', position: 'WR', team: 'HOU', baseValue: 83, espn: 8.8, yahoo: 9.0, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'gibbs', name: 'Jahmyr Gibbs', position: 'RB', team: 'DET', baseValue: 93, espn: 3.2, yahoo: 3.4, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'herbert', name: 'Justin Herbert', position: 'QB', team: 'LAC', baseValue: 82, espn: 9.6, yahoo: 9.7, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'kincaid', name: 'Dalton Kincaid', position: 'TE', team: 'BUF', baseValue: 81, espn: 9.8, yahoo: 10.0, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'dobbins', name: 'Gus Edwards', position: 'RB', team: 'LAC', baseValue: 79, espn: 10.2, yahoo: 10.4, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'rice', name: 'Rashee Rice', position: 'WR', team: 'KC', baseValue: 80, espn: 10.5, yahoo: 10.7, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'lawrence', name: 'Trevor Lawrence', position: 'QB', team: 'JAX', baseValue: 78, espn: 11.1, yahoo: 11.2, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'sam', name: 'Sam LaPorta', position: 'TE', team: 'DET', baseValue: 88, espn: 6.8, yahoo: 7.0, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'djk', name: 'D.J. Moore', position: 'WR', team: 'CHI', baseValue: 77, espn: 12.0, yahoo: 12.1, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'davis', name: 'Mike Davis', position: 'RB', team: 'FA', baseValue: 74, espn: 15.0, yahoo: 15.2, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
+  { id: 'matt', name: 'Matthew Stafford', position: 'QB', team: 'LAR', baseValue: 76, espn: 13.2, yahoo: 13.3, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null }
 ];
 
 const defaultState = {
   settings: {
-    scoringFormat: 'ppr',
+    scoringFormat: 'standard',
     qbSlots: 1,
     rbSlots: 2,
     wrSlots: 3,
     teSlots: 1,
     flexSlots: 1,
-    benchSlots: 5,
-    rosterSize: 16
+    superflex: false,
+    benchSpots: 5
   },
   sort: { key: 'myRank', direction: 'asc' },
   players: [],
@@ -1423,7 +1042,8 @@ const defaultState = {
   },
   draftedPlayerIds: [],
   autoTiering: false,
-  positionFilter: 'ALL'
+  positionFilter: 'ALL',
+  adpSource: 'all'
 };
 
 const state = loadState();
@@ -1489,312 +1109,336 @@ if (state.sort?.key === 'sleeper') {
 // Check for saved username in localStorage
 const savedUsername = localStorage.getItem('fantasy-draft-username');
 const savedPassword = localStorage.getItem('fantasy-draft-password');
-if (savedUsername && savedPassword) {
-  currentUsername = savedUsername;
-  currentPassword = savedPassword;
-  userDisplay.textContent = currentUsername;
-  loginButton.style.display = 'none';
-  logoutButton.style.display = 'inline-block';
-  loadStateFromServer().then((loaded) => {
-    if (!loaded) {
-      autoFillPlayers();
-    }
-    render();
-  });
-} else {
-  userDisplay.textContent = '';
-  loginButton.style.display = 'inline-block';
-  logoutButton.style.display = 'none';
-  autoFillPlayers();
-  render();
-}
-
-// Ensure login button is visible
-if (loginButton) {
-  loginButton.style.display = 'inline-block';
-}
 
 autoFillPlayers();
 
-const autoRankButton = document.getElementById('auto-rank');
-const saveRankingsButton = document.getElementById('save-rankings');
-const applySavedRankingsButton = document.getElementById('apply-saved-rankings');
-const sleeperDraftIdInput = document.getElementById('sleeper-draft-id');
-const rankingsBody = document.getElementById('rankings-body');
-const positionFilters = document.getElementById('position-filters');
-const usernameModal = document.getElementById('username-modal');
-const usernameInput = document.getElementById('username-input');
-const passwordInput = document.getElementById('password-input');
-const usernameSubmit = document.getElementById('username-submit');
-const usernameCancel = document.getElementById('username-cancel');
-const loginButton = document.getElementById('login-button');
-const logoutButton = document.getElementById('logout-button');
-const userDisplay = document.getElementById('user-display');
-const unmatchedPicksPanel = document.getElementById('unmatched-picks-panel');
+// Wait for DOM to be ready before accessing elements
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOM loaded');
+  
+  const autoRankButton = document.getElementById('auto-rank');
+  const saveRankingsButton = document.getElementById('save-rankings');
+  const applySavedRankingsButton = document.getElementById('apply-saved-rankings');
+  const rankingsBody = document.getElementById('rankings-body');
+  const positionFilters = document.getElementById('position-filters');
+  const settingsSummary = document.getElementById('settings-summary');
+  const dataStatus = document.getElementById('data-status');
+  const rankingStatus = document.getElementById('ranking-status');
+  const usernameModal = document.getElementById('username-modal');
+  const usernameInput = document.getElementById('username-input');
+  const passwordInput = document.getElementById('password-input');
+  const usernameSubmit = document.getElementById('username-submit');
+  const usernameCancel = document.getElementById('username-cancel');
+  const loginButton = document.getElementById('login-button');
+  const logoutButton = document.getElementById('logout-button');
+  const userDisplay = document.getElementById('user-display');
+  const csvUploadLabel = document.getElementById('csv-upload-label');
+  const sleeperDraftIdInput = document.getElementById('sleeper-draft-id');
 
-document.querySelectorAll('th[data-key]').forEach((header) => {
-  header.addEventListener('click', () => sortBy(header.dataset.key));
-});
-
-const addTierButton = document.getElementById('add-tier');
-if (addTierButton) {
-  addTierButton.addEventListener('click', handleTierAction);
-}
-
-const deleteTierButton = document.getElementById('delete-tier');
-if (deleteTierButton) {
-  deleteTierButton.addEventListener('click', handleTierAction);
-}
-
-const submitSleeperIdButton = document.getElementById('submit-sleeper-id');
-if (submitSleeperIdButton) {
-  submitSleeperIdButton.addEventListener('click', async () => {
-    collectSettings();
-    saveState();
-    
-    // Start Sleeper sync if draft ID is provided
-    const draftId = state.sleeperSync?.draftId;
-    if (draftId) {
-      state.sleeperSync.enabled = true;
-      startSleeperSyncTimer();
-      await syncSleeperDraft({ initiatedByUser: true });
-    }
-    
-    render();
-    alert('Sleeper draft ID updated! Sync started.');
+  console.log('DOM elements:', {
+    autoRankButton,
+    saveRankingsButton,
+    rankingsBody,
+    positionFilters
   });
-}
 
-usernameSubmit.addEventListener('click', async () => {
-  const username = usernameInput.value.trim();
-  const password = passwordInput.value.trim();
-  if (!username || !password) {
-    return;
-  }
+  document.querySelectorAll('th[data-key]').forEach((header) => {
+    header.addEventListener('click', () => sortBy(header.dataset.key));
+  });
 
-  currentUsername = username;
-  currentPassword = password;
-  localStorage.setItem('fantasy-draft-username', username);
-  localStorage.setItem('fantasy-draft-password', password);
-  userDisplay.textContent = currentUsername;
-  loginButton.style.display = 'none';
-  logoutButton.style.display = 'inline-block';
-  hideUsernameModal();
-  
-  const loaded = await loadStateFromServer();
-  if (loaded) {
-    render();
-    alert('Your saved rankings have been loaded!');
-  } else {
-    // No saved state on server, use current state (first time login)
-    render();
-    // Don't show alert for first-time login
-  }
-});
-
-usernameCancel.addEventListener('click', () => {
-  hideUsernameModal();
-});
-
-loginButton.addEventListener('click', () => {
-  showUsernameModal();
-});
-
-logoutButton.addEventListener('click', () => {
-  currentUsername = null;
-  currentPassword = null;
-  localStorage.removeItem('fantasy-draft-username');
-  localStorage.removeItem('fantasy-draft-password');
-  userDisplay.textContent = '';
-  loginButton.style.display = 'inline-block';
-  logoutButton.style.display = 'none';
-  localStorage.removeItem(STORAGE_KEY);
-  Object.assign(state, structuredClone(defaultState));
-  autoFillPlayers();
-  render();
-  
-  // Don't delete from server - keep the data for next login
-  console.log('[SERVER] Logged out, keeping server data intact');
-});
-
-usernameInput.addEventListener('keypress', async (event) => {
-  if (event.key === 'Enter') {
-    usernameSubmit.click();
-  }
-});
-
-passwordInput.addEventListener('keypress', async (event) => {
-  if (event.key === 'Enter') {
-    usernameSubmit.click();
-  }
-});
-
-positionFilters.addEventListener('click', handlePositionFilterClick);
-
-autoRankButton.addEventListener('click', () => {
-  collectSettings();
-
-  autoFillPlayers();
-  saveState();
-  render();
-});
-
-saveRankingsButton.addEventListener('click', () => {
-  saveCustomRankings();
-});
-
-applySavedRankingsButton.addEventListener('click', () => {
-  const before = state.players.map((player) => player.myRank).join('|');
-  const changed = applySavedCustomRanksToPlayers(state.players);
-  if (changed) {
-  
-    applyAutoTiering();
-  }
-  const after = state.players.map((player) => player.myRank).join('|');
-  state.liveDataStatus = changed || before !== after
-    ? 'Applied your saved custom rankings.'
-    : 'No saved custom rankings found for current players.';
-  saveState();
-  render();
-});
-
-sleeperSyncToggleButton.addEventListener('click', async () => {
-  const draftId = normalizeSleeperDraftIdInput();
-  if (draftId) {
-    applySleeperDraftId(draftId);
-  }
-
-  if (state.sleeperSync.enabled) {
-    stopSleeperSync('Sleeper sync stopped.');
-    saveState();
-    render();
-    return;
-  }
-
-  if (!draftId) {
-    state.sleeperSync.lastResult = 'Enter a Sleeper draft ID to start sync.';
-    saveState();
-    render();
-    return;
-  }
-
-  state.sleeperSync.enabled = true;
-  startSleeperSyncTimer();
-  saveState();
-  render();
-  await syncSleeperDraft({ initiatedByUser: true });
-});
-
-sleeperSyncNowButton.addEventListener('click', async () => {
-  const draftId = normalizeSleeperDraftIdInput();
-  if (draftId) {
-    applySleeperDraftId(draftId);
-  }
-
-  if (!state.sleeperSync.draftId) {
-    state.sleeperSync.lastResult = 'Enter a Sleeper draft ID before syncing.';
-    saveState();
-    render();
-    return;
-  }
-
-  sleeperSyncNowButton.disabled = true;
-  try {
-    state.sleeperSync.enabled = true;
-    startSleeperSyncTimer();
-    saveState();
-    render();
-    await syncSleeperDraft({ initiatedByUser: true });
-  } finally {
-    sleeperSyncNowButton.disabled = false;
-  }
-});
-
-sleeperDraftIdInput.addEventListener('blur', () => {
-  const draftId = normalizeSleeperDraftIdInput();
-  if (draftId) {
-    const changed = applySleeperDraftId(draftId);
-    if (changed && state.sleeperSync.enabled) {
-      syncSleeperDraft({ initiatedByUser: true });
-    }
-    saveState();
-    render();
-  }
-});
-
-sleeperDraftIdInput.addEventListener('change', () => {
-  const draftId = normalizeSleeperDraftIdInput();
-  if (draftId) {
-    const changed = applySleeperDraftId(draftId);
-    if (changed && state.sleeperSync.enabled) {
-      syncSleeperDraft({ initiatedByUser: true });
-    }
-    saveState();
-    render();
-  }
-});
-
-sleeperDraftIdInput.addEventListener('input', () => {
-  // Auto-normalize on any input change
-  const current = sleeperDraftIdInput.value;
-  const normalized = extractSleeperDraftId(current);
-  if (normalized && normalized !== current) {
-    sleeperDraftIdInput.value = normalized;
-  }
-});
-
-sleeperDraftIdInput.addEventListener('keypress', async (event) => {
-  if (event.key === 'Enter') {
-    event.preventDefault();
-    collectSettings();
-    saveState();
-    
-    // Start Sleeper sync if draft ID is provided
-    const draftId = state.sleeperSync?.draftId;
-    if (draftId) {
-      state.sleeperSync.enabled = true;
-      startSleeperSyncTimer();
-      await syncSleeperDraft({ initiatedByUser: true });
-    }
-    
-    render();
-    alert('Sleeper draft ID updated! Sync started.');
-  }
-});
-
-sleeperDraftIdInput.addEventListener('paste', () => {
-  setTimeout(() => {
-    const draftId = normalizeSleeperDraftIdInput();
-    if (draftId) {
-      const changed = applySleeperDraftId(draftId);
-      if (changed && state.sleeperSync.enabled) {
-        syncSleeperDraft({ initiatedByUser: true });
+  const adpSourceSelector = document.getElementById('adp-source');
+  if (adpSourceSelector) {
+    adpSourceSelector.addEventListener('change', (e) => {
+      state.adpSource = e.target.value;
+      // Sort by the selected ADP source when changed, always in ascending order
+      if (state.adpSource === 'average') {
+        state.sort = { key: 'averageAdp', direction: 'asc' };
+      } else {
+        state.sort = { key: 'adp', direction: 'asc' };
       }
+      render();
+    });
+  }
+
+  const toggleHelpButton = document.getElementById('toggle-help');
+  if (toggleHelpButton) {
+    toggleHelpButton.addEventListener('click', () => {
+      const csvHelp = document.getElementById('csv-help');
+      if (csvHelp) {
+        csvHelp.style.display = csvHelp.style.display === 'none' ? 'block' : 'none';
+      }
+    });
+  }
+
+  const addTierButton = document.getElementById('add-tier');
+  if (addTierButton) {
+    addTierButton.addEventListener('click', handleTierAction);
+  }
+
+  const deleteTierButton = document.getElementById('delete-tier');
+  if (deleteTierButton) {
+    deleteTierButton.addEventListener('click', handleTierAction);
+  }
+
+  const submitSleeperIdButton = document.getElementById('submit-sleeper-id');
+  if (submitSleeperIdButton) {
+    submitSleeperIdButton.addEventListener('click', async () => {
+      collectSettings();
+      saveState();
+      
+      // Start Sleeper sync if draft ID is provided
+      const draftId = state.sleeperSync?.draftId;
+      if (draftId) {
+        state.sleeperSync.enabled = true;
+        startSleeperSyncTimer();
+        await syncSleeperDraft({ initiatedByUser: true });
+      }
+      
+      render();
+      alert('Sleeper draft ID updated! Sync started.');
+    });
+  }
+
+  const addUnmatchedButton = document.getElementById('add-unmatched-to-board');
+  if (addUnmatchedButton) {
+    addUnmatchedButton.addEventListener('click', async () => {
+      console.log('Add unmatched button clicked');
+      const added = addUnmatchedPicksToBoard();
+      if (!added) {
+        state.liveDataStatus = 'No unmatched picks were added (they may already exist on your board).';
+        saveState();
+        render();
+        return;
+      }
+
       saveState();
       render();
+      await syncSleeperDraft({ initiatedByUser: true });
+      console.log('Added', added, 'unmatched picks');
+    });
+  }
+
+  const resetBoardButton = document.getElementById('reset-board');
+  if (resetBoardButton) {
+    resetBoardButton.addEventListener('click', () => {
+      if (confirm('Reset the draft board? This will clear all drafted status but keep your player rankings and unmatched players.')) {
+        resetDraftBoard();
+      }
+    });
+  }
+
+  if (sleeperDraftIdInput) {
+    sleeperDraftIdInput.addEventListener('blur', () => normalizeSleeperDraftIdInput(sleeperDraftIdInput));
+    sleeperDraftIdInput.addEventListener('change', () => normalizeSleeperDraftIdInput(sleeperDraftIdInput));
+    sleeperDraftIdInput.addEventListener('input', () => {
+      // Auto-normalize on any input change
+      const current = sleeperDraftIdInput.value;
+      const normalized = extractSleeperDraftId(current);
+      if (normalized && normalized !== current) {
+        sleeperDraftIdInput.value = normalized;
+      }
+    });
+    sleeperDraftIdInput.addEventListener('paste', () => {
+      setTimeout(() => normalizeSleeperDraftIdInput(sleeperDraftIdInput), 0);
+    });
+    sleeperDraftIdInput.addEventListener('keypress', async (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        collectSettings();
+        saveState();
+        
+        // Start Sleeper sync if draft ID is provided
+        const draftId = state.sleeperSync?.draftId;
+        if (draftId) {
+          state.sleeperSync.enabled = true;
+          startSleeperSyncTimer();
+          await syncSleeperDraft({ initiatedByUser: true });
+        }
+        
+        render();
+        alert('Sleeper draft ID updated! Sync started.');
+      }
+    });
+  }
+
+  // Load API keys from localStorage (if user wants to add their own keys later)
+  const savedApiConfig = localStorage.getItem('fantasy-api-config');
+  if (savedApiConfig) {
+    try {
+      const config = JSON.parse(savedApiConfig);
+      if (config.fantasyPros?.apiKey) {
+        API_CONFIG.fantasyPros.apiKey = config.fantasyPros.apiKey;
+      }
+      if (config.moneyLine?.apiKey) {
+        API_CONFIG.moneyLine.apiKey = config.moneyLine.apiKey;
+      }
+    } catch (error) {
+      console.error('Failed to load API config:', error);
     }
-  }, 0);
-});
+  }
 
-rankingsBody.addEventListener('dragstart', handleDragStart);
-rankingsBody.addEventListener('click', handleBoardClick);
-rankingsBody.addEventListener('dragover', handleDragOver);
-rankingsBody.addEventListener('drop', handleDrop);
-rankingsBody.addEventListener('dragend', handleDragEnd);
-rankingsBody.addEventListener('click', handleTierAction);
-
-if (unmatchedPicksPanel) {
-  unmatchedPicksPanel.addEventListener('click', handleUnmatchedPicksPanelClick);
-}
-
-const resetBoardButton = document.getElementById('reset-board');
-if (resetBoardButton) {
-  resetBoardButton.addEventListener('click', () => {
-    if (confirm('Reset the draft board? This will clear all drafted status but keep your player rankings and unmatched players.')) {
-      resetDraftBoard();
+  // Add drag and drop event listeners after DOM is ready
+  setTimeout(() => {
+    const rankingsBodyEl = document.getElementById('rankings-body');
+    if (rankingsBodyEl) {
+      rankingsBodyEl.addEventListener('dragstart', handleDragStart);
+      rankingsBodyEl.addEventListener('dragover', handleDragOver);
+      rankingsBodyEl.addEventListener('drop', handleDrop);
+      rankingsBodyEl.addEventListener('dragend', handleDragEnd);
+      rankingsBodyEl.addEventListener('click', handleBoardClick);
     }
+  }, 100);
+
+  // Handle login/logout
+  if (savedUsername && savedPassword) {
+    currentUsername = savedUsername;
+    currentPassword = savedPassword;
+    if (userDisplay) userDisplay.textContent = currentUsername;
+    if (loginButton) loginButton.style.display = 'none';
+    if (logoutButton) logoutButton.style.display = 'inline-block';
+    
+    // Show CSV upload button for logged-in users
+    if (csvUploadLabel) csvUploadLabel.style.display = 'inline-block';
+    
+    // First load CSV data, then load saved state
+    loadLiveRankings().then(() => {
+      loadStateFromServer().then((loaded) => {
+        render();
+      });
+    });
+  } else {
+    if (userDisplay) userDisplay.textContent = '';
+    if (loginButton) loginButton.style.display = 'inline-block';
+    if (logoutButton) logoutButton.style.display = 'none';
+    
+    // Hide CSV upload button for logged-out users
+    if (csvUploadLabel) csvUploadLabel.style.display = 'none';
+    
+    loadLiveRankings().then(() => {
+      render();
+    });
+  }
+
+  if (loginButton) {
+    loginButton.addEventListener('click', () => {
+      showUsernameModal();
+    });
+  }
+
+  if (logoutButton) {
+    logoutButton.addEventListener('click', () => {
+      currentUsername = null;
+      currentPassword = null;
+      localStorage.removeItem('fantasy-draft-username');
+      localStorage.removeItem('fantasy-draft-password');
+      if (userDisplay) userDisplay.textContent = '';
+      if (loginButton) loginButton.style.display = 'inline-block';
+      if (logoutButton) logoutButton.style.display = 'none';
+      
+      // Hide CSV upload button for logged-out users
+      if (csvUploadLabel) csvUploadLabel.style.display = 'none';
+      
+      localStorage.removeItem(STORAGE_KEY);
+      Object.assign(state, structuredClone(defaultState));
+      autoFillPlayers();
+      loadLiveRankings().then(() => {
+        render();
+      });
+      
+      // Don't delete from server - keep the data for next login
+      console.log('[SERVER] Logged out, keeping server data intact');
+    });
+  }
+
+  if (usernameSubmit) {
+    usernameSubmit.addEventListener('click', async () => {
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value.trim();
+      if (!username || !password) {
+        return;
+      }
+
+      currentUsername = username;
+      currentPassword = password;
+      localStorage.setItem('fantasy-draft-username', username);
+      localStorage.setItem('fantasy-draft-password', password);
+      userDisplay.textContent = currentUsername;
+      loginButton.style.display = 'none';
+      logoutButton.style.display = 'inline-block';
+      
+      // Show CSV upload button for logged-in users
+      if (csvUploadLabel) csvUploadLabel.style.display = 'inline-block';
+      
+      hideUsernameModal();
+      
+      const loaded = await loadStateFromServer();
+      if (loaded) {
+        alert('Your saved rankings have been loaded!');
+        render();
+      } else {
+        // No saved state on server, use current state (first time login)
+        render();
+        // Don't show alert for first-time login
+      }
+    });
+  }
+
+  if (usernameCancel) {
+    usernameCancel.addEventListener('click', () => {
+      hideUsernameModal();
+    });
+  }
+
+  if (autoRankButton) {
+    autoRankButton.addEventListener('click', () => {
+      collectSettings();
+      autoFillPlayers();
+      saveState();
+      render();
+    });
+  }
+
+  if (saveRankingsButton) {
+    saveRankingsButton.addEventListener('click', () => {
+      saveCustomRankings();
+    });
+  }
+
+  // CSV upload functionality
+  const csvUpload = document.getElementById('csv-upload');
+  
+  if (csvUpload && csvUploadLabel) {
+    csvUpload.addEventListener('change', handleCsvUpload);
+  }
+
+  if (applySavedRankingsButton) {
+    applySavedRankingsButton.addEventListener('click', () => {
+      const before = state.players.map((player) => player.myRank).join('|');
+      const changed = applySavedCustomRanksToPlayers(state.players);
+      if (changed) {
+        applyAutoTiering();
+        render();
+      }
+    });
+  }
+
+  if (positionFilters) {
+    positionFilters.addEventListener('click', handlePositionFilterClick);
+  }
+
+  // Auto-rank when any setting changes
+  document.querySelectorAll('.compact-select, #superflex').forEach(el => {
+    el.addEventListener('change', () => {
+      collectSettings();
+      autoFillPlayers();
+      saveState();
+      render();
+    });
   });
-}
+  
+  // Initial render
+  render();
+});
 
 function loadState() {
   const saved = localStorage.getItem(STORAGE_KEY);
@@ -1808,7 +1452,7 @@ function loadState() {
   return structuredClone(defaultState);
 }
 
-function saveState() {
+async function saveState() {
   console.log('[STATE] Saving state, user logged in:', !!currentUsername);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   if (currentUsername) {
@@ -1826,6 +1470,12 @@ async function saveStateToServer() {
   }
 
   console.log('[SERVER] Saving state to server for user:', currentUsername);
+  console.log('[SERVER] Current page URL:', window.location.href);
+  console.log('[SERVER] API URL:', '/api/user-state');
+  console.log('[SERVER] Full API URL:', window.location.origin + '/api/user-state');
+  console.log('[SERVER] State to save - players count:', state.players?.length);
+  console.log('[SERVER] State to save - first player myRank:', state.players?.[0]?.myRank);
+  
   try {
     const response = await fetch('/api/user-state', {
       method: 'POST',
@@ -1836,17 +1486,17 @@ async function saveStateToServer() {
         state: JSON.stringify(state)
       })
     });
-    console.log('[SERVER] Save response status:', response.status);
+    console.log('[SERVER] Save response status:', response.status, 'ok:', response.ok);
     if (response.ok) {
       console.log('[SERVER] State saved successfully');
     } else {
       const errorText = await response.text();
       console.error('[SERVER] Save failed - status:', response.status, 'error:', errorText);
-      alert(`Failed to save to server: ${response.status} - ${errorText}`);
+      alert(`Failed to save to server: ${response.status} - ${errorText}\n\nAre you accessing the app on port 8000? Current URL: ${window.location.href}`);
     }
   } catch (error) {
     console.error('[SERVER] Failed to save state:', error);
-    alert(`Failed to save to server: ${error.message}`);
+    alert(`Failed to save to server: ${error.message}\n\nAre you accessing the app on port 8000? Current URL: ${window.location.href}`);
   }
 }
 
@@ -1867,9 +1517,44 @@ async function loadStateFromServer() {
         try {
           const loadedState = JSON.parse(data.state);
           console.log('[SERVER] Parsed loaded state, players count:', loadedState.players?.length);
+          
+          // Merge loaded state with current state to preserve new fields
+          // Save current players if they have new fields that old state doesn't
+          const currentPlayersWithNewFields = state.players.filter(p => p.expertRank !== undefined || p.sosRank !== undefined);
+          
           // Replace the entire state instead of shallow merge
           Object.keys(state).forEach(key => delete state[key]);
           Object.assign(state, loadedState);
+          
+          // Restore players that have new fields if they don't exist in loaded state
+          if (currentPlayersWithNewFields.length > 0) {
+            currentPlayersWithNewFields.forEach(currentPlayer => {
+              const existsInLoaded = state.players.find(p => 
+                normalizeName(p.name) === normalizeName(currentPlayer.name) && 
+                normalizeName(p.position) === normalizeName(currentPlayer.position) &&
+                normalizeName(p.team) === normalizeName(currentPlayer.team)
+              );
+              if (!existsInLoaded) {
+                // Add player with new fields if not in loaded state
+                state.players.push(currentPlayer);
+              } else {
+                // Update existing player with new fields if missing
+                if (!existsInLoaded.expertRank && currentPlayer.expertRank) {
+                  existsInLoaded.expertRank = currentPlayer.expertRank;
+                }
+                if (!existsInLoaded.sosRank && currentPlayer.sosRank) {
+                  existsInLoaded.sosRank = currentPlayer.sosRank;
+                }
+                if (!existsInLoaded.rotoballer && currentPlayer.rotoballer) {
+                  existsInLoaded.rotoballer = currentPlayer.rotoballer;
+                }
+                if (!existsInLoaded.ffpc && currentPlayer.ffpc) {
+                  existsInLoaded.ffpc = currentPlayer.ffpc;
+                }
+              }
+            });
+          }
+          
           // Disable auto-tiering to preserve manual tier assignments
           state.autoTiering = false;
           console.log('[SERVER] State loaded successfully, current players:', state.players?.length);
@@ -1978,6 +1663,8 @@ function mergeCustomAdpProfiles(baseProfile, incomingProfile) {
       continue;
     }
 
+    // Prefer the profile entry with more samples to avoid double-counting
+    // when local and server stores already represent the same underlying picks.
     const preferred = (incomingEntry.count > baseEntry.count)
       ? incomingEntry
       : baseEntry;
@@ -1988,11 +1675,40 @@ function mergeCustomAdpProfiles(baseProfile, incomingProfile) {
   return merged;
 }
 
+function calculatePositionalRanks() {
+  const playersByPosition = {};
+  
+  // Group players by position
+  state.players.forEach(player => {
+    const position = player.position;
+    if (!playersByPosition[position]) {
+      playersByPosition[position] = [];
+    }
+    playersByPosition[position].push(player);
+  });
+  
+  // Sort each position group by myRank and assign positional ranks
+  Object.keys(playersByPosition).forEach(position => {
+    playersByPosition[position].sort((a, b) => a.myRank - b.myRank);
+    playersByPosition[position].forEach((player, index) => {
+      player.posRank = index + 1;
+    });
+  });
+  
+  // Ensure all players have posRank field
+  state.players.forEach(player => {
+    if (!player.posRank) {
+      player.posRank = 0;
+    }
+  });
+}
+
 function autoFillPlayers() {
   if (!state.players.length) {
     state.players = basePlayers.map((player) => ({
       ...player,
       myRank: 0,
+      posRank: 0,
       tier: 1,
       drafted: false,
       draftedSource: null,
@@ -2019,6 +1735,7 @@ function autoFillPlayers() {
   });
 
   state.players = state.players.sort((a, b) => a.myRank - b.myRank);
+  calculatePositionalRanks();
   syncDraftedPlayerIds();
 }
 
@@ -2043,9 +1760,11 @@ function getTierForRank(index, totalPlayers) {
 }
 
 function getTierSizes(totalPlayers) {
+  // More flexible tier sizing - no hard limits
   const sizes = [];
   let remaining = totalPlayers;
 
+  // Use opening tier sizes as a guide, but don't enforce them strictly
   for (const openingSize of OPENING_TIER_SIZES) {
     if (remaining <= 0) {
       break;
@@ -2068,27 +1787,48 @@ function getTierSizes(totalPlayers) {
 }
 
 function collectSettings() {
+  const scoringFormat = document.getElementById('scoring-format');
+  const qbSlots = document.getElementById('qb-slots');
+  const rbSlots = document.getElementById('rb-slots');
+  const wrSlots = document.getElementById('wr-slots');
+  const teSlots = document.getElementById('te-slots');
+  const flexSlots = document.getElementById('flex-slots');
+  const superflex = document.getElementById('superflex');
+  const benchSlots = document.getElementById('bench-slots');
+  const sleeperDraftId = document.getElementById('sleeper-draft-id');
+
   state.settings = {
-    scoringFormat: document.getElementById('scoring-format').value,
-    qbSlots: Number(document.getElementById('qb-slots').value),
-    rbSlots: Number(document.getElementById('rb-slots').value),
-    wrSlots: Number(document.getElementById('wr-slots').value),
-    teSlots: Number(document.getElementById('te-slots').value),
-    flexSlots: Number(document.getElementById('flex-slots').value),
-    benchSlots: Number(document.getElementById('bench-slots').value),
-    rosterSize: Number(document.getElementById('roster-size').value)
+    scoringFormat: scoringFormat?.value || 'standard',
+    qbSlots: Number(qbSlots?.value) || 1,
+    rbSlots: Number(rbSlots?.value) || 2,
+    wrSlots: Number(wrSlots?.value) || 3,
+    teSlots: Number(teSlots?.value) || 1,
+    flexSlots: Number(flexSlots?.value) || 1,
+    superflex: superflex?.checked || false,
+    benchSlots: Number(benchSlots?.value) || 5
   };
+  
+  // Update Sleeper draft ID
+  if (sleeperDraftId) {
+    const normalized = extractSleeperDraftId(sleeperDraftId.value);
+    if (normalized && normalized !== state.sleeperSync.draftId) {
+      state.sleeperSync.draftId = normalized;
+      state.sleeperSync.lastPickCount = 0;
+      state.sleeperSync.lastSyncAt = null;
+      state.sleeperSync.adpShift = 0;
+    }
+  }
 }
 
 function scorePlayer(player, settings) {
   const positionWeight = { QB: 2.8, RB: 3.4, WR: 3.2, TE: 2.6 };
   const scoringMultiplier = settings.scoringFormat === 'ppr' ? 1.75 : settings.scoringFormat === 'half' ? 1.35 : 1;
   const lineupBoost = settings.rbSlots * 0.8 + settings.wrSlots * 0.7 + settings.teSlots * 0.6 + settings.qbSlots * 0.4;
-  const benchBoost = settings.benchSlots * 0.35;
+  const benchBoost = settings.benchSpots * 0.35;
   const flexBoost = settings.flexSlots * 0.2;
-  const rosterBoost = settings.rosterSize / 16;
+  const superflexBoost = settings.superflex && player.position === 'QB' ? settings.flexSlots * 1.5 : 0;
 
-  return player.baseValue * scoringMultiplier + positionWeight[player.position] + lineupBoost + benchBoost + flexBoost + rosterBoost;
+  return player.baseValue * scoringMultiplier + positionWeight[player.position] + lineupBoost + benchBoost + flexBoost + superflexBoost;
 }
 
 function sortBy(key) {
@@ -2099,44 +1839,76 @@ function sortBy(key) {
     state.sort.direction = 'asc';
   }
 
-
   applyAutoTiering();
   render();
 }
 
-function render() {
+async function render() {
   populateSettingsFields();
   renderPositionFilterChips();
+  renderSortIndicators();
+  renderRankingStatus();
   renderSummary();
   renderDataStatus();
-  renderDraftSignals();
   // Only apply auto-tiering if explicitly enabled
   if (state.autoTiering) {
     applyAutoTiering();
   }
   renderDraftBoard();
-  renderUnmatchedPicksPanel();
   saveState();
 }
 
 function populateSettingsFields() {
   const { settings } = state;
-  document.getElementById('scoring-format').value = settings.scoringFormat;
-  document.getElementById('qb-slots').value = settings.qbSlots;
-  document.getElementById('rb-slots').value = settings.rbSlots;
-  document.getElementById('wr-slots').value = settings.wrSlots;
-  document.getElementById('te-slots').value = settings.teSlots;
-  document.getElementById('flex-slots').value = settings.flexSlots;
-  sleeperDraftIdInput.value = state.sleeperSync?.draftId || '';
+  
+  const scoringFormat = document.getElementById('scoring-format');
+  if (scoringFormat) scoringFormat.value = settings.scoringFormat;
+  
+  const qbSlots = document.getElementById('qb-slots');
+  if (qbSlots) qbSlots.value = settings.qbSlots;
+  
+  const rbSlots = document.getElementById('rb-slots');
+  if (rbSlots) rbSlots.value = settings.rbSlots;
+  
+  const wrSlots = document.getElementById('wr-slots');
+  if (wrSlots) wrSlots.value = settings.wrSlots;
+  
+  const teSlots = document.getElementById('te-slots');
+  if (teSlots) teSlots.value = settings.teSlots;
+  
+  const flexSlots = document.getElementById('flex-slots');
+  if (flexSlots) flexSlots.value = settings.flexSlots;
+  
+  const superflex = document.getElementById('superflex');
+  if (superflex) superflex.checked = settings.superflex || false;
+  
+  const benchSlots = document.getElementById('bench-slots');
+  if (benchSlots) benchSlots.value = settings.benchSlots;
+  
+  const sleeperDraftId = document.getElementById('sleeper-draft-id');
+  if (sleeperDraftId) {
+    const draftId = state.sleeperSync?.draftId || '';
+    // Only set if it's not "Ghost" (this shouldn't happen but acts as a safety check)
+    if (draftId !== 'Ghost') {
+      sleeperDraftId.value = draftId;
+    } else {
+      sleeperDraftId.value = '';
+    }
+  }
+
 }
 
 function renderSummary() {
-  settingsSummary.innerHTML = `
-    <strong>Current build:</strong> ${state.settings.scoringFormat.toUpperCase()} • ${state.settings.qbSlots} QB • ${state.settings.rbSlots} RB • ${state.settings.wrSlots} WR • ${state.settings.teSlots} TE • ${state.settings.flexSlots} FLEX • ${state.settings.benchSlots} bench • ${state.settings.rosterSize} roster
+  const settingsSummaryEl = document.getElementById('settings-summary');
+  if (!settingsSummaryEl) return;
+  settingsSummaryEl.innerHTML = `
+    <strong>Current build:</strong> ${state.settings.scoringFormat.toUpperCase()} • ${state.settings.qbSlots} QB • ${state.settings.rbSlots} RB • ${state.settings.wrSlots} WR • ${state.settings.teSlots} TE • ${state.settings.flexSlots} FLEX • ${state.settings.benchSlots} bench 
   `;
 }
 
 function renderDataStatus() {
+  const dataStatusEl = document.getElementById('data-status');
+  if (!dataStatusEl) return;
   const status = state.liveDataStatus || 'Starter board loaded. Use "Load live rankings" to pull public ranking data.';
   const sleeperStatus = state.sleeperSync?.lastResult
     ? `<br><strong>Sleeper sync:</strong> ${state.sleeperSync.lastResult}`
@@ -2146,7 +1918,7 @@ function renderDataStatus() {
   const sleeperDiagnostics = hasDiagnostics
     ? `<br><strong>Sleeper diagnostics:</strong> last attempt ${formatSleeperTime(state.sleeperSync.lastAttemptAt)} • duration ${formatSleeperDuration(state.sleeperSync.lastDurationMs)} • consecutive errors ${state.sleeperSync.consecutiveErrors || 0} • target cadence ${SLEEPER_SYNC_INTERVAL_MS}ms • room ADP shift ${formatSignedNumber(state.sleeperSync.adpShift)} picks • custom ADP model ${customAdpPlayerCount} players / ${state.customAdpProfile?.totalSamples || 0} samples`
     : '';
-  dataStatus.innerHTML = `<strong>Live data:</strong> ${status}${sleeperStatus}${sleeperDiagnostics}`;
+  dataStatusEl.innerHTML = `<strong>Live data:</strong> ${status}${sleeperStatus}${sleeperDiagnostics}`;
 }
 
 function formatSignedNumber(value) {
@@ -2284,7 +2056,6 @@ function clearSyncDraftedPlayers(includeManual = false) {
 
   if (cleared > 0) {
     syncDraftedPlayerIds();
-  
     applyAutoTiering();
   }
 
@@ -2356,10 +2127,10 @@ function extractSleeperDraftId(value) {
   return '';
 }
 
-function normalizeSleeperDraftIdInput() {
-  const extracted = extractSleeperDraftId(sleeperDraftIdInput.value);
+function normalizeSleeperDraftIdInput(inputElement) {
+  const extracted = extractSleeperDraftId(inputElement.value);
   if (extracted) {
-    sleeperDraftIdInput.value = extracted;
+    inputElement.value = extracted;
   }
   return extracted;
 }
@@ -2679,6 +2450,10 @@ function calculateSleeperAdp() {
   // Calculate Sleeper ADP from all saved draft picks
   const picksByPlayer = {};
   
+  if (!state.sleeperSync?.allDraftPicks || !Array.isArray(state.sleeperSync.allDraftPicks)) {
+    return {};
+  }
+  
   state.sleeperSync.allDraftPicks.forEach(pick => {
     // Store multiple normalized name keys for each pick
     const nameKeys = getNameMatchKeys(pick.name);
@@ -2806,20 +2581,10 @@ async function syncSleeperDraft({ initiatedByUser = false } = {}) {
     recalculateRoomAdpShift();
     if (newlyMarked > 0 || newlyCleared > 0) {
       syncDraftedPlayerIds();
-    
+      calculatePositionalRanks();
+      state.autoTiering = true;
       applyAutoTiering();
     }
-    
-    // Update Sleeper ADP for all players based on saved draft picks
-    const sleeperAdpByPlayer = calculateSleeperAdp();
-    (state.players || []).forEach(player => {
-      const playerNames = getNameMatchKeys(player.name);
-      // Check if any of the player's name keys match Sleeper ADP data
-      const matchingKey = playerNames.find(nameKey => sleeperAdpByPlayer[nameKey]);
-      if (matchingKey) {
-        player.sleeperAdp = sleeperAdpByPlayer[matchingKey];
-      }
-    });
 
     const visibleUnmatchedRecords = unmatchedRecords.filter((record) => !isAcceptedUnmatchedRecord(record, draftId));
     state.sleeperSync.unmatchedCount = visibleUnmatchedRecords.length;
@@ -2842,6 +2607,18 @@ async function syncSleeperDraft({ initiatedByUser = false } = {}) {
     state.sleeperSync.lastDurationMs = state.sleeperSync.lastSyncAt - syncStartedAt;
     state.sleeperSync.consecutiveErrors = 0;
     state.sleeperSync.lastResult = `Synced ${picks.length} picks; matched ${matchedTotal} board players${newlyMarked ? `; +${newlyMarked}` : ''}${newlyCleared ? `; -${newlyCleared}` : ''}${learnedSamples ? `; learned ${learnedSamples} ADP samples` : ''}.`;
+    
+    // Update Sleeper ADP for all players based on saved draft picks
+    const sleeperAdpByPlayer = calculateSleeperAdp();
+    (state.players || []).forEach(player => {
+      const playerNames = getNameMatchKeys(player.name);
+      // Check if any of the player's name keys match Sleeper ADP data
+      const matchingKey = playerNames.find(nameKey => sleeperAdpByPlayer[nameKey]);
+      if (matchingKey) {
+        player.sleeperAdp = sleeperAdpByPlayer[matchingKey];
+      }
+    });
+    
     wasSuccessful = true;
   } catch (error) {
     const failedAt = Date.now();
@@ -2924,6 +2701,7 @@ function applySavedCustomRanksToPlayers(players) {
   });
 
   state.players = updatedPlayers;
+  calculatePositionalRanks();
   return true;
 }
 
@@ -2941,7 +2719,7 @@ function getScoringLabel(scoringFormat) {
   if (scoringFormat === 'half') {
     return 'Half-PPR';
   }
-  if (scoringFormat === 'half') {
+  if (scoringFormat === 'standard') {
     return 'Standard';
   }
   return 'PPR';
@@ -2974,22 +2752,23 @@ async function fetchJsonWithProxyFallback(url, errorLabel, { timeoutMs = DEFAULT
   } catch (error) {
     console.log(`[FETCH] Direct fetch failed for ${errorLabel}:`, error?.message || error);
     
-    // Try Render proxy first (if deployed), then fallback to public proxies
-    const renderProxyUrl = window.location.origin + '/proxy?url=' + encodeURIComponent(url);
-    console.log(`[FETCH] Trying Render proxy for: ${errorLabel}`);
+    // Try local server proxy first (since we're running python server.py)
+    const localProxyUrl = `/proxy?url=${encodeURIComponent(url)}`;
+    console.log(`[FETCH] Trying local server proxy for: ${errorLabel}`);
     try {
-      const renderResponse = await fetchWithTimeout(renderProxyUrl, {}, timeoutMs);
-      console.log(`[FETCH] Render proxy response status: ${renderResponse.status}`);
-      if (renderResponse.ok) {
-        const data = await renderResponse.json();
-        console.log(`[FETCH] Render proxy success for: ${errorLabel}`);
-        return data;
+      const localResponse = await fetchWithTimeout(localProxyUrl, {}, timeoutMs);
+      console.log(`[FETCH] Local proxy response status: ${localResponse.status}`);
+      if (!localResponse.ok) {
+        throw new Error(`Local proxy returned ${localResponse.status}`);
       }
-    } catch (renderError) {
-      console.log(`[FETCH] Render proxy failed:`, renderError?.message || renderError);
+      const data = await localResponse.json();
+      console.log(`[FETCH] Local proxy success for: ${errorLabel}`);
+      return data;
+    } catch (localError) {
+      console.log(`[FETCH] Local proxy failed:`, localError?.message || localError);
     }
-
-    // Fallback to public CORS proxies
+    
+    // Try multiple CORS proxies as fallbacks
     const proxies = [
       { name: 'corsproxy.io', url: `https://corsproxy.io/?${encodeURIComponent(url)}` },
       { name: 'allorigins', url: `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}` },
@@ -3013,19 +2792,32 @@ async function fetchJsonWithProxyFallback(url, errorLabel, { timeoutMs = DEFAULT
       }
     }
 
-    console.log(`[FETCH] All proxies failed`);
+    console.log(`[FETCH] All CORS proxies failed`);
     if (error?.name === 'AbortError') {
       throw new Error(`${errorLabel} timed out after ${timeoutMs}ms.`);
     }
-    throw new Error(`${errorLabel} unavailable. All proxies failed.`);
+    throw new Error(`${errorLabel} unavailable. All CORS proxies failed. Try using a local server (python server.py).`);
   }
 }
 
 function getAverageAdp(player) {
-  const values = [player.espn, player.yahoo];
+  const values = [];
+  if (player.espn !== null && player.espn !== undefined) {
+    values.push(player.espn);
+  }
+  if (player.yahoo !== null && player.yahoo !== undefined) {
+    values.push(player.yahoo);
+  }
   if (player.sleeperAdp !== null && player.sleeperAdp !== undefined) {
     values.push(player.sleeperAdp);
   }
+  if (player.rotoballer !== null && player.rotoballer !== undefined) {
+    values.push(player.rotoballer);
+  }
+  if (player.ffpc !== null && player.ffpc !== undefined) {
+    values.push(player.ffpc);
+  }
+  if (values.length === 0) return 0;
   return values.reduce((sum, val) => sum + val, 0) / values.length;
 }
 
@@ -3039,10 +2831,64 @@ function getDraftAdjustedAdp(player) {
 }
 
 function renderPositionFilterChips() {
-  positionFilters.querySelectorAll('button[data-filter]').forEach((button) => {
+  const positionFiltersEl = document.getElementById('position-filters');
+  if (!positionFiltersEl) return;
+  
+  positionFiltersEl.querySelectorAll('button[data-filter]').forEach((button) => {
     const isActive = button.dataset.filter === state.positionFilter;
     button.classList.toggle('is-active', isActive);
   });
+}
+
+function renderSortIndicators() {
+  document.querySelectorAll('th[data-key]').forEach((th) => {
+    th.classList.toggle('is-sorted', th.dataset.key === state.sort.key);
+    th.classList.toggle('asc', th.dataset.key === state.sort.key && state.sort.direction === 'asc');
+  });
+}
+
+function renderRankingStatus() {
+  const rankingStatus = document.getElementById('ranking-status');
+  if (!rankingStatus) return;
+  
+  let statusText = '';
+  
+  // Show what's being sorted by
+  const sortLabels = {
+    myRank: 'My Rankings',
+    adp: 'ADP',
+    expertRank: 'Expert Ranking',
+    adpDiff: 'ADP Difference',
+    sosRank: 'Strength of Schedule',
+    averageAdp: 'Average ADP',
+    player: 'Player Name',
+    position: 'Position',
+    team: 'Team'
+  };
+  
+  const currentSort = sortLabels[state.sort.key] || state.sort.key;
+  const direction = state.sort.direction === 'asc' ? '↑' : '↓';
+  statusText = `Sort: ${currentSort} ${direction}`;
+  
+  // Show which ADP source is selected
+  const adpSourceLabels = {
+    all: 'All',
+    espn: 'ESPN',
+    yahoo: 'Yahoo',
+    rotoballer: 'Underdog',
+    ffpc: 'FFPC',
+    average: 'Average'
+  };
+  const adpSourceLabel = adpSourceLabels[state.adpSource] || 'All';
+  statusText += ` | ADP: ${adpSourceLabel}`;
+  
+  // Show if custom rankings are applied
+  const hasCustomRanks = state.players.some(p => p.customRank !== undefined);
+  if (hasCustomRanks) {
+    statusText += ' | Custom: Applied';
+  }
+  
+  rankingStatus.textContent = statusText;
 }
 
 function handlePositionFilterClick(event) {
@@ -3070,35 +2916,331 @@ function applyAutoTiering() {
   }));
 }
 
+async function fetchFantasyProsRankings(season) {
+  console.log('[FantasyPros] Fetching from server endpoint');
+  
+  try {
+    // Use server-side endpoint to bypass CORS
+    const response = await fetch(`/api/fantasypros?season=${season}`);
+    console.log('[FantasyPros] Response status:', response.status);
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('[FantasyPros] Rankings loaded successfully, players:', data.players?.length || 0);
+      console.log('[FantasyPros] Sample data:', data.players?.[0]);
+      return data;
+    }
+    
+    console.error('[FantasyPros] Failed to load rankings:', response.status, response.statusText);
+    return null;
+  } catch (error) {
+    console.error('[FantasyPros] Error fetching rankings:', error);
+    return null;
+  }
+}
+
+async function fetchSleeperProjections(season) {
+  console.log('[Sleeper] Fetching projections for season:', season);
+  try {
+    const response = await fetch(`${API_CONFIG.sleeper.baseUrl}/projections/nfl/${season}?season_type=regular`);
+    console.log('[Sleeper] Response status:', response.status);
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('[Sleeper] Projections loaded successfully, type:', typeof data);
+      console.log('[Sleeper] Sample data:', Object.values(data)?.[0]);
+      return data;
+    }
+    console.error('[Sleeper] Failed to load projections:', response.status, response.statusText);
+    return null;
+  } catch (error) {
+    console.error('[Sleeper] Error fetching projections:', error);
+    return null;
+  }
+}
+
+async function fetchMoneyLineProps() {
+  // Skip if no API key
+  const apiKey = API_CONFIG.moneyLine.apiKey;
+  if (!apiKey) {
+    console.log('[MoneyLine] No API key, skipping Vegas props');
+    return null;
+  }
+
+  try {
+    const response = await fetch(`${API_CONFIG.moneyLine.baseUrl}/v1/player-props?league=nfl`, {
+      headers: { 'x-api-key': apiKey }
+    });
+    if (response.ok) {
+      const data = await response.json();
+      console.log('[MoneyLine] Props loaded successfully');
+      return data;
+    }
+    console.error('[MoneyLine] Failed to load props:', response.status);
+    return null;
+  } catch (error) {
+    console.error('[MoneyLine] Error fetching props:', error);
+    return null;
+  }
+}
+
+async function fetchTheOddsData() {
+  console.log('[TheOdds] Fetching from server endpoint');
+  try {
+    // Use server-side endpoint to bypass CORS
+    const response = await fetch('/api/theodds');
+    console.log('[TheOdds] Response status:', response.status);
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('[TheOdds] Data loaded successfully');
+      console.log('[TheOdds] Sample data:', data[0]);
+      return data;
+    }
+    console.error('[TheOdds] Failed to load data:', response.status, response.statusText);
+    return null;
+  } catch (error) {
+    console.error('[TheOdds] Error fetching data:', error);
+    return null;
+  }
+}
+
+async function fetchFantasyNerdsProjections() {
+  console.log('[FantasyNerds] Disabled - not needed for now');
+  return null;
+}
+
+async function fetchFantasyNerdsProjections() {
+  console.log('[FantasyNerds] Fetching from server endpoint');
+  try {
+    // Use server-side endpoint to bypass CORS
+    const response = await fetch('/api/fantasynerds');
+    console.log('[FantasyNerds] Response status:', response.status);
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('[FantasyNerds] Projections loaded successfully, data keys:', Object.keys(data));
+      console.log('[FantasyNerds] Full data structure:', JSON.stringify(data, null, 2));
+      
+      // Check if projections is an array
+      if (data.projections && Array.isArray(data.projections)) {
+        console.log('[FantasyNerds] Projections is array, length:', data.projections.length);
+        console.log('[FantasyNerds] First projection:', data.projections[0]);
+      } else {
+        console.log('[FantasyNerds] Projections is not an array or is undefined');
+      }
+      
+      return data;
+    }
+    console.error('[FantasyNerds] Failed to load projections:', response.status, response.statusText);
+    return null;
+  } catch (error) {
+    console.error('[FantasyNerds] Error fetching projections:', error);
+    return null;
+  }
+}
+
 async function loadLiveRankings() {
-  const selectedScoring = state.settings.scoringFormat;
-  const selectedScoringApiType = getScoringApiType(selectedScoring);
-  state.liveDataStatus = `Fetching ${getScoringLabel(selectedScoring)} rankings from Fantasy Football Calculator...`;
+  state.liveDataStatus = `Loading rankings from local CSV files...`;
   render();
 
   try {
-    const [selectedResponse, standardResponse] = await Promise.all([
-      fetchJsonWithProxyFallback(`https://fantasyfootballcalculator.com/api/v1/adp/${selectedScoringApiType}`, `${getScoringLabel(selectedScoring)} ADP`),
-      fetchJsonWithProxyFallback('https://fantasyfootballcalculator.com/api/v1/adp/standard', 'Standard ADP')
+    // Fetch local CSV rankings for ESPN, Yahoo, Underdog, and FFPC
+    const [espnResponse, yahooResponse, rotoballerResponse, ffpcResponse] = await Promise.all([
+      fetchJsonWithProxyFallback('/api/espn', 'ESPN rankings'),
+      fetchJsonWithProxyFallback('/api/yahoo', 'Yahoo rankings'),
+      fetchJsonWithProxyFallback('/api/rotoballer', 'Underdog rankings'),
+      fetchJsonWithProxyFallback('/api/ffpc', 'FFPC rankings')
     ]);
 
-    const mergedPlayers = (selectedResponse.players || [])
-      .map((player) => {
-        const standardMatch = (standardResponse.players || []).find((entry) => normalizeName(entry.name) === normalizeName(player.name));
+    // Don't fetch Ghost rankings here - they will be applied after login
+    let ghostResponse = null;
 
-        return {
+    // Create a map of ESPN rankings by normalized name for quick lookup
+    const espnMap = new Map();
+    if (espnResponse && espnResponse.players) {
+      espnResponse.players.forEach(espnPlayer => {
+        const normalizedName = normalizeName(espnPlayer.name);
+        espnMap.set(normalizedName, espnPlayer.adpESPN || espnPlayer.rank);
+      });
+    }
+
+    // Create a map of Yahoo rankings by normalized name for quick lookup
+    const yahooMap = new Map();
+    if (yahooResponse && yahooResponse.players) {
+      yahooResponse.players.forEach(yahooPlayer => {
+        const normalizedName = normalizeName(yahooPlayer.name);
+        yahooMap.set(normalizedName, yahooPlayer.adpYahoo || yahooPlayer.rank);
+      });
+    }
+
+    // Create a map of Underdog rankings by normalized name for quick lookup
+    const rotoballerMap = new Map();
+    if (rotoballerResponse && rotoballerResponse.players) {
+      rotoballerResponse.players.forEach(rbPlayer => {
+        const normalizedName = normalizeName(rbPlayer.name);
+        rotoballerMap.set(normalizedName, rbPlayer.adpUnderdog || rbPlayer.rank);
+      });
+    }
+
+    // Create a map of FFPC rankings by normalized name for quick lookup
+    const ffpcMap = new Map();
+    if (ffpcResponse && ffpcResponse.players) {
+      ffpcResponse.players.forEach(ffpcPlayer => {
+        const normalizedName = normalizeName(ffpcPlayer.name);
+        ffpcMap.set(normalizedName, ffpcPlayer.adpFFPC || ffpcPlayer.rank);
+      });
+    }
+
+    // Create a combined player list from all CSV sources
+    const allPlayers = new Map();
+    
+    // Add players from ESPN data
+    if (espnResponse && espnResponse.players) {
+      espnResponse.players.forEach(player => {
+        const normalizedName = normalizeName(player.name);
+        if (!allPlayers.has(normalizedName)) {
+          allPlayers.set(normalizedName, {
+            name: player.name,
+            position: player.position,
+            team: player.team,
+            espn: player.adpESPN || player.rank,
+            yahoo: null,
+            rotoballer: null,
+            ffpc: null,
+            sosRank: player.sosRank || null,
+            expertRank: player.expertRank || null
+          });
+        } else {
+          allPlayers.get(normalizedName).espn = player.adpESPN || player.rank;
+          if (player.sosRank) allPlayers.get(normalizedName).sosRank = player.sosRank;
+          if (player.expertRank) allPlayers.get(normalizedName).expertRank = player.expertRank;
+        }
+      });
+    }
+
+    // Add Yahoo data
+    if (yahooResponse && yahooResponse.players) {
+      yahooResponse.players.forEach(player => {
+        const normalizedName = normalizeName(player.name);
+        if (!allPlayers.has(normalizedName)) {
+          allPlayers.set(normalizedName, {
+            name: player.name,
+            position: player.position,
+            team: player.team,
+            espn: null,
+            yahoo: player.adpYahoo || player.rank,
+            rotoballer: null,
+            ffpc: null,
+            sosRank: player.sosRank || null,
+            expertRank: player.expertRank || null
+          });
+        } else {
+          allPlayers.get(normalizedName).yahoo = player.adpYahoo || player.rank;
+          if (player.sosRank) allPlayers.get(normalizedName).sosRank = player.sosRank;
+          if (player.expertRank) allPlayers.get(normalizedName).expertRank = player.expertRank;
+        }
+      });
+    }
+
+    // Add Underdog data
+    if (rotoballerResponse && rotoballerResponse.players) {
+      rotoballerResponse.players.forEach(player => {
+        const normalizedName = normalizeName(player.name);
+        if (!allPlayers.has(normalizedName)) {
+          allPlayers.set(normalizedName, {
+            name: player.name,
+            position: player.position,
+            team: player.team,
+            espn: null,
+            yahoo: null,
+            rotoballer: player.adpUnderdog || player.rank,
+            ffpc: null,
+            sosRank: player.sosRank || null,
+            expertRank: player.expertRank || null
+          });
+        } else {
+          allPlayers.get(normalizedName).rotoballer = player.adpUnderdog || player.rank;
+          if (player.sosRank) allPlayers.get(normalizedName).sosRank = player.sosRank;
+          if (player.expertRank) allPlayers.get(normalizedName).expertRank = player.expertRank;
+        }
+      });
+    }
+
+    // Add FFPC data
+    if (ffpcResponse && ffpcResponse.players) {
+      ffpcResponse.players.forEach(player => {
+        const normalizedName = normalizeName(player.name);
+        if (!allPlayers.has(normalizedName)) {
+          allPlayers.set(normalizedName, {
+            name: player.name,
+            position: player.position,
+            team: player.team,
+            espn: null,
+            yahoo: null,
+            rotoballer: null,
+            ffpc: player.adpFFPC || player.rank,
+            sosRank: player.sosRank || null,
+            expertRank: player.expertRank || null
+          });
+        } else {
+          allPlayers.get(normalizedName).ffpc = player.adpFFPC || player.rank;
+          if (player.sosRank) allPlayers.get(normalizedName).sosRank = player.sosRank;
+          if (player.expertRank) allPlayers.get(normalizedName).expertRank = player.expertRank;
+        }
+      });
+    }
+
+    // Convert to array and filter players that have at least one ranking
+    const mergedPlayers = Array.from(allPlayers.values())
+      .filter(player => player.espn || player.yahoo || player.rotoballer || player.ffpc)
+      .map((player, index) => {
+        // Use ESPN as primary if available, otherwise Yahoo, otherwise first available
+        const primaryAdp = player.espn || player.yahoo || player.rotoballer || player.ffpc || 100;
+        
+        // Check if this player already exists in state (to preserve custom rankings, drafted status, etc.)
+        const existingPlayer = state.players.find(p => 
+          normalizeName(p.name) === normalizeName(player.name) && 
+          normalizeName(p.position) === normalizeName(player.position) &&
+          normalizeName(p.team) === normalizeName(player.team)
+        );
+        
+        // Build the player object, starting with CSV data
+        const mergedPlayer = {
           id: `live-${normalizeName(player.name)}-${normalizeName(player.position)}-${normalizeName(player.team)}`,
           rankKey: getRankKey(player),
           name: player.name,
           position: normalizePositionCode(player.position),
           team: player.team,
-          espn: player.adp,
-          yahoo: standardMatch?.adp ?? player.adp,
+          espn: player.espn || null,
+          yahoo: player.yahoo || null,
           sleeperAdp: null,
-          baseValue: Math.max(70, 100 - player.adp * 4),
+          rotoballer: player.rotoballer || null,
+          ffpc: player.ffpc || null,
+          sosRank: player.sosRank || null,
+          expertRank: player.expertRank || null,
+          baseValue: Math.max(70, 100 - primaryAdp * 4),
           tier: 1,
-          myRank: 0
+          myRank: 0,
+          posRank: 0,
+          drafted: false,
+          draftedAt: null,
+          draftedSource: null,
+          roomPickNo: null
         };
+        
+        // If existing player found, preserve their customizations
+        if (existingPlayer) {
+          mergedPlayer.tier = existingPlayer.tier ?? 1;
+          mergedPlayer.myRank = existingPlayer.myRank ?? 0;
+          mergedPlayer.posRank = existingPlayer.posRank ?? 0;
+          mergedPlayer.drafted = existingPlayer.drafted ?? false;
+          mergedPlayer.draftedAt = existingPlayer.draftedAt ?? null;
+          mergedPlayer.draftedSource = existingPlayer.draftedSource ?? null;
+          mergedPlayer.roomPickNo = existingPlayer.roomPickNo ?? null;
+        }
+        
+        return mergedPlayer;
       });
 
     // Calculate Sleeper ADP from saved draft picks
@@ -3124,23 +3266,298 @@ async function loadLiveRankings() {
           draftedSource: existing?.draftedSource ?? null,
           roomPickNo: Number.isFinite(existing?.roomPickNo) ? existing.roomPickNo : null,
           myRank: index + 1,
-          tier: getTierForRank(index, mergedPlayers.length)
+          tier: existing?.tier ?? getTierForRank(index, mergedPlayers.length)
         };
       });
 
+    // Completely replace state.players with merged data to ensure new fields are present
     state.players = rankedPlayers;
-    const appliedSavedRanks = applySavedCustomRanksToPlayers(state.players);
-  
-    state.liveDataStatus = `Loaded ${state.players.length} players from Fantasy Football Calculator (${getScoringLabel(selectedScoring)}/Standard). API type: ${selectedResponse?.meta?.type || getScoringLabel(selectedScoring)}.${appliedSavedRanks ? ' Applied saved custom rankings.' : ''}`;
-    render();
+    calculatePositionalRanks();
+    
+    const espnCount = espnResponse && espnResponse.players ? espnResponse.players.length : 0;
+    const yahooCount = yahooResponse && yahooResponse.players ? yahooResponse.players.length : 0;
+    const underdogCount = rotoballerResponse && rotoballerResponse.players ? rotoballerResponse.players.length : 0;
+    const ffpcCount = ffpcResponse && ffpcResponse.players ? ffpcResponse.players.length : 0;
+    state.liveDataStatus = `Loaded ${state.players.length} players from local CSV files (${espnCount} ESPN, ${yahooCount} Yahoo, ${underdogCount} Underdog, ${ffpcCount} FFPC).`;
+    
+    console.log('[CSV] Sample player data:', {
+      name: state.players[0]?.name,
+      expertRank: state.players[0]?.expertRank,
+      rotoballer: state.players[0]?.rotoballer,
+      ffpc: state.players[0]?.ffpc
+    });
   } catch (error) {
-    state.liveDataStatus = `Live rankings unavailable. Using the starter board. ${error.message}`;
-    render();
+    console.error('[CSV] Error loading rankings:', error);
+    state.liveDataStatus = `Error loading rankings: ${error.message}`;
+  }
+}
+
+async function applyGhostRankings() {
+  console.log('[GHOST] Applying Ghost personal rankings...');
+  
+  try {
+    const ghostResponse = await fetchJsonWithProxyFallback('/api/ghost', 'Ghost personal rankings');
+    
+    if (ghostResponse && ghostResponse.players) {
+      console.log('[GHOST] Found Ghost rankings data:', ghostResponse.players.length, 'players');
+      
+      const ghostRankingsMap = new Map();
+      ghostResponse.players.forEach(ghostPlayer => {
+        const normalizedName = normalizeName(ghostPlayer.name);
+        ghostRankingsMap.set(normalizedName, ghostPlayer.personalRank);
+        console.log(`[GHOST] Mapping ${ghostPlayer.name} -> ${ghostPlayer.personalRank}`);
+      });
+      
+      let appliedGhostRanks = 0;
+      state.players.forEach(player => {
+        const normalizedName = normalizeName(player.name);
+        const ghostRank = ghostRankingsMap.get(normalizedName);
+        if (ghostRank) {
+          player.myRank = Math.round(ghostRank);
+          appliedGhostRanks++;
+          console.log(`[GHOST] Applied rank ${player.myRank} to ${player.name}`);
+        }
+      });
+      
+      // Re-sort by myRank after applying Ghost's rankings
+      state.players.sort((a, b) => a.myRank - b.myRank || a.name.localeCompare(b.name));
+      state.players.forEach((player, index) => {
+        player.myRank = index + 1;
+      });
+      
+      console.log(`[GHOST] Applied ${appliedGhostRanks} personal rankings for Ghost user`);
+      saveState();
+    } else {
+      console.log('[GHOST] No Ghost rankings data found');
+    }
+  } catch (error) {
+    console.error('[GHOST] Error applying Ghost rankings:', error);
+  }
+}
+
+// CSV upload handling
+function handleCsvUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  // Security checks
+  if (!file.name.endsWith('.csv')) {
+    alert('Please upload a CSV file only.');
+    event.target.value = '';
+    return;
+  }
+  
+  if (file.size > 5 * 1024 * 1024) { // 5MB limit
+    alert('File is too large. Maximum size is 5MB.');
+    event.target.value = '';
+    return;
+  }
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const csvContent = e.target.result;
+      const result = parseAndApplyCsvRankings(csvContent);
+      
+      if (result.success) {
+        alert(`Successfully imported ${result.applied} rankings!`);
+        saveState();
+        render();
+      } else {
+        alert(`Error: ${result.error}`);
+      }
+    } catch (error) {
+      alert('Error reading CSV file: ' + error.message);
+    }
+    
+    // Reset file input
+    event.target.value = '';
+  };
+  
+  reader.onerror = function() {
+    alert('Error reading file.');
+    event.target.value = '';
+  };
+  
+  reader.readAsText(file);
+}
+
+function parseAndApplyCsvRankings(csvContent) {
+  try {
+    // Integrity check: validate CSV structure
+    const lines = csvContent.split('\n').filter(line => line.trim());
+    if (lines.length < 2) {
+      return { success: false, error: 'CSV file is empty or has no data rows.' };
+    }
+    
+    // Parse header
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    console.log('[CSV] Headers found:', headers);
+    
+    // Required columns: at minimum, we need player name and some form of ranking
+    const nameIndex = headers.findIndex(h => h.includes('name') || h.includes('player'));
+    
+    // Prioritize "RK" column first (this is the actual ranking order), then "Personal Rank"
+    const rkIndex = headers.findIndex(h => h === 'rk');
+    const personalRankIndex = headers.findIndex(h => h.includes('personal') && h.includes('rank'));
+    const rankIndex = rkIndex !== -1 ? rkIndex : (personalRankIndex !== -1 ? personalRankIndex : headers.findIndex(h => h.includes('rank') && !h.includes('personal')));
+    const adpIndex = rankIndex === -1 ? headers.findIndex(h => h.includes('adp')) : -1;
+    const valueIndex = rankIndex === -1 && adpIndex === -1 ? headers.findIndex(h => h.includes('value')) : -1;
+    
+    const finalRankIndex = rkIndex !== -1 ? rkIndex : (personalRankIndex !== -1 ? personalRankIndex : (rankIndex !== -1 ? rankIndex : (adpIndex !== -1 ? adpIndex : valueIndex)));
+    
+    console.log('[CSV] Using column index', finalRankIndex, 'for rankings:', headers[finalRankIndex]);
+    
+    if (nameIndex === -1) {
+      return { success: false, error: 'CSV must contain a "Name" or "Player" column.' };
+    }
+    
+    if (finalRankIndex === -1) {
+      return { success: false, error: 'CSV must contain a "RK", "Personal Rank", "Rank", "ADP", or "Value" column.' };
+    }
+    
+    // Parse data rows
+    let appliedCount = 0;
+    const rankingsMap = new Map();
+    
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      // Handle CSV with quoted fields containing commas
+      const columns = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (let char of line) {
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          columns.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      columns.push(current.trim());
+      
+      if (columns.length <= nameIndex || columns.length <= finalRankIndex) {
+        continue; // Skip malformed rows
+      }
+      
+      const playerName = columns[nameIndex].replace(/"/g, '').trim();
+      const rankValue = parseFloat(columns[finalRankIndex].replace(/"/g, '').trim());
+      
+      if (playerName && !isNaN(rankValue)) {
+        // Use getNameMatchKeys to handle suffixes like III, Jr., etc.
+        const nameKeys = getNameMatchKeys(playerName);
+        nameKeys.forEach(key => {
+          rankingsMap.set(key, rankValue);
+        });
+        
+        if (i <= 5) { // Log first 5 players for debugging
+          console.log('[CSV] Parsed:', playerName, '->', rankValue, 'keys:', nameKeys);
+        }
+      }
+    }
+    
+    if (rankingsMap.size === 0) {
+      return { success: false, error: 'No valid rankings found in CSV.' };
+    }
+    
+    console.log('[CSV] Parsed', rankingsMap.size, 'rankings from CSV');
+    
+    // Apply rankings to existing players
+    state.players.forEach(player => {
+      // Use getNameMatchKeys to handle suffixes like III, Jr., etc.
+      const playerKeys = getNameMatchKeys(player.name);
+      let csvRank = undefined;
+      
+      // Check if any of the player's name keys match the CSV
+      for (const key of playerKeys) {
+        if (rankingsMap.has(key)) {
+          csvRank = rankingsMap.get(key);
+          break;
+        }
+      }
+      
+      if (csvRank !== undefined) {
+        player.myRank = csvRank; // Use exact value from CSV, don't round
+        appliedCount++;
+        if (appliedCount <= 5) { // Log first 5 applications for debugging
+          console.log('[CSV] Applied:', player.name, 'rank', player.myRank, 'from CSV value', csvRank, 'keys:', playerKeys);
+        }
+      }
+    });
+    
+    console.log('[CSV] Applied', appliedCount, 'rankings out of', state.players.length, 'players');
+    
+    // Remove duplicate players (same normalized name, position, team)
+    const seenPlayers = new Map();
+    const uniquePlayers = [];
+    
+    state.players.forEach(player => {
+      const matchKey = getNameMatchKeys(player.name)[0] + player.position + player.team;
+      if (!seenPlayers.has(matchKey)) {
+        seenPlayers.set(matchKey, true);
+        uniquePlayers.push(player);
+      } else {
+        console.log('[CSV] Removed duplicate:', player.name, player.position, player.team);
+      }
+    });
+    
+    state.players = uniquePlayers;
+    console.log('[CSV] Removed duplicates, now have', state.players.length, 'unique players');
+    
+    // Sort by myRank (use exact CSV values)
+    state.players.sort((a, b) => {
+      // Handle players without CSV ranks (put them at the end)
+      if (!a.myRank && b.myRank) return 1;
+      if (a.myRank && !b.myRank) return -1;
+      if (!a.myRank && !b.myRank) return a.name.localeCompare(b.name);
+      
+      // Sort by CSV rank
+      const rankDiff = a.myRank - b.myRank;
+      if (rankDiff !== 0) return rankDiff;
+      
+      // Tie-breaker by name
+      return a.name.localeCompare(b.name);
+    });
+    
+    // Renumber to sequential 1, 2, 3, etc. to match the RK column
+    state.players.forEach((player, index) => {
+      player.myRank = index + 1;
+    });
+    
+    // Log top 10 players after sorting
+    console.log('[CSV] Top 10 players after CSV import:');
+    state.players.slice(0, 10).forEach((player, index) => {
+      console.log(`  ${index + 1}. ${player.name} (${player.position}) - Rank: ${player.myRank}`);
+    });
+    
+    // Recalculate positional ranks and tiers
+    calculatePositionalRanks();
+    applyAutoTiering();
+    
+    console.log('[CSV] Applied', appliedCount, 'rankings and recalculated tiers/positions');
+    
+    return { success: true, applied: appliedCount };
+    
+  } catch (error) {
+    console.error('[CSV] Error parsing CSV:', error);
+    return { success: false, error: 'Error parsing CSV: ' + error.message };
   }
 }
 
 function normalizeName(value) {
-  return `${value || ''}`.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  // Remove common suffixes for better matching
+  let name = `${value || ''}`.toLowerCase();
+  
+  // Remove common suffixes like Jr., Sr., II, III, IV, etc.
+  name = name.replace(/\s+(jr\.?|sr\.?|ii|iii|iv|vi|vii|viii|ix|x)$/g, '');
+  
+  // Remove non-alphanumeric characters
+  name = name.replace(/[^a-z0-9]+/g, '');
+  
+  return name;
 }
 
 function normalizeNameForMatch(value) {
@@ -3176,10 +3593,18 @@ function normalizePositionForCss(value) {
 }
 
 function renderDraftBoard() {
+  const rankingsBodyEl = document.getElementById('rankings-body');
+  if (!rankingsBodyEl) {
+    console.error('rankingsBody element not found');
+    return;
+  }
+  
+  console.log('Rendering draft board, players:', state.players.length);
+  
   const sortedPlayers = [...state.players].sort(comparePlayers);
   const visiblePlayers = sortedPlayers.filter((player) => !player.drafted && matchesPositionFilter(player));
 
-  let groupedRows = [];
+  let rows = [];
   
   // Always show tier dividers
   const tiersToRender = [...new Set(visiblePlayers.map((player) => Number(player.tier)).filter((tier) => Number.isFinite(tier) && tier > 0))]
@@ -3188,9 +3613,9 @@ function renderDraftBoard() {
   tiersToRender.forEach((tier) => {
     const players = visiblePlayers.filter((player) => Number(player.tier) === tier);
     
-    groupedRows.push(`
+    rows.push(`
       <tr class="tier-divider" data-tier="${tier}">
-        <td colspan="8">
+        <td colspan="9">
           <div class="tier-bar">
             <span class="tier-pill t${tier}">Tier ${tier}</span>
             <span class="tier-divider-count">${players.length} players</span>
@@ -3200,13 +3625,17 @@ function renderDraftBoard() {
     `);
     
     players.forEach((player) => {
-      const avgAdp = getDraftAdjustedAdp(player).toFixed(1);
+      const adpValue = getAdpValue(player, state.adpSource);
+      const expertValue = player.expertRank ? player.expertRank : '-';
+      const adpDiff = calculateAdpDifference(player, state.adpSource);
+      const personalDiff = calculatePersonalDifference(player, state.adpSource);
+      const sosValue = player.sosRank ? player.sosRank : '-';
       const isSelected = state.ui?.selectedPlayerId === player.id;
       const posRankDisplay = player.posRank ? `${player.position}${player.posRank}` : player.position;
       const normalizedPosition = normalizePositionForCss(player.position);
       
-      groupedRows.push(`
-        <tr data-player-id="${player.id}" draggable="true" class="${player.drafted ? 'drafted-row' : ''} ${isSelected ? 'selected-row' : ''}">
+      rows.push(`
+        <tr data-player-id="${player.id}" class="${player.drafted ? 'drafted-row' : ''} ${isSelected ? 'selected-row' : ''}" draggable="true">
           <td>
             <span class="drag-handle" data-player-id="${player.id}"></span>
             ${player.myRank}
@@ -3214,21 +3643,79 @@ function renderDraftBoard() {
           <td>
             <div class="player-cell">
               <span class="player-name">${player.name}</span>
-              ${player.draftedSource === 'manual' ? '<span class="table-tag table-tag-manual">MANUAL</span>' : ''}
             </div>
           </td>
           <td><span class="pos-pill pos-${normalizedPosition}">${posRankDisplay}</span></td>
           <td>${player.team}</td>
-          <td>${player.espn.toFixed(1)}</td>
-          <td>${player.yahoo.toFixed(1)}</td>
-          <td>${player.sleeperAdp ? player.sleeperAdp.toFixed(1) : '-'}</td>
-          <td>${avgAdp}</td>
+          <td>${adpValue}</td>
+          <td>${expertValue}</td>
+          <td style="color: ${adpDiff.color}; font-weight: ${adpDiff.weight};">${adpDiff.display}</td>
+          <td style="color: ${personalDiff.color}; font-weight: ${personalDiff.weight};">${personalDiff.display}</td>
+          <td>${sosValue}</td>
         </tr>
       `);
     });
   });
 
-  rankingsBody.innerHTML = groupedRows.join('');
+  rankingsBodyEl.innerHTML = rows.join('');
+  console.log('Rendered', rows.length, 'rows');
+  
+  // Update table header based on selected ADP source
+  updateTableHeader();
+  
+  // Render unmatched picks section
+  renderUnmatchedPicksSection();
+}
+
+function getAdpValue(player, source) {
+  switch(source) {
+    case 'espn':
+      return player.espn ? player.espn.toFixed(1) : '-';
+    case 'yahoo':
+      return player.yahoo ? player.yahoo.toFixed(1) : '-';
+    case 'rotoballer':
+      return player.rotoballer ? player.rotoballer.toFixed(1) : '-';
+    case 'ffpc':
+      return player.ffpc ? player.ffpc.toFixed(1) : '-';
+    case 'average':
+      return getDraftAdjustedAdp(player).toFixed(1);
+    case 'all':
+    default:
+      return getDraftAdjustedAdp(player).toFixed(1);
+  }
+}
+
+function updateTableHeader() {
+  const headerRow = document.getElementById('table-header');
+  if (!headerRow) return;
+  
+  const adpLabels = {
+    all: 'ADP',
+    espn: 'ESPN',
+    yahoo: 'Yahoo', 
+    rotoballer: 'Underdog',
+    ffpc: 'FFPC',
+    average: 'Average'
+  };
+  
+  const currentLabel = adpLabels[state.adpSource] || 'ADP';
+  
+  headerRow.innerHTML = `
+    <th data-key="myRank">Rank</th>
+    <th data-key="player">Player</th>
+    <th data-key="position">Pos</th>
+    <th data-key="team">Team</th>
+    <th data-key="adp">${currentLabel}</th>
+    <th data-key="expertRank">Expert</th>
+    <th data-key="adpDiff">Diff</th>
+    <th data-key="personalDiff">My Diff</th>
+    <th data-key="sosRank">SoS</th>
+  `;
+  
+  // Re-attach event listeners to the new header
+  document.querySelectorAll('th[data-key]').forEach((header) => {
+    header.addEventListener('click', () => sortBy(header.dataset.key));
+  });
 }
 
 function comparePlayers(a, b) {
@@ -3243,15 +3730,267 @@ function comparePlayers(a, b) {
     result = (POSITION_ORDER[a.position] || 99) - (POSITION_ORDER[b.position] || 99) || a.position.localeCompare(b.position);
   } else if (key === 'team') {
     result = a.team.localeCompare(b.team);
+  } else if (key === 'adp') {
+    result = getAdpValueForSort(a) - getAdpValueForSort(b);
+  } else if (key === 'expertRank') {
+    result = (a.expertRank || 999) - (b.expertRank || 999);
+  } else if (key === 'adpDiff') {
+    const diffA = calculateAdpDifference(a, state.adpSource);
+    const diffB = calculateAdpDifference(b, state.adpSource);
+    // Parse the numeric value from the display string
+    const numA = parseFloat(diffA.display) || 0;
+    const numB = parseFloat(diffB.display) || 0;
+    result = numA - numB;
+  } else if (key === 'personalDiff') {
+    const diffA = calculatePersonalDifference(a, state.adpSource);
+    const diffB = calculatePersonalDifference(b, state.adpSource);
+    // Parse the numeric value from the display string
+    const numA = parseFloat(diffA.display) || 0;
+    const numB = parseFloat(diffB.display) || 0;
+    result = numA - numB;
+  } else if (key === 'sosRank') {
+    result = (a.sosRank || 999) - (b.sosRank || 999);
   } else if (key === 'espn') {
-    result = a.espn - b.espn;
+    result = (a.espn || 999) - (b.espn || 999);
   } else if (key === 'yahoo') {
-    result = a.yahoo - b.yahoo;
+    result = (a.yahoo || 999) - (b.yahoo || 999);
+  } else if (key === 'rotoballer') {
+    result = (a.rotoballer || 999) - (b.rotoballer || 999);
+  } else if (key === 'ffpc') {
+    result = (a.ffpc || 999) - (b.ffpc || 999);
   } else if (key === 'averageAdp') {
     result = getDraftAdjustedAdp(a) - getDraftAdjustedAdp(b);
   }
 
   return direction === 'asc' ? result : -result;
+}
+
+function getAdpValueForSort(player) {
+  switch(state.adpSource) {
+    case 'espn':
+      return player.espn || 999;
+    case 'yahoo':
+      return player.yahoo || 999;
+    case 'rotoballer':
+      return player.rotoballer || 999;
+    case 'ffpc':
+      return player.ffpc || 999;
+    case 'average':
+      return getDraftAdjustedAdp(player);
+    case 'all':
+    default:
+      return getDraftAdjustedAdp(player);
+  }
+}
+
+function calculateAdpDifference(player, adpSource) {
+  // Get the current ADP value based on selected source
+  let currentAdp = null;
+  switch(adpSource) {
+    case 'espn':
+      currentAdp = player.espn;
+      break;
+    case 'yahoo':
+      currentAdp = player.yahoo;
+      break;
+    case 'rotoballer':
+      currentAdp = player.rotoballer;
+      break;
+    case 'ffpc':
+      currentAdp = player.ffpc;
+      break;
+    case 'average':
+      currentAdp = getDraftAdjustedAdp(player);
+      break;
+    case 'all':
+    default:
+      currentAdp = getDraftAdjustedAdp(player);
+  }
+
+  // If no ADP or no expert rank, return empty
+  if (!currentAdp || !player.expertRank) {
+    return { display: '-', color: '#666', weight: 'normal' };
+  }
+
+  // Calculate difference: ADP - Rank (flipped for user intuition)
+  // If expert rank is 7 and ADP is 9.2, difference is 9.2 - 7 = +2.2 (rank higher = undervalued)
+  // If expert rank is 8 and ADP is 5, difference is 5 - 8 = -3 (rank lower = overvalued)
+  const difference = currentAdp - player.expertRank;
+  
+  // Format the display
+  const diffFormatted = difference >= 0 ? `+${difference.toFixed(1)}` : difference.toFixed(1);
+  
+  // Color coding:
+  // Green (undervalued): difference > 0 (rank higher/lower number than ADP = good value)
+  // Red (overvalued): difference < 0 (rank lower/higher number than ADP = bad value)
+  // Neutral: difference close to 0
+  let color = '#666';
+  let weight = 'normal';
+  
+  if (difference > 1) {
+    color = '#28a745'; // Green - significantly undervalued
+    weight = 'bold';
+  } else if (difference > 0) {
+    color = '#90EE90'; // Light green - slightly undervalued
+  } else if (difference < -1) {
+    color = '#dc3545'; // Red - significantly overvalued
+    weight = 'bold';
+  } else if (difference < 0) {
+    color = '#FF6B6B'; // Light red - slightly overvalued
+  }
+  
+  return { display: diffFormatted, color, weight };
+}
+
+function calculatePersonalDifference(player, adpSource) {
+  // Calculate difference between the selected ADP source and your personal ranking (myRank)
+  let currentAdp = null;
+  switch(adpSource) {
+    case 'espn':
+      currentAdp = player.espn;
+      break;
+    case 'yahoo':
+      currentAdp = player.yahoo;
+      break;
+    case 'rotoballer':
+      currentAdp = player.rotoballer;
+      break;
+    case 'ffpc':
+      currentAdp = player.ffpc;
+      break;
+    case 'average':
+      currentAdp = getDraftAdjustedAdp(player);
+      break;
+    case 'all':
+    default:
+      currentAdp = getDraftAdjustedAdp(player);
+  }
+
+  // If no ADP or no personal rank, return empty
+  if (!currentAdp || !player.myRank) {
+    return { display: '-', color: '#666', weight: 'normal' };
+  }
+
+  // Calculate difference: ADP - My Rank (flipped for user intuition)
+  // If my rank is 5 and ADP is 6.5, difference is 6.5 - 5 = +1.5 (rank higher = undervalued)
+  // If my rank is 8 and ADP is 5.5, difference is 5.5 - 8 = -2.5 (rank lower = overvalued)
+  const difference = currentAdp - player.myRank;
+  
+  // Format the display
+  const diffFormatted = difference >= 0 ? `+${difference.toFixed(1)}` : difference.toFixed(1);
+  
+  // Color coding:
+  // Teal (undervalued): difference > 0 (rank higher/lower number than ADP = good value)
+  // Magenta (overvalued): difference < 0 (rank lower/higher number than ADP = bad value)
+  // Neutral: difference close to 0
+  let color = '#666';
+  let weight = 'normal';
+  
+  if (difference > 1) {
+    color = '#008080'; // Teal - significantly undervalued by you
+    weight = 'bold';
+  } else if (difference > 0) {
+    color = '#00CED1'; // Light teal - slightly undervalued by you
+  } else if (difference < -1) {
+    color = '#FF00FF'; // Magenta - significantly overvalued by you
+    weight = 'bold';
+  } else if (difference < 0) {
+    color = '#FF77FF'; // Light magenta - slightly overvalued by you
+  }
+  
+  return { display: diffFormatted, color, weight };
+}
+
+function resetDraftBoard() {
+  // Clear drafted status from all players except manually drafted
+  state.players = state.players.map((player) => {
+    // Keep manually drafted players as is
+    if (player.draftedSource === 'manual') {
+      return player;
+    }
+    
+    // For unmatched Sleeper imports, make them undrafted but preserve their rank
+    if (player.draftedSource === 'sync' && player.id?.startsWith('sleeper-')) {
+      return {
+        ...player,
+        drafted: false,
+        draftedAt: null,
+        draftedSource: null,
+        roomPickNo: null,
+        // Keep their myRank as their draft position
+        myRank: player.roomPickNo || player.myRank
+      };
+    }
+    
+    // Clear drafted status for all other players
+    return {
+      ...player,
+      drafted: false,
+      draftedAt: null,
+      draftedSource: null,
+      roomPickNo: null
+    };
+  });
+  
+  // Clear Sleeper sync state
+  state.sleeperSync = {
+    ...state.sleeperSync,
+    enabled: false,
+    lastPickCount: 0,
+    lastSyncAt: null,
+    lastResult: 'Draft board reset. Ready for new draft.',
+    unmatchedCount: 0,
+    unmatchedPicks: []
+  };
+  
+  stopSleeperSync('Draft board reset.');
+  
+  // Recalculate everything
+  syncDraftedPlayerIds();
+  calculatePositionalRanks();
+  state.autoTiering = true;
+  applyAutoTiering();
+  
+  saveState();
+  render();
+  console.log('Draft board reset complete');
+}
+
+function renderUnmatchedPicksSection() {
+  const unmatchedSection = document.getElementById('unmatched-picks-section');
+  const unmatchedList = document.getElementById('unmatched-picks-list');
+  
+  if (!unmatchedSection || !unmatchedList) {
+    return;
+  }
+  
+  const unmatchedPicks = state.sleeperSync?.unmatchedPicks || [];
+  
+  if (unmatchedPicks.length === 0) {
+    unmatchedSection.style.display = 'none';
+    return;
+  }
+  
+  unmatchedSection.style.display = 'block';
+  
+  const items = unmatchedPicks.map((pick) => {
+    const pickNo = pick.pickNo || '?';
+    const name = pick.name || 'Unknown';
+    const position = pick.position || '?';
+    const team = pick.team || '?';
+    
+    return `
+      <div class="unmatched-item">
+        <div class="player-info">
+          <span class="pick-no">Pick ${pickNo}</span>
+          <span>${name}</span>
+          <span>(${position} - ${team})</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  unmatchedList.innerHTML = items;
 }
 
 function renderDraftLists() {
@@ -3324,7 +4063,7 @@ function renderUnmatchedPicksPanel() {
   }
 
   if (!unmatchedCount) {
-    unmatchedPicksPanel.innerHTML = '<div class="empty-state">All synced Sleeper picks matched players on your current board.</div>';
+    unmatchedPicksPanel.innerHTML = '<div class="empty-state">All synced Sleeper picks matched players on your board.</div>';
     return;
   }
 
@@ -3415,6 +4154,7 @@ function addUnmatchedPicksToBoard() {
       baseValue: Math.max(60, 100 - fallbackAdp * 0.5),
       tier: getTierForRank(state.players.length, state.players.length + 1),
       myRank: state.players.length + 1,
+      posRank: 0,
       drafted: true,
       draftedAt,
       draftedSource: 'sync',
@@ -3457,65 +4197,10 @@ function addUnmatchedPicksToBoard() {
   state.sort.key = 'myRank';
   state.sort.direction = 'asc';
   syncDraftedPlayerIds();
-
+  calculatePositionalRanks();
   applyAutoTiering();
   state.liveDataStatus = `Imported ${added} unmatched Sleeper picks into your board as drafted players.`;
   return added;
-}
-
-function resetDraftBoard() {
-  // Clear drafted status from all players except manually drafted
-  state.players = state.players.map((player) => {
-    // Keep manually drafted players as is
-    if (player.draftedSource === 'manual') {
-      return player;
-    }
-    
-    // For unmatched Sleeper imports, make them undrafted but preserve their rank
-    if (player.draftedSource === 'sync' && player.id?.startsWith('sleeper-')) {
-      return {
-        ...player,
-        drafted: false,
-        draftedAt: null,
-        draftedSource: null,
-        roomPickNo: null,
-        // Keep their myRank as their draft position
-        myRank: player.roomPickNo || player.myRank
-      };
-    }
-    
-    // Clear drafted status for all other players
-    return {
-      ...player,
-      drafted: false,
-      draftedAt: null,
-      draftedSource: null,
-      roomPickNo: null
-    };
-  });
-  
-  // Clear Sleeper sync state
-  state.sleeperSync = {
-    ...state.sleeperSync,
-    enabled: false,
-    lastPickCount: 0,
-    lastSyncAt: null,
-    lastResult: 'Draft board reset. Ready for new draft.',
-    unmatchedCount: 0,
-    unmatchedPicks: []
-  };
-  
-  stopSleeperSync('Draft board reset.');
-  
-  // Recalculate everything
-  syncDraftedPlayerIds();
-  calculatePositionalRanks();
-
-  applyAutoTiering();
-  
-  saveState();
-  render();
-  console.log('Draft board reset complete');
 }
 
 function handleUnmatchedPicksPanelClick(event) {
@@ -3561,29 +4246,7 @@ function syncDraftedPlayerIds() {
   state.draftedPlayerIds = (state.players || []).filter((player) => player.drafted).map((player) => player.id);
 }
 
-function movePlayerToRank(playerId, requestedRank) {
-  const rankedPlayers = [...state.players].sort((a, b) => a.myRank - b.myRank || a.name.localeCompare(b.name));
-  const fromIndex = rankedPlayers.findIndex((player) => player.id === playerId);
-  if (fromIndex < 0) {
-    return false;
-  }
 
-  const clampedRank = Math.max(1, Math.min(rankedPlayers.length, Math.round(requestedRank)));
-  const toIndex = clampedRank - 1;
-  if (fromIndex === toIndex) {
-    return false;
-  }
-
-  const [moving] = rankedPlayers.splice(fromIndex, 1);
-  rankedPlayers.splice(toIndex, 0, moving);
-
-  rankedPlayers.forEach((player, index) => {
-    player.myRank = index + 1;
-  });
-
-  state.players = rankedPlayers;
-  return true;
-}
 
 function handleDragStart(event) {
   // Find the player row - drag can start from anywhere in the row
@@ -3601,10 +4264,8 @@ function handleDragStart(event) {
   }
 
   state.draggedPlayerId = playerRow.dataset.playerId;
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', playerRow.dataset.playerId);
-  }
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', playerRow.dataset.playerId);
   
   console.log('Drag started for player:', state.draggedPlayerId);
   
@@ -3613,11 +4274,13 @@ function handleDragStart(event) {
 }
 
 function handleDragOver(event) {
-  if (event.target.closest('.tier-divider') || event.target.closest('tr[data-player-id]') || event.target.closest('.draft-bin')) {
+  const playerRow = event.target.closest('tr[data-player-id]');
+  const tierRow = event.target.closest('.tier-divider');
+  const draftBin = event.target.closest('.draft-bin');
+  
+  if (playerRow || tierRow || draftBin) {
     event.preventDefault();
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'move';
-    }
+    event.dataTransfer.dropEffect = 'move';
   }
 }
 
@@ -3648,7 +4311,7 @@ function handleDrop(event) {
     if (targetPlayer && targetPlayer.id !== player.id) {
       console.log('Reordering players, from:', player.name, 'to:', targetPlayer.name);
       
-      // Reorder players based on visible list
+      // Reorder players based on visible list (not just myRank)
       const sortedPlayers = [...state.players].sort(comparePlayers);
       const visiblePlayers = sortedPlayers.filter((p) => !p.drafted && matchesPositionFilter(p));
       
@@ -3667,16 +4330,16 @@ function handleDrop(event) {
           p.myRank = index + 1;
         });
         
+        // Update the moved player's tier to match the target position's tier
+        if (targetPlayer) {
+          moving.tier = targetPlayer.tier;
+        }
+        
         // Update myRank for drafted players to maintain gaps
         const draftedPlayers = sortedPlayers.filter(p => p.drafted);
         draftedPlayers.forEach((p, index) => {
           p.myRank = visiblePlayers.length + index + 1;
         });
-        
-        // Update the moved player's tier to match the target position's tier
-        if (targetPlayer) {
-          moving.tier = targetPlayer.tier;
-        }
         
         calculatePositionalRanks();
         state.autoTiering = false; // Don't auto-tier after manual reordering
@@ -3710,41 +4373,6 @@ function handleDragEnd(event) {
     row.style.background = '';
   });
   state.draggedPlayerId = null;
-}
-
-function handleBoardClick(event) {
-  const clickedControl = event.target.closest('input, button, select, textarea');
-  const playerRow = !clickedControl ? event.target.closest('tr[data-player-id]') : null;
-  if (playerRow) {
-    setSelectedPlayer(playerRow.dataset.playerId);
-    render();
-  }
-
-  const actionButton = event.target.closest('button[data-action]');
-  if (!actionButton) {
-    return;
-  }
-
-  const chip = actionButton.closest('.player-chip');
-  if (!chip) {
-    return;
-  }
-
-  const player = state.players.find((entry) => entry.id === chip.dataset.playerId);
-  if (!player) {
-    return;
-  }
-
-  if (actionButton.dataset.action === 'draft') {
-    player.drafted = true;
-    player.draftedAt = Date.now();
-    player.draftedSource = 'manual';
-    player.roomPickNo = null;
-    syncDraftedPlayerIds();
-    calculatePositionalRanks();
-    saveState();
-    render();
-  }
 }
 
 function handleTierSelect(event) {
@@ -3833,38 +4461,44 @@ function handleTierAction(event) {
   }
 }
 
+function handleBoardClick(event) {
+  const clickedControl = event.target.closest('input, button, select, textarea');
+  const playerRow = !clickedControl ? event.target.closest('tr[data-player-id]') : null;
+  if (playerRow) {
+    setSelectedPlayer(playerRow.dataset.playerId);
+    render();
+  }
 
-function handleTableInput(event) {
-  const target = event.target;
-  if (!target.dataset.field) {
+  const actionButton = event.target.closest('button[data-action]');
+  if (!actionButton) {
     return;
   }
 
-  const row = target.closest('tr[data-player-id]');
-  if (!row) {
+  const chip = actionButton.closest('.player-chip');
+  if (!chip) {
     return;
   }
 
-  const player = state.players.find((entry) => entry.id === row.dataset.playerId);
+  const player = state.players.find((entry) => entry.id === chip.dataset.playerId);
   if (!player) {
     return;
   }
 
-  if (target.dataset.field === 'myRank') {
-    const requestedRank = Number(target.value);
-    if (!Number.isFinite(requestedRank)) {
-      return;
-    }
-
-    movePlayerToRank(player.id, requestedRank);
-    state.sort.key = 'myRank';
-    state.sort.direction = 'asc';
-    state.autoTiering = false; // Don't auto-tier after manual rank change
+  if (actionButton.dataset.action === 'draft') {
+    player.drafted = true;
+    player.draftedAt = Date.now();
+    player.draftedSource = 'manual';
+    player.roomPickNo = null;
+    syncDraftedPlayerIds();
+    calculatePositionalRanks();
+    saveState();
+    render();
   }
-
-  saveState();
-  render();
 }
+
+
+
+
 
 function handleTrackerClick(event) {
   const actionButton = event.target.closest('button[data-action]');
@@ -3888,6 +4522,7 @@ function handleTrackerClick(event) {
     player.draftedSource = null;
     player.roomPickNo = null;
     syncDraftedPlayerIds();
+    calculatePositionalRanks();
     saveState();
     render();
   }
@@ -3896,6 +4531,6 @@ function handleTrackerClick(event) {
 render();
 loadLiveRankings();
 initSleeperSyncFromState();
-    </script>
+</script>
   </body>
 </html>
