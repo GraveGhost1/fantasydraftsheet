@@ -739,7 +739,13 @@ function calculatePositionalRanks() {
   
   // Sort each position group by myRank and assign positional ranks
   Object.keys(playersByPosition).forEach(position => {
-    playersByPosition[position].sort((a, b) => a.myRank - b.myRank);
+    playersByPosition[position].sort((a, b) => {
+      // Handle players without ranks (put them at the end)
+      if (!a.myRank && b.myRank) return 1;
+      if (a.myRank && !b.myRank) return -1;
+      if (!a.myRank && !b.myRank) return a.name.localeCompare(b.name);
+      return a.myRank - b.myRank;
+    });
     playersByPosition[position].forEach((player, index) => {
       player.posRank = index + 1;
     });
@@ -784,7 +790,13 @@ function autoFillPlayers() {
     };
   });
 
-  state.players = state.players.sort((a, b) => a.myRank - b.myRank);
+  state.players = state.players.sort((a, b) => {
+    // Handle players without ranks (put them at the end)
+    if (!a.myRank && b.myRank) return 1;
+    if (a.myRank && !b.myRank) return -1;
+    if (!a.myRank && !b.myRank) return a.name.localeCompare(b.name);
+    return a.myRank - b.myRank;
+  });
   calculatePositionalRanks();
   syncDraftedPlayerIds();
 }
@@ -1745,7 +1757,13 @@ function applySavedCustomRanksToPlayers(players) {
     return false;
   }
 
-  updatedPlayers.sort((a, b) => a.myRank - b.myRank || a.name.localeCompare(b.name));
+  updatedPlayers.sort((a, b) => {
+    // Handle players without ranks (put them at the end)
+    if (!a.myRank && b.myRank) return 1;
+    if (a.myRank && !b.myRank) return -1;
+    if (!a.myRank && !b.myRank) return a.name.localeCompare(b.name);
+    return a.myRank - b.myRank || a.name.localeCompare(b.name);
+  });
   updatedPlayers.forEach((player, index) => {
     player.myRank = index + 1;
   });
@@ -1953,7 +1971,13 @@ function handlePositionFilterClick(event) {
 
 function applyAutoTiering() {
   const activePlayers = [...state.players]
-    .sort((a, b) => a.myRank - b.myRank || a.name.localeCompare(b.name));
+    .sort((a, b) => {
+      // Handle players without ranks (put them at the end)
+      if (!a.myRank && b.myRank) return 1;
+      if (a.myRank && !b.myRank) return -1;
+      if (!a.myRank && !b.myRank) return a.name.localeCompare(b.name);
+      return a.myRank - b.myRank || a.name.localeCompare(b.name);
+    });
   const tierById = new Map();
 
   activePlayers.forEach((player, index) => {
@@ -2370,7 +2394,13 @@ async function applyGhostRankings() {
       });
       
       // Re-sort by myRank after applying Ghost's rankings
-      state.players.sort((a, b) => a.myRank - b.myRank || a.name.localeCompare(b.name));
+      state.players.sort((a, b) => {
+        // Handle players without ranks (put them at the end)
+        if (!a.myRank && b.myRank) return 1;
+        if (a.myRank && !b.myRank) return -1;
+        if (!a.myRank && !b.myRank) return a.name.localeCompare(b.name);
+        return a.myRank - b.myRank || a.name.localeCompare(b.name);
+      });
       state.players.forEach((player, index) => {
         player.myRank = index + 1;
       });
@@ -2560,9 +2590,11 @@ function parseAndApplyCsvRankings(csvContent) {
     // Sort by myRank (use exact CSV values)
     state.players.sort((a, b) => {
       // Handle players without CSV ranks (put them at the end)
-      if (!a.myRank && b.myRank) return 1;
-      if (a.myRank && !b.myRank) return -1;
-      if (!a.myRank && !b.myRank) return a.name.localeCompare(b.name);
+      const aHasRank = a.myRank && a.myRank > 0;
+      const bHasRank = b.myRank && b.myRank > 0;
+      if (!aHasRank && bHasRank) return 1;
+      if (aHasRank && !bHasRank) return -1;
+      if (!aHasRank && !bHasRank) return a.name.localeCompare(b.name);
       
       // Sort by CSV rank
       const rankDiff = a.myRank - b.myRank;
@@ -2775,7 +2807,11 @@ function comparePlayers(a, b) {
   if (key === 'player') {
     result = a.name.localeCompare(b.name);
   } else if (key === 'myRank') {
-    result = a.myRank - b.myRank;
+    // Handle players without ranks (put them at the end)
+    if (!a.myRank && b.myRank) result = 1;
+    else if (a.myRank && !b.myRank) result = -1;
+    else if (!a.myRank && !b.myRank) result = a.name.localeCompare(b.name);
+    else result = a.myRank - b.myRank;
   } else if (key === 'position') {
     result = (POSITION_ORDER[a.position] || 99) - (POSITION_ORDER[b.position] || 99) || a.position.localeCompare(b.position);
   } else if (key === 'team') {
@@ -3067,12 +3103,22 @@ function renderDraftLists() {
         return draftedAtDiff;
       }
 
+      // Handle players without ranks (put them at the end)
+      if (!a.myRank && b.myRank) return 1;
+      if (a.myRank && !b.myRank) return -1;
+      if (!a.myRank && !b.myRank) return a.name.localeCompare(b.name);
       return b.myRank - a.myRank;
     });
 
   const remainingPlayers = [...state.players]
     .filter((player) => !player.drafted)
-    .sort((a, b) => a.myRank - b.myRank);
+    .sort((a, b) => {
+      // Handle players without ranks (put them at the end)
+      if (!a.myRank && b.myRank) return 1;
+      if (a.myRank && !b.myRank) return -1;
+      if (!a.myRank && !b.myRank) return a.name.localeCompare(b.name);
+      return a.myRank - b.myRank;
+    });
 
   draftedList.innerHTML = draftedPlayers.length
     ? draftedPlayers.map((player, index) => `
