@@ -1725,7 +1725,13 @@ function autoFillPlayers() {
   const existingById = new Map((state.players || []).map((player) => [player.id, player]));
   const sortedPlayers = [...state.players]
     .map((player) => ({ ...player }))
-    .sort((a, b) => (scorePlayer(b, state.settings) - scorePlayer(a, state.settings)));
+    .sort((a, b) => {
+      // Handle players without ranks (put them at the end)
+      if (!a.myRank && b.myRank) return 1;
+      if (a.myRank && !b.myRank) return -1;
+      if (!a.myRank && !b.myRank) return a.name.localeCompare(b.name);
+      return scorePlayer(b, state.settings) - scorePlayer(a, state.settings);
+    });
 
   state.players = sortedPlayers.map((player, index) => {
     const existing = existingById.get(player.id);
@@ -3280,7 +3286,13 @@ async function loadLiveRankings() {
 
     const existingById = new Map((state.players || []).map((player) => [player.id, player]));
     const rankedPlayers = mergedPlayers
-      .sort((a, b) => getAverageAdp(a) - getAverageAdp(b))
+      .sort((a, b) => {
+        // Handle players without ranks (put them at the end)
+        if (!a.myRank && b.myRank) return 1;
+        if (a.myRank && !b.myRank) return -1;
+        if (!a.myRank && !b.myRank) return a.name.localeCompare(b.name);
+        return getAverageAdp(a) - getAverageAdp(b);
+      })
       .map((player, index) => {
         const existing = existingById.get(player.id);
         return {
