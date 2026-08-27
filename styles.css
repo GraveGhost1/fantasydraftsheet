@@ -235,6 +235,8 @@ select {
 }
 
 .rankings-table th.is-sorted {
+  background: rgba(59, 130, 246, 0.14);
+  box-shadow: inset 0 -2px 0 var(--accent);
   color: var(--accent);
 }
 
@@ -782,6 +784,53 @@ button.ghost:hover {
   gap: 12px;
   min-width: 150px;
   justify-content: flex-end;
+}
+
+.notice-overlay {
+  background: rgba(3, 7, 18, 0.76);
+  backdrop-filter: blur(8px);
+}
+
+.notice-modal {
+  align-items: center;
+  gap: 12px;
+  max-width: 440px;
+  padding: 32px;
+  text-align: center;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+}
+
+.notice-modal-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.14);
+  color: var(--success);
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.notice-modal.is-error .notice-modal-icon {
+  border-color: rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.14);
+  color: var(--danger);
+}
+
+.notice-modal h2 {
+  margin: 0;
+  color: var(--text);
+}
+
+.notice-modal p {
+  white-space: pre-line;
+}
+
+.notice-modal button {
+  min-width: 120px;
+  margin-top: 4px;
 }
 
 .login-section span {
