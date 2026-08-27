@@ -39,27 +39,171 @@ select {
 }
 
 .top-bar {
-  background: var(--header-bg);
-  border-bottom: 1px solid var(--border);
-  padding: 12px 24px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 24px;
+  gap: 16px;
+  padding: 10px 20px;
+  background: rgba(10, 14, 20, 0.78);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.logo-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%);
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.28);
+}
+
+.logo-copy {
+  min-width: 0;
 }
 
 .logo-section h1 {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: 0.98rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
   color: var(--text);
+  white-space: nowrap;
+}
+
+.logo-copy p {
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--muted);
 }
 
 .settings-bar {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.nav-control,
+.nav-search {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+
+.nav-control {
+  flex: 0 0 auto;
+}
+
+.nav-search {
+  flex: 1 1 280px;
+  max-width: 420px;
+  padding: 3px 3px 3px 4px;
+}
+
+.nav-select,
+.top-bar .compact-select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 36px;
+  padding: 0 34px 0 14px;
+  border: 0;
+  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M3 4.5L6 8l3-3.5'/%3E%3C/svg%3E") no-repeat right 12px center;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.nav-select:hover,
+.top-bar .compact-select:hover {
+  border-color: transparent;
+}
+
+.nav-search .compact-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 0.85rem;
+}
+
+.nav-search .compact-input:hover,
+.nav-search .compact-input:focus {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.nav-sync {
+  min-height: 30px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.nav-btn,
+.nav-login {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.nav-btn {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.nav-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.nav-login {
+  background: var(--text);
+  color: #0a0e14;
+}
+
+.nav-login:hover {
+  background: #e5e7eb;
+}
+
+label.nav-btn {
+  margin: 0;
+  line-height: 1;
+  box-sizing: border-box;
 }
 
 .compact-select {
@@ -125,11 +269,22 @@ select {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .user-display {
-  font-weight: 600;
-  color: var(--accent);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.user-display:empty {
+  display: none;
 }
 
 .main-content {
@@ -138,6 +293,53 @@ select {
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
+}
+
+.csv-help-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.28);
+  border-radius: 12px;
+}
+
+.csv-help-copy {
+  min-width: 0;
+}
+
+.csv-help-copy strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.csv-help-copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.csv-help-copy code,
+.csv-help-copy em {
+  color: var(--text);
+  font-style: normal;
+  font-weight: 700;
+}
+
+.csv-help-copy code {
+  font-family: "Segoe UI", sans-serif;
+  font-weight: 600;
+}
+
+.csv-help-dismiss {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .filters-bar {
@@ -252,19 +454,35 @@ select {
 /* Mobile & Tablet Responsive Design */
 @media (max-width: 768px) {
   .top-bar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-    padding: 12px 16px;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
   }
-  
-  .logo-section h1 {
-    font-size: 1rem;
-  }
-  
+
   .settings-bar {
+    order: 3;
+    flex: 1 1 100%;
+  }
+
+  .nav-search {
+    max-width: none;
+  }
+
+  .user-section {
+    margin-left: auto;
+  }
+
+  .logo-copy p {
+    display: none;
+  }
+
+  .csv-help-banner {
     flex-direction: column;
-    align-items: stretch;
+  }
+
+  .csv-help-dismiss {
+    align-self: flex-end;
   }
   
   .rankings-table,
@@ -546,6 +764,10 @@ select {
 .tier-pill.t9 { background: rgba(255, 125, 175, 0.16); color: #ffb1cf; }
 .tier-pill.t10 { background: rgba(255, 255, 255, 0.1); color: #e8ecf5; }
 
+.tier-divider {
+  cursor: pointer;
+}
+
 .tier-divider td {
   padding-top: 10px;
   padding-bottom: 10px;
@@ -555,6 +777,11 @@ select {
 
 .tier-divider td:hover {
   background: rgba(255, 255, 255, 0.05);
+}
+
+.tier-divider.is-selected td {
+  background: rgba(59, 130, 246, 0.18);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .tier-bar {
@@ -604,6 +831,15 @@ button.ghost {
 button.ghost:hover {
   background: rgba(255, 255, 255, 0.05);
   border-color: var(--accent);
+}
+
+.top-bar .nav-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.top-bar .nav-login:hover {
+  background: #e5e7eb;
 }
 
 .modal-overlay {
