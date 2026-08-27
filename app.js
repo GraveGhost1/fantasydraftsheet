@@ -98,6 +98,15 @@ const defaultState = {
 
 const state = loadState();
 
+// Older saved states do not have a way to distinguish an auto/CSV rank from a
+// rank deliberately set by the user. New and updated rankings use this flag so
+// CSV imports can preserve manual ranks and leave unmatched players unranked.
+if (Array.isArray(state.players)) {
+  state.players.forEach((player) => {
+    player.manualRank = player.manualRank === true;
+  });
+}
+
 if (typeof state.autoTiering !== 'boolean') {
   state.autoTiering = false;
 }
@@ -196,6 +205,10 @@ document.addEventListener('DOMContentLoaded', () => {
     header.addEventListener('click', () => sortBy(header.dataset.key));
   });
 
+  // The header is rebuilt when the ADP source changes, so restore the active
+  // sort styling after the new cells have been inserted.
+  renderSortIndicators();
+
   const adpSourceSelector = document.getElementById('adp-source');
   if (adpSourceSelector) {
     adpSourceSelector.addEventListener('change', (e) => {
@@ -245,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       render();
-      alert('Sleeper draft ID updated! Sync started.');
+      showAppModal('Sleeper draft ID updated! Sync started.', { title: 'Sync started', type: 'success' });
     });
   }
 
@@ -306,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         render();
-        alert('Sleeper draft ID updated! Sync started.');
+        showAppModal('Sleeper draft ID updated! Sync started.', { title: 'Sync started', type: 'success' });
       }
     });
   }
@@ -423,7 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       const loaded = await loadStateFromServer();
       if (loaded) {
-        alert('Your saved rankings have been loaded!');
+        showAppModal('Your saved rankings have been loaded!', { title: 'Rankings loaded', type: 'success' });
         render();
       } else {
         // No saved state on server, use current state (first time login)
@@ -508,7 +521,7 @@ async function saveState() {
   if (currentUsername) {
     saveStateToServer().catch(error => {
       console.error('[SERVER] Failed to save state:', error);
-      alert('Failed to save to server. Your data is saved locally only.');
+      showAppModal('Failed to save to server. Your data is saved locally only.', { title: 'Save failed', type: 'error' });
     });
   }
 }
@@ -542,11 +555,11 @@ async function saveStateToServer() {
     } else {
       const errorText = await response.text();
       console.error('[SERVER] Save failed - status:', response.status, 'error:', errorText);
-      alert(`Failed to save to server: ${response.status} - ${errorText}\n\nAre you accessing the app on port 8000? Current URL: ${window.location.href}`);
+      showAppModal(`Failed to save to server: ${response.status} - ${errorText}\n\nAre you accessing the app on port 8000? Current URL: ${window.location.href}`, { title: 'Save failed', type: 'error' });
     }
   } catch (error) {
     console.error('[SERVER] Failed to save state:', error);
-    alert(`Failed to save to server: ${error.message}\n\nAre you accessing the app on port 8000? Current URL: ${window.location.href}`);
+    showAppModal(`Failed to save to server: ${error.message}\n\nAre you accessing the app on port 8000? Current URL: ${window.location.href}`, { title: 'Save failed', type: 'error' });
   }
 }
 
@@ -611,7 +624,7 @@ async function loadStateFromServer() {
           return true;
         } catch (error) {
           console.error('[SERVER] Failed to parse state:', error);
-          alert('Failed to load saved data from server.');
+          showAppModal('Failed to load saved data from server.', { title: 'Load failed', type: 'error' });
           return false;
         }
       } else {
@@ -622,15 +635,15 @@ async function loadStateFromServer() {
       const errorText = await response.text();
       console.log('[SERVER] Failed to load state - server returned', response.status, errorText);
       if (response.status === 401) {
-        alert('Invalid username or password');
+        showAppModal('Invalid username or password', { title: 'Login failed', type: 'error' });
       } else {
-        alert(`Failed to load from server: ${response.status} - ${errorText}`);
+        showAppModal(`Failed to load from server: ${response.status} - ${errorText}`, { title: 'Load failed', type: 'error' });
       }
       return false;
     }
   } catch (error) {
     console.error('[SERVER] Failed to load state:', error);
-    alert(`Failed to load from server: ${error.message}`);
+    showAppModal(`Failed to load from server: ${error.message}`, { title: 'Load failed', type: 'error' });
     return false;
   }
 }
@@ -643,6 +656,36 @@ function showUsernameModal() {
 function hideUsernameModal() {
   const modal = document.getElementById('username-modal');
   modal.style.display = 'none';
+}
+
+function showAppModal(message, { title = 'Notice', type = 'info' } = {}) {
+  const modal = document.getElementById('notice-modal');
+  const content = modal?.querySelector('.notice-modal');
+  const icon = document.getElementById('notice-modal-icon');
+  const titleElement = document.getElementById('notice-modal-title');
+  const messageElement = document.getElementById('notice-modal-message');
+  const closeButton = document.getElementById('notice-modal-close');
+
+  if (!modal || !content || !icon || !titleElement || !messageElement || !closeButton) {
+    console.error('[UI] Notice modal is unavailable:', message);
+    return;
+  }
+
+  titleElement.textContent = title;
+  messageElement.textContent = message;
+  content.classList.toggle('is-error', type === 'error');
+  icon.textContent = type === 'error' ? '!' : '✓';
+  modal.style.display = 'flex';
+  closeButton.focus();
+
+  closeButton.onclick = () => {
+    modal.style.display = 'none';
+  };
+  modal.onclick = (event) => {
+    if (event.target === modal) {
+      modal.style.display = 'none';
+    }
+  };
 }
 
 function normalizeCustomAdpProfile(profile) {
@@ -764,6 +807,7 @@ function autoFillPlayers() {
     state.players = basePlayers.map((player) => ({
       ...player,
       myRank: 0,
+      manualRank: false,
       posRank: 0,
       tier: 1,
       drafted: false,
@@ -791,6 +835,7 @@ function autoFillPlayers() {
       draftedAt: existing?.draftedAt || null,
       draftedSource: existing?.draftedSource ?? null,
       roomPickNo: Number.isFinite(existing?.roomPickNo) ? existing.roomPickNo : null,
+      manualRank: existing?.manualRank === true,
       myRank: index + 1,
       tier: getTierForRank(index, sortedPlayers.length)
     };
@@ -1755,7 +1800,8 @@ function applySavedCustomRanksToPlayers(players) {
     applied += 1;
     return {
       ...player,
-      myRank: rank
+      myRank: rank,
+      manualRank: true
     };
   });
 
@@ -1915,9 +1961,15 @@ function renderPositionFilterChips() {
 }
 
 function renderSortIndicators() {
+  // Average ADP is represented by the visible ADP column as well.
+  const activeKey = state.sort.key === 'averageAdp' ? 'adp' : state.sort.key;
   document.querySelectorAll('th[data-key]').forEach((th) => {
-    th.classList.toggle('is-sorted', th.dataset.key === state.sort.key);
-    th.classList.toggle('asc', th.dataset.key === state.sort.key && state.sort.direction === 'asc');
+    const isActive = th.dataset.key === activeKey;
+    th.classList.toggle('is-sorted', isActive);
+    th.classList.toggle('asc', isActive && state.sort.direction === 'asc');
+    th.setAttribute('aria-sort', isActive
+      ? (state.sort.direction === 'asc' ? 'ascending' : 'descending')
+      : 'none');
   });
 }
 
@@ -1977,13 +2029,7 @@ function handlePositionFilterClick(event) {
 
 function applyAutoTiering() {
   const activePlayers = [...state.players]
-    .sort((a, b) => {
-      // Handle players without ranks (put them at the end)
-      if (!a.myRank && b.myRank) return 1;
-      if (a.myRank && !b.myRank) return -1;
-      if (!a.myRank && !b.myRank) return a.name.localeCompare(b.name);
-      return a.myRank - b.myRank || a.name.localeCompare(b.name);
-    });
+    .sort((a, b) => compareUserRankThenAdp(a, b));
   const tierById = new Map();
 
   activePlayers.forEach((player, index) => {
@@ -2302,6 +2348,7 @@ async function loadLiveRankings() {
           baseValue: Math.max(70, 100 - primaryAdp * 4),
           tier: 1,
           myRank: 0,
+          manualRank: false,
           posRank: 0,
           drafted: false,
           draftedAt: null,
@@ -2313,6 +2360,7 @@ async function loadLiveRankings() {
         if (existingPlayer) {
           mergedPlayer.tier = existingPlayer.tier ?? 1;
           mergedPlayer.myRank = existingPlayer.myRank ?? 0;
+          mergedPlayer.manualRank = existingPlayer.manualRank === true;
           mergedPlayer.posRank = existingPlayer.posRank ?? 0;
           mergedPlayer.drafted = existingPlayer.drafted ?? false;
           mergedPlayer.draftedAt = existingPlayer.draftedAt ?? null;
@@ -2344,14 +2392,17 @@ async function loadLiveRankings() {
         return getAverageAdp(a) - getAverageAdp(b);
       })
       .map((player, index) => {
-        const existing = existingById.get(player.id);
+        // Live refreshes rebuild player IDs, so fall back to the merged
+        // player's preserved fields when the old ID no longer matches.
+        const existing = existingById.get(player.id) || player;
         return {
           ...player,
           drafted: Boolean(existing?.drafted),
           draftedAt: existing?.draftedAt || null,
           draftedSource: existing?.draftedSource ?? null,
           roomPickNo: Number.isFinite(existing?.roomPickNo) ? existing.roomPickNo : null,
-          myRank: index + 1,
+          myRank: existing?.manualRank === true ? existing.myRank : index + 1,
+          manualRank: existing?.manualRank === true,
           tier: existing?.tier ?? getTierForRank(index, mergedPlayers.length)
         };
       });
@@ -2434,13 +2485,13 @@ function handleCsvUpload(event) {
   
   // Security checks
   if (!file.name.endsWith('.csv')) {
-    alert('Please upload a CSV file only.');
+    showAppModal('Please upload a CSV file only.', { title: 'Invalid file', type: 'error' });
     event.target.value = '';
     return;
   }
   
   if (file.size > 5 * 1024 * 1024) { // 5MB limit
-    alert('File is too large. Maximum size is 5MB.');
+    showAppModal('File is too large. Maximum size is 5MB.', { title: 'File too large', type: 'error' });
     event.target.value = '';
     return;
   }
@@ -2452,14 +2503,14 @@ function handleCsvUpload(event) {
       const result = parseAndApplyCsvRankings(csvContent);
       
       if (result.success) {
-        alert(`Successfully imported ${result.applied} rankings!`);
+        showAppModal(`Successfully imported ${result.applied} rankings!`, { title: 'Rankings imported', type: 'success' });
         saveState();
         render();
       } else {
-        alert(`Error: ${result.error}`);
+        showAppModal(`Error: ${result.error}`, { title: 'Import failed', type: 'error' });
       }
     } catch (error) {
-      alert('Error reading CSV file: ' + error.message);
+      showAppModal('Error reading CSV file: ' + error.message, { title: 'Import failed', type: 'error' });
     }
     
     // Reset file input
@@ -2467,7 +2518,7 @@ function handleCsvUpload(event) {
   };
   
   reader.onerror = function() {
-    alert('Error reading file.');
+    showAppModal('Error reading file.', { title: 'Import failed', type: 'error' });
     event.target.value = '';
   };
   
@@ -2572,11 +2623,19 @@ function parseAndApplyCsvRankings(csvContent) {
       }
       
       if (csvRank !== undefined) {
+        // An imported ranking file represents the user's rankings, so these
+        // players must take priority over the ADP-only section.
         player.myRank = csvRank; // Use exact value from CSV, don't round
+        player.manualRank = true;
         appliedCount++;
         if (appliedCount <= 5) { // Log first 5 applications for debugging
           console.log('[CSV] Applied:', player.name, 'rank', player.myRank, 'from CSV value', csvRank, 'keys:', playerKeys);
         }
+      } else if (!player.manualRank) {
+        // A player absent from the imported file has no imported rank. Keep
+        // those players below every ranked player instead of inheriting an
+        // old auto-generated rank.
+        player.myRank = 0;
       }
     });
     
@@ -2614,11 +2673,6 @@ function parseAndApplyCsvRankings(csvContent) {
       
       // Tie-breaker by name
       return a.name.localeCompare(b.name);
-    });
-    
-    // Renumber to sequential 1, 2, 3, etc. to match the RK column
-    state.players.forEach((player, index) => {
-      player.myRank = index + 1;
     });
     
     // Log top 10 players after sorting
@@ -2810,6 +2864,8 @@ function updateTableHeader() {
   document.querySelectorAll('th[data-key]').forEach((header) => {
     header.addEventListener('click', () => sortBy(header.dataset.key));
   });
+
+  renderSortIndicators();
 }
 
 function comparePlayers(a, b) {
@@ -2819,11 +2875,9 @@ function comparePlayers(a, b) {
   if (key === 'player') {
     result = a.name.localeCompare(b.name);
   } else if (key === 'myRank') {
-    // Handle players without ranks (put them at the end)
-    if (!a.myRank && b.myRank) result = 1;
-    else if (a.myRank && !b.myRank) result = -1;
-    else if (!a.myRank && !b.myRank) result = a.name.localeCompare(b.name);
-    else result = a.myRank - b.myRank;
+    // User rankings always come first. Players without a user ranking are
+    // then ordered by ADP, regardless of any imported/reference rank value.
+    return compareUserRankThenAdp(a, b, direction);
   } else if (key === 'position') {
     result = (POSITION_ORDER[a.position] || 99) - (POSITION_ORDER[b.position] || 99) || a.position.localeCompare(b.position);
   } else if (key === 'team') {
@@ -2861,6 +2915,24 @@ function comparePlayers(a, b) {
   }
 
   return direction === 'asc' ? result : -result;
+}
+
+function compareUserRankThenAdp(a, b, direction = 'asc') {
+  const aHasUserRank = a.manualRank === true && Number(a.myRank) > 0;
+  const bHasUserRank = b.manualRank === true && Number(b.myRank) > 0;
+
+  if (aHasUserRank !== bHasUserRank) {
+    return aHasUserRank ? -1 : 1;
+  }
+
+  const aValue = aHasUserRank ? Number(a.myRank) : getDraftAdjustedAdp(a);
+  const bValue = bHasUserRank ? Number(b.myRank) : getDraftAdjustedAdp(b);
+  const valueDifference = aValue - bValue;
+  if (valueDifference !== 0) {
+    return direction === 'asc' ? valueDifference : -valueDifference;
+  }
+
+  return a.name.localeCompare(b.name);
 }
 
 function getAdpValueForSort(player) {
@@ -3436,6 +3508,7 @@ function handleDrop(event) {
         // Reassign myRank based on new order
         visiblePlayers.forEach((p, index) => {
           p.myRank = index + 1;
+          p.manualRank = true;
         });
         
         // Update the moved player's tier to match the target position's tier
@@ -3542,7 +3615,7 @@ function handleTierAction(event) {
         
         // Don't allow deleting tier 1 (merge into nothing)
         if (selectedTier <= 1) {
-          alert('Cannot delete Tier 1. Select a player in a higher tier to delete it.');
+          showAppModal('Cannot delete Tier 1. Select a player in a higher tier to delete it.', { title: 'Tier action unavailable', type: 'error' });
           return;
         }
         
@@ -3564,7 +3637,7 @@ function handleTierAction(event) {
         console.log('Tier deleted successfully');
       }
     } else {
-      alert('Select a player in the tier you want to delete.');
+      showAppModal('Select a player in the tier you want to delete.', { title: 'Select a player', type: 'error' });
     }
   }
 }
