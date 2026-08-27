@@ -1163,6 +1163,7 @@ function applySmartTiering({ mode = null } = {}) {
   const draftedPlayers = (state.players || []).filter((player) => player.drafted);
   const cliffGapById = buildPositionalCliffByPlayerId(activePlayers);
   const tierById = new Map();
+  const previousTierById = new Map((state.players || []).map((player) => [player.id, Number(player.tier)]));
 
   let currentTier = 1;
   let playersInTier = 0;
@@ -1199,6 +1200,11 @@ function applySmartTiering({ mode = null } = {}) {
     tier: tierById.get(player.id) ?? player.tier ?? 1
   }));
   state.autoTiering = false;
+  // #region agent log
+  const changedCount = (state.players || []).filter((player) => previousTierById.get(player.id) !== Number(player.tier)).length;
+  const expertCount = (state.players || []).filter((player) => Number(player.expertRank) > 0).length;
+  fetch('http://127.0.0.1:7716/ingest/5caa92d0-1c59-43cb-b952-33364a94b0ec',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'81788a'},body:JSON.stringify({sessionId:'81788a',runId:'pre-fix',hypothesisId:'C',location:'app.js:applySmartTiering',message:'smart tiering result',data:{tierMode,sortKey:state.sort?.key,activeCount:activePlayers.length,playerCount:(state.players||[]).length,expertCount,changedCount,sample:activePlayers.slice(0,6).map((p)=>({name:p.name,oldTier:previousTierById.get(p.id),newTier:tierById.get(p.id),myRank:p.myRank,expertRank:p.expertRank,manualRank:p.manualRank}))},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
 }
 
 function rebalanceFloodedTiers() {
@@ -1285,12 +1291,18 @@ function scorePlayer(player, settings) {
 }
 
 function sortBy(key) {
+  const previousKey = state.sort.key;
+  const previousDirection = state.sort.direction;
   if (state.sort.key === key) {
     state.sort.direction = state.sort.direction === 'asc' ? 'desc' : 'asc';
   } else {
     state.sort.key = key;
     state.sort.direction = 'asc';
   }
+
+  // #region agent log
+  fetch('http://127.0.0.1:7716/ingest/5caa92d0-1c59-43cb-b952-33364a94b0ec',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'81788a'},body:JSON.stringify({sessionId:'81788a',runId:'pre-fix',hypothesisId:'A',location:'app.js:sortBy',message:'sortBy invoked',data:{requestedKey:key,previousKey,previousDirection,nextKey:state.sort.key,nextDirection:state.sort.direction,willRetier:key==='expertRank'||key==='myRank',href:typeof location!=='undefined'?location.href:null,protocol:typeof location!=='undefined'?location.protocol:null},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
 
   // Rebuild tiers to match the active ranking view.
   if (key === 'expertRank') {
@@ -2705,10 +2717,16 @@ async function loadLiveRankings() {
       rotoballer: state.players[0]?.rotoballer,
       ffpc: state.players[0]?.ffpc
     });
+    // #region agent log
+    fetch('http://127.0.0.1:7716/ingest/5caa92d0-1c59-43cb-b952-33364a94b0ec',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'81788a'},body:JSON.stringify({sessionId:'81788a',runId:'pre-fix',hypothesisId:'C',location:'app.js:loadLiveRankings',message:'rankings loaded',data:{ok:true,playerCount:state.players.length,expertCount:(state.players||[]).filter((p)=>Number(p.expertRank)>0).length,hasSavedTierLayout,sample:(state.players||[]).slice(0,5).map((p)=>({name:p.name,tier:p.tier,myRank:p.myRank,expertRank:p.expertRank,manualRank:p.manualRank})),href:typeof location!=='undefined'?location.href:null,protocol:typeof location!=='undefined'?location.protocol:null},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     render();
   } catch (error) {
     console.error('[CSV] Error loading rankings:', error);
     state.liveDataStatus = `Error loading rankings: ${error.message}`;
+    // #region agent log
+    fetch('http://127.0.0.1:7716/ingest/5caa92d0-1c59-43cb-b952-33364a94b0ec',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'81788a'},body:JSON.stringify({sessionId:'81788a',runId:'pre-fix',hypothesisId:'C',location:'app.js:loadLiveRankings',message:'rankings load failed',data:{ok:false,error:String(error&&error.message||error),playerCount:(state.players||[]).length,expertCount:(state.players||[]).filter((p)=>Number(p.expertRank)>0).length,href:typeof location!=='undefined'?location.href:null,protocol:typeof location!=='undefined'?location.protocol:null},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     render();
   }
 }
@@ -3041,6 +3059,9 @@ function renderDraftBoard() {
   // Always show tier dividers
   const tiersToRender = [...new Set(visiblePlayers.map((player) => Number(player.tier)).filter((tier) => Number.isFinite(tier) && tier > 0))]
     .sort((a, b) => a - b);
+  // #region agent log
+  fetch('http://127.0.0.1:7716/ingest/5caa92d0-1c59-43cb-b952-33364a94b0ec',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'81788a'},body:JSON.stringify({sessionId:'81788a',runId:'pre-fix',hypothesisId:'E',location:'app.js:renderDraftBoard',message:'board grouped by stored tier',data:{sortKey:state.sort?.key,sortDirection:state.sort?.direction,visibleCount:visiblePlayers.length,tiersToRender,walkTiers:visiblePlayers.map((p)=>Number(p.tier)).filter((tier,index,list)=>index===0||tier!==list[index-1]).slice(0,12),top:visiblePlayers.slice(0,8).map((p)=>({name:p.name,tier:p.tier,myRank:p.myRank,expertRank:p.expertRank}))},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
 
   tiersToRender.forEach((tier) => {
     const players = visiblePlayers.filter((player) => Number(player.tier) === tier);
