@@ -39,6 +39,27 @@ let sleeperSyncLoopActive = false;
 let currentUsername = null;
 let currentPassword = null;
 
+function isUserLoggedIn() {
+  return Boolean(currentUsername && currentPassword);
+}
+
+function updateAuthUi() {
+  const loggedIn = isUserLoggedIn();
+  const loginDisplay = loggedIn ? 'none' : 'inline-flex';
+  const logoutDisplay = loggedIn ? 'inline-flex' : 'none';
+  const importDisplay = loggedIn ? 'inline-flex' : 'none';
+
+  const userDisplay = document.getElementById('user-display');
+  const loginButton = document.getElementById('login-button');
+  const logoutButton = document.getElementById('logout-button');
+  const csvUploadLabel = document.getElementById('csv-upload-label');
+
+  if (userDisplay) userDisplay.textContent = loggedIn ? currentUsername : '';
+  if (loginButton) loginButton.style.display = loginDisplay;
+  if (logoutButton) logoutButton.style.display = logoutDisplay;
+  if (csvUploadLabel) csvUploadLabel.style.display = importDisplay;
+}
+
 const basePlayers = [
   { id: 'allen', name: 'Josh Allen', position: 'QB', team: 'BUF', baseValue: 96, espn: 2.2, yahoo: 2.7, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
   { id: 'mcaffrey', name: 'Christian McCaffrey', position: 'RB', team: 'SF', baseValue: 98, espn: 1.2, yahoo: 1.4, posRank: 0, sleeperAdp: null, rotoballer: null, ffpc: null, sosRank: null, expertRank: null },
@@ -108,7 +129,8 @@ const defaultState = {
   draftedPlayerIds: [],
   autoTiering: false,
   positionFilter: 'ALL',
-  adpSource: 'all'
+  adpSource: 'all',
+  draftMode: 'manual'
 };
 
 const state = loadState();
@@ -127,6 +149,13 @@ if (typeof state.autoTiering !== 'boolean') {
 }
 if (!state.positionFilter) {
   state.positionFilter = 'ALL';
+}
+const VALID_ADP_SOURCES = new Set(['all', 'espn', 'yahoo', 'rotoballer', 'ffpc', 'average', 'expert']);
+if (!VALID_ADP_SOURCES.has(state.adpSource)) {
+  state.adpSource = 'all';
+}
+if (state.draftMode !== 'sleeper' && state.draftMode !== 'manual') {
+  state.draftMode = 'manual';
 }
 if (!state.sleeperSync || typeof state.sleeperSync !== 'object') {
   state.sleeperSync = structuredClone(defaultState.sleeperSync);
@@ -212,6 +241,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const userDisplay = document.getElementById('user-display');
   const csvUploadLabel = document.getElementById('csv-upload-label');
   const sleeperDraftIdInput = document.getElementById('sleeper-draft-id');
+  const draftModeToggle = document.getElementById('manual-mode-toggle');
+  const manualPlayerSearch = document.getElementById('manual-player-search');
+  const manualDraftBtn = document.getElementById('manual-draft-btn');
+  const manualUndoBtn = document.getElementById('manual-undo-btn');
+  const draftedPlayersList = document.getElementById('drafted-players-list');
+  const manualSearchSuggestions = document.getElementById('manual-search-suggestions');
 
   console.log('DOM elements:', {
     saveRankingsButton,
@@ -231,12 +266,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (adpSourceSelector) {
     adpSourceSelector.addEventListener('change', (e) => {
       state.adpSource = e.target.value;
-      // Sort by the selected ADP source when changed, always in ascending order
-      if (state.adpSource === 'average') {
+      if (state.adpSource === 'expert') {
+        state.sort = { key: 'expertRank', direction: 'asc' };
+      } else if (state.adpSource === 'average') {
         state.sort = { key: 'averageAdp', direction: 'asc' };
       } else {
         state.sort = { key: 'adp', direction: 'asc' };
       }
+      updateCompactMetricMode();
       render();
     });
   }
@@ -249,8 +286,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (csvHelp) {
       csvHelp.style.display = visible ? 'flex' : 'none';
     }
+    const helpLabel = visible ? 'Hide CSV Help' : 'CSV Help';
     if (toggleHelpButton) {
-      toggleHelpButton.textContent = visible ? 'Hide CSV Help' : 'CSV Help';
+      toggleHelpButton.textContent = helpLabel;
     }
   };
 
@@ -265,6 +303,43 @@ document.addEventListener('DOMContentLoaded', () => {
     csvHelpDismiss.addEventListener('click', () => setCsvHelpVisible(false));
   }
 
+  const headerCluster = document.querySelector('.header-cluster');
+  const navExpandToggle = document.getElementById('nav-expand-toggle');
+  const mainContent = document.querySelector('.main-content');
+  const topBarNav = document.getElementById('top-bar-nav');
+  const topBarAccount = document.querySelector('.top-bar-account');
+  const draftDocks = Array.from(document.querySelectorAll('.draft-dock'));
+  const placeDraftDocks = () => {
+    if (!headerCluster || !mainContent) return;
+    const wide = window.matchMedia('(min-width: 1101px)').matches;
+    draftDocks.forEach((dock) => {
+      if (wide && topBarNav && topBarAccount) {
+        // Desktop: logo | scoring | manual | search | account (right edge)
+        topBarNav.insertBefore(dock, topBarAccount);
+      } else if (dock.parentElement !== mainContent.parentElement || dock.nextElementSibling !== mainContent) {
+        mainContent.parentNode.insertBefore(dock, mainContent);
+      }
+    });
+  };
+  const setNavExpanded = (open) => {
+    if (!headerCluster || !navExpandToggle) return;
+    headerCluster.classList.toggle('is-nav-open', open);
+    navExpandToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    const label = navExpandToggle.querySelector('.nav-expand-label');
+    if (label) label.textContent = open ? 'Close' : 'Menu';
+  };
+  if (navExpandToggle && headerCluster) {
+    navExpandToggle.addEventListener('click', (event) => {
+      event.stopPropagation();
+      setNavExpanded(!headerCluster.classList.contains('is-nav-open'));
+    });
+    window.addEventListener('resize', () => {
+      placeDraftDocks();
+      if (window.matchMedia('(min-width: 1101px)').matches) setNavExpanded(false);
+    });
+  }
+  placeDraftDocks();
+
   const addTierButton = document.getElementById('add-tier');
   if (addTierButton) {
     addTierButton.addEventListener('click', handleTierAction);
@@ -275,6 +350,60 @@ document.addEventListener('DOMContentLoaded', () => {
     deleteTierButton.addEventListener('click', handleTierAction);
   }
 
+  if (draftModeToggle) {
+    draftModeToggle.addEventListener('click', () => {
+      setDraftMode(isManualDraftMode() ? 'sleeper' : 'manual');
+    });
+  }
+
+  if (manualDraftBtn) {
+    manualDraftBtn.addEventListener('click', () => {
+      draftFromManualSearch();
+    });
+  }
+
+  if (manualUndoBtn) {
+    manualUndoBtn.addEventListener('click', () => {
+      undoLastManualDraft();
+    });
+  }
+
+  if (manualPlayerSearch) {
+    manualPlayerSearch.addEventListener('input', () => {
+      updateManualSearchSuggestions(manualPlayerSearch.value);
+    });
+    manualPlayerSearch.addEventListener('focus', () => {
+      updateManualSearchSuggestions(manualPlayerSearch.value);
+    });
+    manualPlayerSearch.addEventListener('keydown', (event) => {
+      handleManualSearchKeydown(event);
+    });
+  }
+
+  if (manualSearchSuggestions) {
+    manualSearchSuggestions.addEventListener('mousedown', (event) => {
+      const suggestion = event.target.closest('[data-player-id]');
+      if (!suggestion) {
+        return;
+      }
+      event.preventDefault();
+      draftPlayerById(suggestion.dataset.playerId);
+    });
+  }
+
+  document.addEventListener('click', (event) => {
+    const wrap = event.target.closest('.manual-search-wrap');
+    if (!wrap) {
+      hideManualSearchSuggestions();
+    }
+  });
+
+  if (draftedPlayersList) {
+    draftedPlayersList.addEventListener('click', handleDraftedListClick);
+  }
+
+  document.addEventListener('keydown', handleManualDraftHotkeys);
+
   const submitSleeperIdButton = document.getElementById('submit-sleeper-id');
   if (submitSleeperIdButton) {
     submitSleeperIdButton.addEventListener('click', async () => {
@@ -284,6 +413,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Start Sleeper sync if draft ID is provided
       const draftId = state.sleeperSync?.draftId;
       if (draftId) {
+        state.draftMode = 'sleeper';
         state.sleeperSync.enabled = true;
         startSleeperSyncTimer();
         await syncSleeperDraft({ initiatedByUser: true });
@@ -345,6 +475,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Start Sleeper sync if draft ID is provided
         const draftId = state.sleeperSync?.draftId;
         if (draftId) {
+          state.draftMode = 'sleeper';
           state.sleeperSync.enabled = true;
           startSleeperSyncTimer();
           await syncSleeperDraft({ initiatedByUser: true });
@@ -388,22 +519,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (savedUsername && savedPassword) {
     currentUsername = savedUsername;
     currentPassword = savedPassword;
-    if (userDisplay) userDisplay.textContent = currentUsername;
-    if (loginButton) loginButton.style.display = 'none';
-    if (logoutButton) logoutButton.style.display = 'inline-block';
-    
-    // Show CSV upload button for logged-in users
-    if (csvUploadLabel) csvUploadLabel.style.display = 'inline-flex';
-    
+    updateAuthUi();
     initializeBoardData({ loadServerState: true });
   } else {
-    if (userDisplay) userDisplay.textContent = '';
-    if (loginButton) loginButton.style.display = 'inline-block';
-    if (logoutButton) logoutButton.style.display = 'none';
-    
-    // Hide CSV upload button for logged-out users
-    if (csvUploadLabel) csvUploadLabel.style.display = 'none';
-    
+    currentUsername = null;
+    currentPassword = null;
+    updateAuthUi();
     initializeBoardData({ loadServerState: false });
   }
 
@@ -419,12 +540,7 @@ document.addEventListener('DOMContentLoaded', () => {
       currentPassword = null;
       localStorage.removeItem('fantasy-draft-username');
       localStorage.removeItem('fantasy-draft-password');
-      if (userDisplay) userDisplay.textContent = '';
-      if (loginButton) loginButton.style.display = 'inline-block';
-      if (logoutButton) logoutButton.style.display = 'none';
-      
-      // Hide CSV upload button for logged-out users
-      if (csvUploadLabel) csvUploadLabel.style.display = 'none';
+      updateAuthUi();
       
       localStorage.removeItem(STORAGE_KEY);
       Object.assign(state, structuredClone(defaultState));
@@ -448,13 +564,7 @@ document.addEventListener('DOMContentLoaded', () => {
       currentPassword = password;
       localStorage.setItem('fantasy-draft-username', username);
       localStorage.setItem('fantasy-draft-password', password);
-      userDisplay.textContent = currentUsername;
-      loginButton.style.display = 'none';
-      logoutButton.style.display = 'inline-block';
-      
-      // Show CSV upload button for logged-in users
-      if (csvUploadLabel) csvUploadLabel.style.display = 'inline-flex';
-      
+      updateAuthUi();
       hideUsernameModal();
 
       await loadLiveRankings();
@@ -541,11 +651,14 @@ function mergeLivePlayersWithSavedPlayers(livePlayers, savedPlayers) {
       return livePlayer;
     }
 
+    const keepManualRank = savedPlayer.manualRank === true && Number(savedPlayer.myRank) > 0;
+
     return {
       ...livePlayer,
       id: savedPlayer.id || livePlayer.id,
-      myRank: savedPlayer.myRank ?? livePlayer.myRank,
-      manualRank: savedPlayer.manualRank === true,
+      // Only keep personal/CSV ranks. Otherwise keep the live ADP-based rank.
+      myRank: keepManualRank ? savedPlayer.myRank : livePlayer.myRank,
+      manualRank: keepManualRank,
       tier: savedPlayer.tier ?? livePlayer.tier,
       posRank: savedPlayer.posRank ?? livePlayer.posRank,
       drafted: Boolean(savedPlayer.drafted),
@@ -563,7 +676,28 @@ function mergeLivePlayersWithSavedPlayers(livePlayers, savedPlayers) {
     }
   });
 
-  return merged;
+  return assignDefaultRanksByAdp(merged);
+}
+
+function assignDefaultRanksByAdp(players) {
+  const list = Array.isArray(players) ? [...players] : [];
+  const manualPlayers = list.filter((player) => player.manualRank === true && Number(player.myRank) > 0);
+  const autoPlayers = list
+    .filter((player) => !(player.manualRank === true && Number(player.myRank) > 0))
+    .sort((a, b) => {
+      const adpDiff = getAverageAdpForSort(a) - getAverageAdpForSort(b);
+      if (adpDiff !== 0) return adpDiff;
+      return a.name.localeCompare(b.name);
+    })
+    .map((player, index) => ({
+      ...player,
+      myRank: index + 1,
+      manualRank: false
+    }));
+
+  // Keep manual/CSV ranks as-is; auto players get dense ADP ranks.
+  // Board order is handled by compareUserRankThenAdp (manual first, then ADP).
+  return [...manualPlayers, ...autoPlayers];
 }
 
 function loadState() {
@@ -818,38 +952,82 @@ function mergeCustomAdpProfiles(baseProfile, incomingProfile) {
   return merged;
 }
 
+function compareActiveRankingOrder(a, b) {
+  const sortKey = state.sort?.key;
+
+  // Prefer the sort key when it is a ranking metric; otherwise use the
+  // ADP/expert source currently selected in the toolbar.
+  if (sortKey === 'expertRank') {
+    return compareExpertRank(a, b, 'asc');
+  }
+
+  if (
+    sortKey === 'adp'
+    || sortKey === 'averageAdp'
+    || sortKey === 'espn'
+    || sortKey === 'yahoo'
+    || sortKey === 'rotoballer'
+    || sortKey === 'ffpc'
+  ) {
+    const adpDiff = getAdpValueForSort(a) - getAdpValueForSort(b);
+    if (adpDiff !== 0) {
+      return adpDiff;
+    }
+    return a.name.localeCompare(b.name);
+  }
+
+  if (sortKey === 'myRank') {
+    return compareUserRankThenAdp(a, b, 'asc');
+  }
+
+  // Non-ranking column sorts (name, team, diffs, etc.): keep Pos tied to the
+  // selected ranking source so labels stay meaningful.
+  if (state.adpSource === 'expert') {
+    return compareExpertRank(a, b, 'asc');
+  }
+
+  if (state.adpSource && state.adpSource !== 'all') {
+    const adpDiff = getAdpValueForSort(a) - getAdpValueForSort(b);
+    if (adpDiff !== 0) {
+      return adpDiff;
+    }
+    return a.name.localeCompare(b.name);
+  }
+
+  return compareUserRankThenAdp(a, b, 'asc');
+}
+
 function calculatePositionalRanks() {
-  const playersByPosition = {};
-  
-  // Group players by position
-  state.players.forEach(player => {
-    const position = player.position;
-    if (!playersByPosition[position]) {
-      playersByPosition[position] = [];
-    }
-    playersByPosition[position].push(player);
-  });
-  
-  // Sort each position group by myRank and assign positional ranks
-  Object.keys(playersByPosition).forEach(position => {
-    playersByPosition[position].sort((a, b) => {
-      // Handle players without ranks (put them at the end)
-      if (!a.myRank && b.myRank) return 1;
-      if (a.myRank && !b.myRank) return -1;
-      if (!a.myRank && !b.myRank) return a.name.localeCompare(b.name);
-      return a.myRank - b.myRank;
-    });
-    playersByPosition[position].forEach((player, index) => {
-      player.posRank = index + 1;
-    });
-  });
-  
-  // Ensure all players have posRank field
-  state.players.forEach(player => {
-    if (!player.posRank) {
+  const players = state.players || [];
+  const ordered = [...players].sort(compareActiveRankingOrder);
+  const countsByPosition = Object.create(null);
+
+  ordered.forEach((player) => {
+    const position = normalizePositionCode(player.position) || player.position || '';
+    if (!position) {
       player.posRank = 0;
+      return;
     }
+    countsByPosition[position] = (countsByPosition[position] || 0) + 1;
+    player.posRank = countsByPosition[position];
   });
+}
+
+function formatPosRankDisplay(player) {
+  const position = player?.position || '';
+  const raw = player?.posRank;
+  if (raw == null || raw === '' || raw === 0) {
+    return position;
+  }
+  // Legacy / CSV values sometimes store the full label (e.g. "RB2").
+  if (typeof raw === 'string' && /[A-Za-z]/.test(raw)) {
+    return raw;
+  }
+  const rankNumber = Number(raw);
+  if (!Number.isFinite(rankNumber) || rankNumber <= 0) {
+    return position;
+  }
+  return `${position}${rankNumber}`;
 }
 
 function autoFillPlayers() {
@@ -866,38 +1044,21 @@ function autoFillPlayers() {
     }));
   }
 
-  const existingById = new Map((state.players || []).map((player) => [player.id, player]));
-  const sortedPlayers = [...state.players]
-    .map((player) => ({ ...player }))
-    .sort((a, b) => {
-      // Handle players without ranks (put them at the end)
-      if (!a.myRank && b.myRank) return 1;
-      if (a.myRank && !b.myRank) return -1;
-      if (!a.myRank && !b.myRank) return a.name.localeCompare(b.name);
-      return scorePlayer(b, state.settings) - scorePlayer(a, state.settings);
+  // Never reshuffle personal/CSV ranks here. Default ranks follow ADP.
+  state.players = assignDefaultRanksByAdp(state.players).map((player) => ({
+    ...player,
+    tier: Number(player.tier) > 0 ? player.tier : 1
+  }));
+
+  // Only invent opening tiers when nothing has been tiered yet.
+  const hasTiers = state.players.some((player) => Number(player.tier) > 1);
+  if (!hasTiers) {
+    const ordered = [...state.players].sort(compareUserRankThenAdp);
+    ordered.forEach((player, index) => {
+      player.tier = getTierForRank(index, ordered.length);
     });
+  }
 
-  state.players = sortedPlayers.map((player, index) => {
-    const existing = existingById.get(player.id);
-    return {
-      ...player,
-      drafted: Boolean(existing?.drafted),
-      draftedAt: existing?.draftedAt || null,
-      draftedSource: existing?.draftedSource ?? null,
-      roomPickNo: Number.isFinite(existing?.roomPickNo) ? existing.roomPickNo : null,
-      manualRank: existing?.manualRank === true,
-      myRank: index + 1,
-      tier: getTierForRank(index, sortedPlayers.length)
-    };
-  });
-
-  state.players = state.players.sort((a, b) => {
-    // Handle players without ranks (put them at the end)
-    if (!a.myRank && b.myRank) return 1;
-    if (a.myRank && !b.myRank) return -1;
-    if (!a.myRank && !b.myRank) return a.name.localeCompare(b.name);
-    return a.myRank - b.myRank;
-  });
   calculatePositionalRanks();
   syncDraftedPlayerIds();
 }
@@ -991,14 +1152,16 @@ function mergeProjectedPoints(existing, incoming) {
 }
 
 function applyCsvPlayerFields(allPlayers, player, sourceFields = {}) {
-  const normalizedName = normalizeName(player.name);
-  if (!normalizedName) {
+  const nameKeys = getNameMatchKeys(player.name);
+  if (!nameKeys.length) {
     return;
   }
 
   const points = mergeProjectedPoints(null, player.points);
-  if (!allPlayers.has(normalizedName)) {
-    allPlayers.set(normalizedName, {
+  const existingKey = nameKeys.find((key) => allPlayers.has(key));
+
+  if (!existingKey) {
+    const entry = {
       name: player.name,
       position: player.position,
       team: player.team,
@@ -1010,17 +1173,20 @@ function applyCsvPlayerFields(allPlayers, player, sourceFields = {}) {
       expertRank: player.expertRank || null,
       projectedPoints: points,
       ...sourceFields
-    });
+    };
+    // Register every alias key to the same object so Kenny/Kenneth merge.
+    nameKeys.forEach((key) => allPlayers.set(key, entry));
     return;
   }
 
-  const entry = allPlayers.get(normalizedName);
+  const entry = allPlayers.get(existingKey);
   Object.assign(entry, sourceFields);
   if (player.sosRank) entry.sosRank = player.sosRank;
   if (player.expertRank) entry.expertRank = player.expertRank;
   entry.projectedPoints = mergeProjectedPoints(entry.projectedPoints, player.points);
   if (!entry.position && player.position) entry.position = player.position;
   if (!entry.team && player.team) entry.team = player.team;
+  nameKeys.forEach((key) => allPlayers.set(key, entry));
 }
 
 function buildPositionalCliffByPlayerId(players) {
@@ -1142,7 +1308,7 @@ function compareExpertRank(a, b, direction = 'asc') {
     return direction === 'asc' ? aRank - bRank : bRank - aRank;
   }
 
-  const adpDiff = getAverageAdp(a) - getAverageAdp(b);
+  const adpDiff = getAverageAdpForSort(a) - getAverageAdpForSort(b);
   if (adpDiff !== 0) {
     return direction === 'asc' ? adpDiff : -adpDiff;
   }
@@ -1304,6 +1470,8 @@ function sortBy(key) {
 
 async function render() {
   populateSettingsFields();
+  updateDraftModeControls();
+  updateCompactMetricMode();
   renderPositionFilterChips();
   renderSortIndicators();
   renderRankingStatus();
@@ -1313,8 +1481,21 @@ async function render() {
   if (state.autoTiering) {
     applyAutoTiering();
   }
+  // Keep Pos labels (RB1, RB2, ...) aligned with the active ranking order.
+  calculatePositionalRanks();
   renderDraftBoard();
+  renderDraftedPlayersSection();
   saveState();
+}
+
+function isExpertMetricSelected() {
+  return state.adpSource === 'expert';
+}
+
+function updateCompactMetricMode() {
+  const showExpert = isExpertMetricSelected();
+  document.body.classList.toggle('compact-metric-expert', showExpert);
+  document.body.classList.toggle('compact-metric-adp', !showExpert);
 }
 
 function populateSettingsFields() {
@@ -1322,6 +1503,13 @@ function populateSettingsFields() {
   
   const scoringFormat = document.getElementById('scoring-format');
   if (scoringFormat) scoringFormat.value = settings.scoringFormat;
+
+  const adpSourceSelector = document.getElementById('adp-source');
+  if (adpSourceSelector && typeof state.adpSource === 'string') {
+    adpSourceSelector.value = state.adpSource;
+  }
+
+  updateAuthUi();
   
   const sleeperDraftId = document.getElementById('sleeper-draft-id');
   if (sleeperDraftId) {
@@ -1339,8 +1527,12 @@ function populateSettingsFields() {
 function renderSummary() {
   const settingsSummaryEl = document.getElementById('settings-summary');
   if (!settingsSummaryEl) return;
+  const modeLabel = state.draftMode === 'sleeper' ? 'Sleeper sync' : 'Manual mode';
+  const draftedCount = state.players.filter((player) => player.drafted).length;
   settingsSummaryEl.innerHTML = `
     <strong>Scoring:</strong> ${getScoringLabel(state.settings.scoringFormat)}
+    &nbsp;•&nbsp; <strong>Tracking:</strong> ${modeLabel}
+    &nbsp;•&nbsp; <strong>Drafted:</strong> ${draftedCount}
   `;
 }
 
@@ -1497,6 +1689,415 @@ function stopSleeperSync(message) {
   if (message) {
     state.sleeperSync.lastResult = message;
   }
+}
+
+function isManualDraftMode() {
+  return state.draftMode !== 'sleeper';
+}
+
+function setDraftMode(mode) {
+  const nextMode = mode === 'sleeper' ? 'sleeper' : 'manual';
+  const previousMode = state.draftMode;
+  state.draftMode = nextMode;
+
+  if (nextMode === 'manual') {
+    stopSleeperSync(previousMode === 'sleeper' ? 'Switched to manual mode. Sleeper sync paused.' : state.sleeperSync?.lastResult);
+    state.liveDataStatus = 'Manual mode: mark players off yourself as they are drafted.';
+  } else {
+    state.liveDataStatus = 'Sleeper sync mode: paste a draft ID and click Sync.';
+  }
+
+  updateDraftModeControls();
+  saveState();
+  render();
+}
+
+function updateDraftModeControls() {
+  const manualControls = document.getElementById('manual-draft-controls');
+  const sleeperControls = document.getElementById('sleeper-sync-controls');
+  const draftModeToggle = document.getElementById('manual-mode-toggle');
+  const modeHint = document.getElementById('draft-mode-hint');
+  const isManual = isManualDraftMode();
+
+  if (draftModeToggle) {
+    draftModeToggle.classList.toggle('is-enabled', isManual);
+    draftModeToggle.setAttribute('aria-pressed', isManual ? 'true' : 'false');
+    draftModeToggle.title = isManual
+      ? 'Manual mode on — click to switch to Sleeper sync'
+      : 'Manual mode off — click to mark players yourself';
+  }
+  if (manualControls) {
+    manualControls.hidden = !isManual;
+  }
+  if (sleeperControls) {
+    sleeperControls.hidden = isManual;
+  }
+  document.body.classList.toggle('draft-dock-manual', isManual);
+  document.body.classList.toggle('draft-dock-sleeper', !isManual);
+  if (!isManual) {
+    hideManualSearchSuggestions();
+  }
+  if (modeHint) {
+    modeHint.textContent = isManual
+      ? 'Manual mode: mark players off as they come off the board. Use search, the Mark button, or press Enter on a selected row.'
+      : 'Sleeper sync mode: live picks are applied automatically. You can still undo or mark players manually if needed.';
+  }
+}
+
+function getNextManualPickNo() {
+  let maxPick = 0;
+  state.players.forEach((player) => {
+    if (player.drafted && Number.isFinite(player.roomPickNo)) {
+      maxPick = Math.max(maxPick, player.roomPickNo);
+    }
+  });
+  return maxPick + 1;
+}
+
+function markPlayerDrafted(player, { source = 'manual', pickNo = null } = {}) {
+  if (!player || player.drafted) {
+    return false;
+  }
+
+  player.drafted = true;
+  player.draftedAt = Date.now();
+  player.draftedSource = source === 'sync' ? 'sync' : 'manual';
+  player.roomPickNo = Number.isFinite(pickNo) ? pickNo : getNextManualPickNo();
+  syncDraftedPlayerIds();
+  calculatePositionalRanks();
+  return true;
+}
+
+function undraftPlayer(player) {
+  if (!player || !player.drafted) {
+    return false;
+  }
+
+  player.drafted = false;
+  player.draftedAt = null;
+  player.draftedSource = null;
+  player.roomPickNo = null;
+  syncDraftedPlayerIds();
+  calculatePositionalRanks();
+  return true;
+}
+
+function findAvailablePlayersByQuery(query) {
+  const rawQuery = `${query || ''}`.trim();
+  const normalizedQuery = normalizeName(rawQuery);
+  if (!normalizedQuery) {
+    return [];
+  }
+
+  const collapsedTokens = rawQuery
+    .toLowerCase()
+    .replace(/\b(jr|sr|ii|iii|iv|v|vi)\b\.?/gi, '')
+    .split(/\s+/)
+    .map((token) => token.replace(/[^a-z0-9]+/g, ''))
+    .filter(Boolean);
+
+  return state.players
+    .filter((player) => !player.drafted)
+    .map((player) => {
+      const normalizedName = normalizeName(player.name);
+      const nameParts = `${player.name || ''}`
+        .toLowerCase()
+        .replace(/\b(jr|sr|ii|iii|iv|v|vi)\b\.?/gi, '')
+        .split(/\s+/)
+        .map((part) => part.replace(/[^a-z0-9]+/g, ''))
+        .filter(Boolean);
+      const lastName = nameParts[nameParts.length - 1] || '';
+      const firstName = nameParts[0] || '';
+
+      let score = 0;
+      if (normalizedName === normalizedQuery) {
+        score = 100;
+      } else if (lastName === normalizedQuery || firstName === normalizedQuery) {
+        score = 92;
+      } else if (normalizedName.startsWith(normalizedQuery)) {
+        score = 85;
+      } else if (lastName.startsWith(normalizedQuery) || firstName.startsWith(normalizedQuery)) {
+        score = 78;
+      } else if (normalizedName.includes(normalizedQuery)) {
+        score = 65;
+      } else if (lastName.includes(normalizedQuery) || firstName.includes(normalizedQuery)) {
+        score = 58;
+      } else if (
+        collapsedTokens.length > 1 &&
+        collapsedTokens.every((token) => normalizedName.includes(token) || nameParts.some((part) => part.includes(token)))
+      ) {
+        score = 55;
+      }
+
+      return { player, score };
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score || (a.player.myRank || 999) - (b.player.myRank || 999));
+}
+
+let manualSuggestionActiveIndex = -1;
+
+function hideManualSearchSuggestions() {
+  const suggestionsEl = document.getElementById('manual-search-suggestions');
+  if (!suggestionsEl) {
+    return;
+  }
+  suggestionsEl.hidden = true;
+  suggestionsEl.innerHTML = '';
+  manualSuggestionActiveIndex = -1;
+}
+
+function updateManualSearchSuggestions(query, { activeIndex = 0 } = {}) {
+  const suggestionsEl = document.getElementById('manual-search-suggestions');
+  const searchInput = document.getElementById('manual-player-search');
+  if (!suggestionsEl || !searchInput || !isManualDraftMode()) {
+    hideManualSearchSuggestions();
+    return;
+  }
+
+  const trimmed = `${query || ''}`.trim();
+  if (trimmed.length < 1) {
+    hideManualSearchSuggestions();
+    return;
+  }
+
+  const matches = findAvailablePlayersByQuery(trimmed).slice(0, 8);
+  if (!matches.length) {
+    suggestionsEl.innerHTML = `<div class="manual-search-empty">No similar players found for "${trimmed}"</div>`;
+    suggestionsEl.hidden = false;
+    manualSuggestionActiveIndex = -1;
+    return;
+  }
+
+  const safeIndex = Math.max(0, Math.min(activeIndex, matches.length - 1));
+  manualSuggestionActiveIndex = safeIndex;
+
+  suggestionsEl.innerHTML = matches.map(({ player }, index) => `
+    <button
+      type="button"
+      class="manual-search-suggestion${index === safeIndex ? ' is-active' : ''}"
+      role="option"
+      aria-selected="${index === safeIndex ? 'true' : 'false'}"
+      data-player-id="${player.id}"
+      data-suggestion-index="${index}"
+    >
+      <span class="manual-search-suggestion-name">${player.name}</span>
+      <span class="manual-search-suggestion-meta">${player.position} · ${player.team}${player.myRank ? ` · #${player.myRank}` : ''}</span>
+    </button>
+  `).join('');
+  suggestionsEl.hidden = false;
+}
+
+function setManualSuggestionActive(index) {
+  const suggestionsEl = document.getElementById('manual-search-suggestions');
+  if (!suggestionsEl || suggestionsEl.hidden) {
+    return;
+  }
+
+  const options = [...suggestionsEl.querySelectorAll('[data-player-id]')];
+  if (!options.length) {
+    manualSuggestionActiveIndex = -1;
+    return;
+  }
+
+  const nextIndex = ((index % options.length) + options.length) % options.length;
+  manualSuggestionActiveIndex = nextIndex;
+  options.forEach((option, optionIndex) => {
+    const isActive = optionIndex === nextIndex;
+    option.classList.toggle('is-active', isActive);
+    option.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+  options[nextIndex].scrollIntoView({ block: 'nearest' });
+}
+
+function handleManualSearchKeydown(event) {
+  const suggestionsEl = document.getElementById('manual-search-suggestions');
+  const options = suggestionsEl && !suggestionsEl.hidden
+    ? [...suggestionsEl.querySelectorAll('[data-player-id]')]
+    : [];
+
+  if (event.key === 'ArrowDown' && options.length) {
+    event.preventDefault();
+    setManualSuggestionActive(manualSuggestionActiveIndex + 1);
+    return;
+  }
+
+  if (event.key === 'ArrowUp' && options.length) {
+    event.preventDefault();
+    setManualSuggestionActive(manualSuggestionActiveIndex <= 0 ? options.length - 1 : manualSuggestionActiveIndex - 1);
+    return;
+  }
+
+  if (event.key === 'Escape') {
+    hideManualSearchSuggestions();
+    return;
+  }
+
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    if (options.length && manualSuggestionActiveIndex >= 0) {
+      const active = options[manualSuggestionActiveIndex];
+      if (active?.dataset.playerId) {
+        draftPlayerById(active.dataset.playerId);
+        return;
+      }
+    }
+    draftFromManualSearch();
+  }
+}
+
+function draftPlayerById(playerId) {
+  const player = state.players.find((entry) => entry.id === playerId);
+  const searchInput = document.getElementById('manual-player-search');
+
+  if (!player || player.drafted) {
+    showAppModal('That player could not be drafted. They may already be marked off.', {
+      title: 'Player not available',
+      type: 'error'
+    });
+    hideManualSearchSuggestions();
+    return;
+  }
+
+  markPlayerDrafted(player);
+  if (searchInput) {
+    searchInput.value = '';
+    searchInput.focus();
+  }
+  hideManualSearchSuggestions();
+  state.ui.selectedPlayerId = null;
+  state.liveDataStatus = `Marked ${player.name} as drafted (pick ${player.roomPickNo}).`;
+  saveState();
+  render();
+}
+
+function draftFromManualSearch() {
+  const searchInput = document.getElementById('manual-player-search');
+  const query = searchInput?.value?.trim() || '';
+  if (!query) {
+    const selected = getSelectedPlayer();
+    if (selected && !selected.drafted) {
+      draftPlayerById(selected.id);
+      return;
+    }
+    showAppModal('Type a player name to search, or select a row and press Draft / Enter.', {
+      title: 'No player selected',
+      type: 'info'
+    });
+    return;
+  }
+
+  const matches = findAvailablePlayersByQuery(query);
+  if (!matches.length) {
+    showAppModal(`No available player matched "${query}". Check the spelling or try a last name.`, {
+      title: 'Player not found',
+      type: 'error'
+    });
+    updateManualSearchSuggestions(query);
+    return;
+  }
+
+  draftPlayerById(matches[0].player.id);
+}
+
+function undoLastManualDraft() {
+  const lastManual = [...state.players]
+    .filter((player) => player.drafted && player.draftedSource === 'manual')
+    .sort((a, b) => (b.draftedAt || 0) - (a.draftedAt || 0))[0];
+
+  if (!lastManual) {
+    state.liveDataStatus = 'No manual picks to undo.';
+    render();
+    return;
+  }
+
+  undraftPlayer(lastManual);
+  state.liveDataStatus = `Undid manual pick: ${lastManual.name}.`;
+  saveState();
+  render();
+}
+
+function handleManualDraftHotkeys(event) {
+  const target = event.target;
+  const tagName = target?.tagName?.toLowerCase();
+  const isTypingField = tagName === 'input' || tagName === 'textarea' || tagName === 'select' || target?.isContentEditable;
+
+  if (event.key === 'Enter' && !isTypingField) {
+    const selected = getSelectedPlayer();
+    if (selected && !selected.drafted) {
+      event.preventDefault();
+      markPlayerDrafted(selected);
+      state.ui.selectedPlayerId = null;
+      state.liveDataStatus = `Marked ${selected.name} as drafted.`;
+      saveState();
+      render();
+    }
+    return;
+  }
+
+  if ((event.key === 'z' || event.key === 'Z') && (event.ctrlKey || event.metaKey) && !isTypingField) {
+    event.preventDefault();
+    undoLastManualDraft();
+  }
+}
+
+function handleDraftedListClick(event) {
+  const actionButton = event.target.closest('button[data-action="undraft"]');
+  if (!actionButton) {
+    return;
+  }
+
+  const player = state.players.find((entry) => entry.id === actionButton.dataset.playerId);
+  if (!player) {
+    return;
+  }
+
+  undraftPlayer(player);
+  state.liveDataStatus = `Returned ${player.name} to the board.`;
+  saveState();
+  render();
+}
+
+function renderDraftedPlayersSection() {
+  const listEl = document.getElementById('drafted-players-list');
+  const countEl = document.getElementById('drafted-count');
+  if (!listEl) {
+    return;
+  }
+
+  const draftedPlayers = [...state.players]
+    .filter((player) => player.drafted)
+    .sort((a, b) => {
+      const aPick = Number.isFinite(a.roomPickNo) ? a.roomPickNo : 0;
+      const bPick = Number.isFinite(b.roomPickNo) ? b.roomPickNo : 0;
+      if (aPick !== bPick) {
+        return bPick - aPick;
+      }
+      return (b.draftedAt || 0) - (a.draftedAt || 0);
+    });
+
+  if (countEl) {
+    countEl.textContent = String(draftedPlayers.length);
+  }
+
+  if (!draftedPlayers.length) {
+    listEl.innerHTML = '<div class="drafted-empty">No players marked drafted yet.</div>';
+    return;
+  }
+
+  listEl.innerHTML = draftedPlayers.map((player) => {
+    const sourceClass = player.draftedSource === 'manual' ? 'is-manual' : '';
+    const sourceLabel = player.draftedSource === 'sync' ? 'Sync' : 'Manual';
+    const pickLabel = Number.isFinite(player.roomPickNo) ? `Pick ${player.roomPickNo}` : 'No pick #';
+    return `
+      <div class="drafted-chip" data-player-id="${player.id}">
+        <span>${player.name}</span>
+        <span class="drafted-chip-meta">${player.position} · ${pickLabel}</span>
+        <span class="drafted-chip-source ${sourceClass}">${sourceLabel}</span>
+        <button type="button" class="drafted-chip-undo" data-action="undraft" data-player-id="${player.id}">Undo</button>
+      </div>
+    `;
+  }).join('');
 }
 
 function clearSyncDraftedPlayers(includeManual = false) {
@@ -1938,7 +2539,7 @@ function calculateSleeperAdp() {
 
 function recalculateRoomAdpShift() {
   const diffs = (state.players || [])
-    .filter((player) => player.draftedSource === 'sync' && Number.isFinite(player.roomPickNo))
+    .filter((player) => player.draftedSource === 'sync' && Number.isFinite(player.roomPickNo) && Number.isFinite(getAverageAdp(player)))
     .map((player) => player.roomPickNo - getAverageAdp(player))
     .filter((value) => Number.isFinite(value));
 
@@ -2096,7 +2697,7 @@ async function syncSleeperDraft({ initiatedByUser = false } = {}) {
 }
 
 function initSleeperSyncFromState() {
-  if (!state.sleeperSync?.enabled || !state.sleeperSync?.draftId) {
+  if (state.draftMode !== 'sleeper' || !state.sleeperSync?.enabled || !state.sleeperSync?.draftId) {
     stopSleeperSyncTimer();
     return;
   }
@@ -2140,7 +2741,12 @@ function applySavedCustomRanksToPlayers(players) {
   const updatedPlayers = players.map((player) => {
     const rank = saved.ranks[getRankKey(player)];
     if (!Number.isFinite(rank)) {
-      return player;
+      // Same behavior as CSV import: no saved rank means unranked, shown at the end.
+      return {
+        ...player,
+        myRank: 0,
+        manualRank: false
+      };
     }
 
     applied += 1;
@@ -2156,14 +2762,16 @@ function applySavedCustomRanksToPlayers(players) {
   }
 
   updatedPlayers.sort((a, b) => {
-    // Handle players without ranks (put them at the end)
-    if (!a.myRank && b.myRank) return 1;
-    if (a.myRank && !b.myRank) return -1;
-    if (!a.myRank && !b.myRank) return a.name.localeCompare(b.name);
+    const aHasRank = a.manualRank === true && Number(a.myRank) > 0;
+    const bHasRank = b.manualRank === true && Number(b.myRank) > 0;
+    if (!aHasRank && bHasRank) return 1;
+    if (aHasRank && !bHasRank) return -1;
+    if (!aHasRank && !bHasRank) {
+      const adpDiff = getAverageAdpForSort(a) - getAverageAdpForSort(b);
+      if (adpDiff !== 0) return adpDiff;
+      return a.name.localeCompare(b.name);
+    }
     return a.myRank - b.myRank || a.name.localeCompare(b.name);
-  });
-  updatedPlayers.forEach((player, index) => {
-    player.myRank = index + 1;
   });
 
   state.players = updatedPlayers;
@@ -2283,8 +2891,13 @@ function getAverageAdp(player) {
   if (player.ffpc !== null && player.ffpc !== undefined) {
     values.push(player.ffpc);
   }
-  if (values.length === 0) return 0;
+  if (values.length === 0) return null;
   return values.reduce((sum, val) => sum + val, 0) / values.length;
+}
+
+function getAverageAdpForSort(player) {
+  const adp = getAverageAdp(player);
+  return Number.isFinite(adp) ? adp : Number.POSITIVE_INFINITY;
 }
 
 function getDraftAdjustedAdp(player) {
@@ -2293,7 +2906,8 @@ function getDraftAdjustedAdp(player) {
   }
 
   // Return true average of ESPN + Yahoo + Sleeper (no shift)
-  return getAverageAdp(player);
+  const average = getAverageAdp(player);
+  return Number.isFinite(average) ? average : 999;
 }
 
 function renderPositionFilterChips() {
@@ -2342,17 +2956,19 @@ function renderRankingStatus() {
   const direction = state.sort.direction === 'asc' ? '↑' : '↓';
   statusText = `Sort: ${currentSort} ${direction}`;
   
-  // Show which ADP source is selected
+  // Show which ADP / expert metric is selected
   const adpSourceLabels = {
-    all: 'All',
+    all: 'All ADP',
     espn: 'ESPN',
     yahoo: 'Yahoo',
     rotoballer: 'Underdog',
     ffpc: 'FFPC',
-    average: 'Average'
+    average: 'Average ADP',
+    expert: 'Expert'
   };
-  const adpSourceLabel = adpSourceLabels[state.adpSource] || 'All';
-  statusText += ` | ADP: ${adpSourceLabel}`;
+  const adpSourceLabel = adpSourceLabels[state.adpSource] || 'All ADP';
+  statusText += ` | Metric: ${adpSourceLabel}`;
+  statusText += ` | Mode: ${state.draftMode === 'sleeper' ? 'Sleeper' : 'Manual'}`;
   
   // Show if custom rankings are applied
   const hasCustomRanks = state.players.some(p => p.customRank !== undefined);
@@ -2593,7 +3209,7 @@ async function loadLiveRankings() {
     }
 
     // Convert to array and filter players that have at least one ranking
-    const mergedPlayers = Array.from(allPlayers.values())
+    const mergedPlayers = Array.from(new Set(allPlayers.values()))
       .filter(player => player.espn || player.yahoo || player.rotoballer || player.ffpc)
       .map((player, index) => {
         // Use ESPN as primary if available, otherwise Yahoo, otherwise first available
@@ -2601,7 +3217,7 @@ async function loadLiveRankings() {
         
         // Check if this player already exists in state (to preserve custom rankings, drafted status, etc.)
         const existingPlayer = state.players.find(p => 
-          normalizeName(p.name) === normalizeName(player.name) && 
+          namesMatch(p.name, player.name) && 
           normalizeName(p.position) === normalizeName(player.position) &&
           normalizeName(p.team) === normalizeName(player.team)
         );
@@ -2632,11 +3248,13 @@ async function loadLiveRankings() {
           roomPickNo: null
         };
         
-        // If existing player found, preserve their customizations
+        // If existing player found, preserve draft status and personal ranks only
         if (existingPlayer) {
           mergedPlayer.tier = existingPlayer.tier ?? 1;
-          mergedPlayer.myRank = existingPlayer.myRank ?? 0;
-          mergedPlayer.manualRank = existingPlayer.manualRank === true;
+          if (existingPlayer.manualRank === true && Number(existingPlayer.myRank) > 0) {
+            mergedPlayer.myRank = existingPlayer.myRank;
+            mergedPlayer.manualRank = true;
+          }
           mergedPlayer.posRank = existingPlayer.posRank ?? 0;
           mergedPlayer.drafted = existingPlayer.drafted ?? false;
           mergedPlayer.draftedAt = existingPlayer.draftedAt ?? null;
@@ -2660,30 +3278,22 @@ async function loadLiveRankings() {
 
     const existingById = new Map((state.players || []).map((player) => [player.id, player]));
     const hasSavedTierLayout = (state.players || []).some((player) => Number(player.tier) > 1);
-    const rankedPlayers = mergedPlayers
-      .sort((a, b) => {
-        // Handle players without ranks (put them at the end)
-        if (!a.myRank && b.myRank) return 1;
-        if (a.myRank && !b.myRank) return -1;
-        if (!a.myRank && !b.myRank) return a.name.localeCompare(b.name);
-        return getAverageAdp(a) - getAverageAdp(b);
-      })
-      .map((player, index) => {
-        // Live refreshes rebuild player IDs, so fall back to the merged
-        // player's preserved fields when the old ID no longer matches.
-        const existing = existingById.get(player.id) || player;
-        return {
-          ...player,
-          drafted: Boolean(existing?.drafted),
-          draftedAt: existing?.draftedAt || null,
-          draftedSource: existing?.draftedSource ?? null,
-          roomPickNo: Number.isFinite(existing?.roomPickNo) ? existing.roomPickNo : null,
-          myRank: existing?.manualRank === true ? existing.myRank : index + 1,
-          manualRank: existing?.manualRank === true,
-          tier: hasSavedTierLayout ? (existing?.tier ?? 1) : 1,
-          projectedPoints: player.projectedPoints ?? existing?.projectedPoints ?? null
-        };
-      });
+    const rankedPlayers = assignDefaultRanksByAdp(mergedPlayers).map((player) => {
+      // Live refreshes rebuild player IDs, so fall back to the merged
+      // player's preserved fields when the old ID no longer matches.
+      const existing = existingById.get(player.id) || player;
+      return {
+        ...player,
+        drafted: Boolean(existing?.drafted) || Boolean(player.drafted),
+        draftedAt: existing?.draftedAt || player.draftedAt || null,
+        draftedSource: existing?.draftedSource ?? player.draftedSource ?? null,
+        roomPickNo: Number.isFinite(player.roomPickNo)
+          ? player.roomPickNo
+          : (Number.isFinite(existing?.roomPickNo) ? existing.roomPickNo : null),
+        tier: hasSavedTierLayout ? (existing?.tier ?? player.tier ?? 1) : 1,
+        projectedPoints: player.projectedPoints ?? existing?.projectedPoints ?? null
+      };
+    });
 
     // Completely replace state.players with merged data to ensure new fields are present
     state.players = rankedPlayers;
@@ -2724,17 +3334,20 @@ async function applyGhostRankings() {
       
       const ghostRankingsMap = new Map();
       ghostResponse.players.forEach(ghostPlayer => {
-        const normalizedName = normalizeName(ghostPlayer.name);
-        ghostRankingsMap.set(normalizedName, ghostPlayer.personalRank);
+        getNameMatchKeys(ghostPlayer.name).forEach((key) => {
+          ghostRankingsMap.set(key, ghostPlayer.personalRank);
+        });
         console.log(`[GHOST] Mapping ${ghostPlayer.name} -> ${ghostPlayer.personalRank}`);
       });
       
       let appliedGhostRanks = 0;
       state.players.forEach(player => {
-        const normalizedName = normalizeName(player.name);
-        const ghostRank = ghostRankingsMap.get(normalizedName);
+        const ghostRank = getNameMatchKeys(player.name)
+          .map((key) => ghostRankingsMap.get(key))
+          .find((rank) => rank !== undefined);
         if (ghostRank) {
           player.myRank = Math.round(ghostRank);
+          player.manualRank = true;
           appliedGhostRanks++;
           console.log(`[GHOST] Applied rank ${player.myRank} to ${player.name}`);
         }
@@ -2925,12 +3538,13 @@ function parseAndApplyCsvRankings(csvContent) {
     
     console.log('[CSV] Applied', appliedCount, 'rankings out of', state.players.length, 'players');
     
-    // Remove duplicate players (same normalized name, position, team)
+    // Remove duplicate players (same name aliases + position + team)
     const seenPlayers = new Map();
     const uniquePlayers = [];
     
     state.players.forEach(player => {
-      const matchKey = getNameMatchKeys(player.name)[0] + player.position + player.team;
+      const canonicalName = [...getNameMatchKeys(player.name)].sort()[0] || normalizeName(player.name);
+      const matchKey = `${canonicalName}-${normalizeName(player.position)}-${normalizeName(player.team)}`;
       if (!seenPlayers.has(matchKey)) {
         seenPlayers.set(matchKey, true);
         uniquePlayers.push(player);
@@ -2944,17 +3558,21 @@ function parseAndApplyCsvRankings(csvContent) {
     
     // Sort by myRank (use exact CSV values)
     state.players.sort((a, b) => {
-      // Handle players without CSV ranks (put them at the end)
-      const aHasRank = a.myRank && a.myRank > 0;
-      const bHasRank = b.myRank && b.myRank > 0;
+      // After CSV import only: players with no imported rank go to the end.
+      const aHasRank = a.manualRank === true && Number(a.myRank) > 0;
+      const bHasRank = b.manualRank === true && Number(b.myRank) > 0;
       if (!aHasRank && bHasRank) return 1;
       if (aHasRank && !bHasRank) return -1;
-      if (!aHasRank && !bHasRank) return a.name.localeCompare(b.name);
-      
+      if (!aHasRank && !bHasRank) {
+        const adpDiff = getAverageAdpForSort(a) - getAverageAdpForSort(b);
+        if (adpDiff !== 0) return adpDiff;
+        return a.name.localeCompare(b.name);
+      }
+
       // Sort by CSV rank
       const rankDiff = a.myRank - b.myRank;
       if (rankDiff !== 0) return rankDiff;
-      
+
       // Tie-breaker by name
       return a.name.localeCompare(b.name);
     });
@@ -3001,10 +3619,73 @@ function normalizeNameForMatch(value) {
   return normalizeName(withoutSuffix || raw);
 }
 
+// Common fantasy first-name nicknames so "Kenny Gainwell" matches "Kenneth Gainwell".
+const FIRST_NAME_ALIASES = {
+  kenny: ['kenneth'],
+  kenneth: ['kenny'],
+  ken: ['kenneth', 'kenny'],
+  josh: ['joshua'],
+  joshua: ['josh'],
+  rob: ['robert'],
+  robbie: ['robert'],
+  bob: ['robert'],
+  bobby: ['robert'],
+  robert: ['rob', 'robbie', 'bob', 'bobby'],
+  mike: ['michael'],
+  michael: ['mike'],
+  matt: ['matthew'],
+  matthew: ['matt'],
+  chris: ['christopher'],
+  christopher: ['chris'],
+  jon: ['jonathan', 'john'],
+  john: ['jonathan', 'jon'],
+  jonathan: ['jon', 'john'],
+  joe: ['joseph'],
+  joseph: ['joe'],
+  cam: ['cameron'],
+  cameron: ['cam'],
+  will: ['william'],
+  william: ['will', 'bill'],
+  bill: ['william']
+};
+
+function getFirstNameAliasVariants(fullName) {
+  const parts = `${fullName || ''}`
+    .toLowerCase()
+    .replace(/\./g, '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length < 2) {
+    return [];
+  }
+
+  const first = parts[0].replace(/[^a-z]/g, '');
+  const rest = parts.slice(1).join(' ');
+  const aliases = FIRST_NAME_ALIASES[first] || [];
+  return aliases.map((alias) => `${alias} ${rest}`);
+}
+
 function getNameMatchKeys(value) {
+  const keys = new Set();
   const base = normalizeName(value);
   const suffixNeutral = normalizeNameForMatch(value);
-  return base === suffixNeutral ? [base] : [base, suffixNeutral];
+  if (base) keys.add(base);
+  if (suffixNeutral) keys.add(suffixNeutral);
+
+  getFirstNameAliasVariants(value).forEach((variant) => {
+    const variantBase = normalizeName(variant);
+    const variantSuffixNeutral = normalizeNameForMatch(variant);
+    if (variantBase) keys.add(variantBase);
+    if (variantSuffixNeutral) keys.add(variantSuffixNeutral);
+  });
+
+  return [...keys];
+}
+
+function namesMatch(a, b) {
+  const aKeys = new Set(getNameMatchKeys(a));
+  return getNameMatchKeys(b).some((key) => aKeys.has(key));
 }
 
 function normalizePositionCode(value) {
@@ -3037,6 +3718,8 @@ function renderDraftBoard() {
   const visiblePlayers = sortedPlayers.filter((player) => !player.drafted && matchesPositionFilter(player));
 
   let rows = [];
+  const showMarkButtons = isManualDraftMode();
+  const columnCount = showMarkButtons ? 10 : 9;
   
   // Always show tier dividers
   const tiersToRender = [...new Set(visiblePlayers.map((player) => Number(player.tier)).filter((tier) => Number.isFinite(tier) && tier > 0))]
@@ -3047,7 +3730,7 @@ function renderDraftBoard() {
     
     rows.push(`
       <tr class="tier-divider${Number(state.ui?.selectedTier) === tier ? ' is-selected' : ''}" data-tier="${tier}">
-        <td colspan="9">
+        <td colspan="${columnCount}">
           <div class="tier-bar">
             <span class="tier-pill t${tier}">Tier ${tier}</span>
             <span class="tier-divider-count">${players.length} players</span>
@@ -3063,27 +3746,33 @@ function renderDraftBoard() {
       const personalDiff = calculatePersonalDifference(player, state.adpSource);
       const sosValue = player.sosRank ? player.sosRank : '-';
       const isSelected = state.ui?.selectedPlayerId === player.id;
-      const posRankDisplay = player.posRank ? `${player.position}${player.posRank}` : player.position;
+      const posRankDisplay = formatPosRankDisplay(player);
       const normalizedPosition = normalizePositionForCss(player.position);
+      const markCell = showMarkButtons
+        ? `<td class="col-draft-action">
+            <button type="button" class="row-draft-btn" data-action="draft" data-player-id="${player.id}" title="Mark drafted">Mark</button>
+          </td>`
+        : '';
       
       rows.push(`
         <tr data-player-id="${player.id}" class="${player.drafted ? 'drafted-row' : ''} ${isSelected ? 'selected-row' : ''}" draggable="true">
-          <td>
+          <td class="col-rank">
             <span class="drag-handle" data-player-id="${player.id}"></span>
             ${player.myRank}
           </td>
-          <td>
+          <td class="col-player">
             <div class="player-cell">
               <span class="player-name">${player.name}</span>
             </div>
           </td>
-          <td><span class="pos-pill pos-${normalizedPosition}">${posRankDisplay}</span></td>
-          <td>${player.team}</td>
-          <td>${adpValue}</td>
-          <td>${expertValue}</td>
-          <td style="color: ${adpDiff.color}; font-weight: ${adpDiff.weight};">${adpDiff.display}</td>
-          <td style="color: ${personalDiff.color}; font-weight: ${personalDiff.weight};">${personalDiff.display}</td>
-          <td>${sosValue}</td>
+          <td class="col-pos"><span class="pos-pill pos-${normalizedPosition}">${posRankDisplay}</span></td>
+          <td class="col-team">${player.team}</td>
+          <td class="col-adp">${adpValue}</td>
+          <td class="col-expert">${expertValue}</td>
+          <td class="col-adp-diff" style="color: ${adpDiff.color}; font-weight: ${adpDiff.weight};">${adpDiff.display}</td>
+          <td class="col-personal-diff" style="color: ${personalDiff.color}; font-weight: ${personalDiff.weight};">${personalDiff.display}</td>
+          <td class="col-sos">${sosValue}</td>
+          ${markCell}
         </tr>
       `);
     });
@@ -3111,6 +3800,9 @@ function getAdpValue(player, source) {
       return player.ffpc ? player.ffpc.toFixed(1) : '-';
     case 'average':
       return getDraftAdjustedAdp(player).toFixed(1);
+    case 'expert':
+      // Desktop still shows an ADP column; keep average ADP there while Expert is selected.
+      return getDraftAdjustedAdp(player).toFixed(1);
     case 'all':
     default:
       return getDraftAdjustedAdp(player).toFixed(1);
@@ -3127,21 +3819,26 @@ function updateTableHeader() {
     yahoo: 'Yahoo', 
     rotoballer: 'Underdog',
     ffpc: 'FFPC',
-    average: 'Average'
+    average: 'Average',
+    expert: 'ADP'
   };
   
   const currentLabel = adpLabels[state.adpSource] || 'ADP';
+  const markHeader = isManualDraftMode() ? '<th class="col-draft-action">Mark</th>' : '';
+  const expertHeaderClass = isExpertMetricSelected() ? 'col-expert is-compact-metric' : 'col-expert';
+  const adpHeaderClass = isExpertMetricSelected() ? 'col-adp' : 'col-adp is-compact-metric';
   
   headerRow.innerHTML = `
-    <th data-key="myRank">Rank</th>
-    <th data-key="player">Player</th>
-    <th data-key="position">Pos</th>
-    <th data-key="team">Team</th>
-    <th data-key="adp">${currentLabel}</th>
-    <th data-key="expertRank">Expert</th>
-    <th data-key="adpDiff">Diff</th>
-    <th data-key="personalDiff">My Diff</th>
-    <th data-key="sosRank">SoS</th>
+    <th class="col-rank" data-key="myRank">Rank</th>
+    <th class="col-player" data-key="player">Player</th>
+    <th class="col-pos" data-key="position">Pos</th>
+    <th class="col-team" data-key="team">Team</th>
+    <th class="${adpHeaderClass}" data-key="adp">${currentLabel}</th>
+    <th class="${expertHeaderClass}" data-key="expertRank">Expert</th>
+    <th class="col-adp-diff" data-key="adpDiff">Diff</th>
+    <th class="col-personal-diff" data-key="personalDiff">My Diff</th>
+    <th class="col-sos" data-key="sosRank">SoS</th>
+    ${markHeader}
   `;
   
   // Re-attach event listeners to the new header
@@ -3202,18 +3899,47 @@ function comparePlayers(a, b) {
 }
 
 function compareUserRankThenAdp(a, b, direction = 'asc') {
-  const aHasUserRank = a.manualRank === true && Number(a.myRank) > 0;
-  const bHasUserRank = b.manualRank === true && Number(b.myRank) > 0;
+  const importedMode = (state.players || []).some(
+    (player) => player?.manualRank === true && Number(player.myRank) > 0
+  );
 
-  if (aHasUserRank !== bHasUserRank) {
-    return aHasUserRank ? -1 : 1;
+  if (importedMode) {
+    // CSV / saved custom ranks: ranked imports first, everyone else at the end.
+    const aHasUserRank = a.manualRank === true && Number(a.myRank) > 0;
+    const bHasUserRank = b.manualRank === true && Number(b.myRank) > 0;
+
+    if (aHasUserRank !== bHasUserRank) {
+      return aHasUserRank ? -1 : 1;
+    }
+
+    if (aHasUserRank && bHasUserRank) {
+      const rankDifference = Number(a.myRank) - Number(b.myRank);
+      if (rankDifference !== 0) {
+        return direction === 'asc' ? rankDifference : -rankDifference;
+      }
+      return a.name.localeCompare(b.name);
+    }
+
+    const adpDiff = getAverageAdpForSort(a) - getAverageAdpForSort(b);
+    if (adpDiff !== 0) {
+      return direction === 'asc' ? adpDiff : -adpDiff;
+    }
+    return a.name.localeCompare(b.name);
   }
 
-  const aValue = aHasUserRank ? Number(a.myRank) : getDraftAdjustedAdp(a);
-  const bValue = bHasUserRank ? Number(b.myRank) : getDraftAdjustedAdp(b);
-  const valueDifference = aValue - bValue;
-  if (valueDifference !== 0) {
-    return direction === 'asc' ? valueDifference : -valueDifference;
+  // Standard rankings (no CSV): use assigned ranks, fall back to ADP.
+  const aRank = Number(a.myRank);
+  const bRank = Number(b.myRank);
+  const aHasRank = Number.isFinite(aRank) && aRank > 0;
+  const bHasRank = Number.isFinite(bRank) && bRank > 0;
+
+  if (aHasRank && bHasRank && aRank !== bRank) {
+    return direction === 'asc' ? aRank - bRank : bRank - aRank;
+  }
+
+  const adpDiff = getAverageAdpForSort(a) - getAverageAdpForSort(b);
+  if (adpDiff !== 0) {
+    return direction === 'asc' ? adpDiff : -adpDiff;
   }
 
   return a.name.localeCompare(b.name);
@@ -3231,16 +3957,22 @@ function getAdpValueForSort(player) {
       return player.ffpc || 999;
     case 'average':
       return getDraftAdjustedAdp(player);
+    case 'expert':
+      return Number.isFinite(player.expertRank) ? player.expertRank : 999;
     case 'all':
     default:
       return getDraftAdjustedAdp(player);
   }
 }
 
+function getAdpSourceForDiff(adpSource) {
+  return adpSource === 'expert' ? 'all' : adpSource;
+}
+
 function calculateAdpDifference(player, adpSource) {
   // Get the current ADP value based on selected source
   let currentAdp = null;
-  switch(adpSource) {
+  switch(getAdpSourceForDiff(adpSource)) {
     case 'espn':
       currentAdp = player.espn;
       break;
@@ -3299,7 +4031,7 @@ function calculateAdpDifference(player, adpSource) {
 function calculatePersonalDifference(player, adpSource) {
   // Calculate difference between the selected ADP source and your personal ranking (myRank)
   let currentAdp = null;
-  switch(adpSource) {
+  switch(getAdpSourceForDiff(adpSource)) {
     case 'espn':
       currentAdp = player.espn;
       break;
@@ -3401,6 +4133,7 @@ function resetDraftBoard() {
   
   // Recalculate everything
   syncDraftedPlayerIds();
+  state.players = assignDefaultRanksByAdp(state.players);
   calculatePositionalRanks();
   applySmartTiering();
   
@@ -3820,9 +4553,7 @@ function handleDrop(event) {
       state.autoTiering = false;
     }
   } else if (targetDraftBin?.dataset.action === 'draft') {
-    player.drafted = true;
-    player.draftedAt = Date.now();
-    player.draftedSource = 'manual';
+    markPlayerDrafted(player);
   }
 
   syncDraftedPlayerIds();
@@ -3960,6 +4691,21 @@ function handleTierAction(event) {
 }
 
 function handleBoardClick(event) {
+  const actionButton = event.target.closest('button[data-action]');
+  if (actionButton?.dataset.action === 'draft') {
+    event.preventDefault();
+    event.stopPropagation();
+    const playerId = actionButton.dataset.playerId || actionButton.closest('tr[data-player-id]')?.dataset.playerId;
+    const player = state.players.find((entry) => entry.id === playerId);
+    if (player && markPlayerDrafted(player)) {
+      state.ui.selectedPlayerId = null;
+      state.liveDataStatus = `Marked ${player.name} as drafted.`;
+      saveState();
+      render();
+    }
+    return;
+  }
+
   const clickedControl = event.target.closest('input, button, select, textarea');
   if (!clickedControl) {
     const tierRow = event.target.closest('.tier-divider');
@@ -3979,32 +4725,6 @@ function handleBoardClick(event) {
       setSelectedPlayer(playerRow.dataset.playerId);
       render();
     }
-  }
-
-  const actionButton = event.target.closest('button[data-action]');
-  if (!actionButton) {
-    return;
-  }
-
-  const chip = actionButton.closest('.player-chip');
-  if (!chip) {
-    return;
-  }
-
-  const player = state.players.find((entry) => entry.id === chip.dataset.playerId);
-  if (!player) {
-    return;
-  }
-
-  if (actionButton.dataset.action === 'draft') {
-    player.drafted = true;
-    player.draftedAt = Date.now();
-    player.draftedSource = 'manual';
-    player.roomPickNo = null;
-    syncDraftedPlayerIds();
-    calculatePositionalRanks();
-    saveState();
-    render();
   }
 }
 
@@ -4029,12 +4749,7 @@ function handleTrackerClick(event) {
   }
 
   if (actionButton.dataset.action === 'undraft') {
-    player.drafted = false;
-    player.draftedAt = null;
-    player.draftedSource = null;
-    player.roomPickNo = null;
-    syncDraftedPlayerIds();
-    calculatePositionalRanks();
+    undraftPlayer(player);
     saveState();
     render();
   }

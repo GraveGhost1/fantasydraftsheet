@@ -2,9 +2,158 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Fantasy Draft Sheet</title>
-    <link rel="stylesheet" href="styles.css?v=20260826-myrank-expert-tiers" />
+    <link rel="stylesheet" href="styles.css?v=20260827-desktop-account" />
+    <style id="mobile-nav-critical">
+      /* Critical mobile nav — inline so it cannot be lost to CSS cache */
+      .header-cluster {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 20px;
+        background: rgba(10, 14, 20, 0.96);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+      }
+      .top-bar-chrome {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 0 0 auto;
+        min-width: 0;
+      }
+      .nav-expand-toggle {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-width: 44px;
+        min-height: 40px;
+        padding: 0 12px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        background: rgba(59, 130, 246, 0.3);
+        color: #fff;
+        font: inherit;
+        font-size: 0.85rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .nav-expand-chevron {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-right: 2px solid currentColor;
+        border-bottom: 2px solid currentColor;
+        transform: rotate(45deg);
+        margin-top: -3px;
+      }
+      .header-cluster.is-nav-open .nav-expand-chevron {
+        transform: rotate(-135deg);
+        margin-top: 3px;
+      }
+      .top-bar-nav {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .top-bar-account {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 0 0 auto;
+        margin-left: auto;
+      }
+      .draft-dock {
+        display: flex;
+        align-items: center;
+        flex: 1 1 280px;
+        max-width: 420px;
+        min-width: 0;
+        margin-left: 0;
+        margin-right: 0;
+      }
+
+      @media (max-width: 1100px) {
+        .header-cluster {
+          flex-direction: column !important;
+          align-items: stretch !important;
+          gap: 0 !important;
+          padding: 0 !important;
+          padding-top: env(safe-area-inset-top, 0px) !important;
+        }
+        .top-bar-chrome {
+          width: 100% !important;
+          justify-content: space-between !important;
+          min-height: 56px !important;
+          padding: 10px 12px !important;
+          box-sizing: border-box !important;
+        }
+        .nav-expand-toggle {
+          display: inline-flex !important;
+        }
+        .logo-copy p {
+          display: none !important;
+        }
+        .top-bar-nav {
+          display: none !important;
+          flex-direction: column !important;
+          width: 100% !important;
+          padding: 0 12px 12px !important;
+          box-sizing: border-box !important;
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .header-cluster.is-nav-open .top-bar-nav {
+          display: flex !important;
+        }
+        .top-bar-nav > * {
+          width: 100% !important;
+        }
+        .top-bar-account {
+          margin-left: 0 !important;
+          flex-direction: column !important;
+          align-items: stretch !important;
+          width: 100% !important;
+        }
+        .top-bar-account > * {
+          width: 100% !important;
+          min-height: 40px !important;
+          justify-content: center !important;
+        }
+        .draft-dock {
+          position: fixed !important;
+          left: 0 !important;
+          right: 0 !important;
+          bottom: 0 !important;
+          z-index: 110 !important;
+          width: 100% !important;
+          max-width: none !important;
+          flex: none !important;
+          margin: 0 !important;
+          padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+          border-radius: 16px 16px 0 0 !important;
+          border: 1px solid rgba(255, 255, 255, 0.12) !important;
+          border-bottom: 0 !important;
+          background: rgba(17, 24, 39, 0.98) !important;
+          box-sizing: border-box !important;
+        }
+        .draft-dock[hidden] {
+          display: none !important;
+        }
+        body {
+          padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+        }
+      }
+    </style>
   </head>
   <body>
     <div id="username-modal" class="modal-overlay" style="display: none;">
@@ -28,15 +177,22 @@
     </div>
     
     <div class="app-shell">
-      <header class="top-bar">
-        <div class="logo-section">
-          <span class="logo-mark" aria-hidden="true">FD</span>
-          <div class="logo-copy">
-            <h1>Draft Sheet</h1>
-            <p>Live rankings board</p>
+      <div class="header-cluster">
+        <div class="top-bar-chrome">
+          <div class="logo-section">
+            <span class="logo-mark" aria-hidden="true">FD</span>
+            <div class="logo-copy">
+              <h1>Draft Sheet</h1>
+              <p>Live rankings board</p>
+            </div>
           </div>
+          <button type="button" id="nav-expand-toggle" class="nav-expand-toggle" aria-expanded="false" aria-controls="top-bar-nav">
+            <span class="nav-expand-label">Menu</span>
+            <span class="nav-expand-chevron" aria-hidden="true"></span>
+          </button>
         </div>
-        <div class="settings-bar">
+
+        <div class="top-bar-nav" id="top-bar-nav">
           <div class="nav-control">
             <select id="scoring-format" class="compact-select nav-select" aria-label="Scoring format">
               <option value="standard">Standard</option>
@@ -44,48 +200,68 @@
               <option value="ppr">PPR</option>
             </select>
           </div>
-          <div class="nav-search">
-            <input id="sleeper-draft-id" type="text" placeholder="Paste Sleeper draft ID" class="compact-input" aria-label="Sleeper draft ID" />
-            <button id="submit-sleeper-id" type="button" class="nav-sync">Sync</button>
+
+          <button id="manual-mode-toggle" type="button" class="manual-mode-btn" aria-pressed="true" title="Toggle manual draft tracking">
+            <span class="manual-mode-dot" aria-hidden="true"></span>
+            <span class="manual-mode-label">Manual</span>
+          </button>
+
+          <div class="top-bar-account">
+            <span id="user-display" class="user-display"></span>
+            <button id="login-button" class="nav-login">Log in</button>
+            <button id="logout-button" class="nav-btn" style="display: none;">Log out</button>
+            <label for="csv-upload" class="nav-btn" id="csv-upload-label" style="display: none;">Import</label>
           </div>
-          <label for="csv-upload" class="nav-btn hidden" id="csv-upload-label" style="display: none;">Import</label>
-          <input type="file" id="csv-upload" accept=".csv" style="display: none;">
         </div>
-        <div class="user-section">
-          <span id="user-display" class="user-display"></span>
-          <button id="login-button" class="nav-login">Log in</button>
-          <button id="logout-button" class="nav-btn" style="display: none;">Log out</button>
+
+        <input type="file" id="csv-upload" accept=".csv" style="display: none;">
+      </div>
+
+      <div class="nav-search draft-controls draft-dock" id="manual-draft-controls">
+        <div class="manual-search-wrap">
+          <input id="manual-player-search" type="text" placeholder="Search player to mark off" class="compact-input" aria-label="Search player to mark drafted" autocomplete="off" aria-autocomplete="list" aria-controls="manual-search-suggestions" />
+          <div id="manual-search-suggestions" class="manual-search-suggestions" role="listbox" hidden></div>
         </div>
-      </header>
+        <button id="manual-draft-btn" type="button" class="nav-sync">Draft</button>
+        <button id="manual-undo-btn" type="button" class="nav-sync nav-sync-secondary" title="Undo last manual pick">Undo</button>
+      </div>
+
+      <div class="nav-search draft-controls draft-dock" id="sleeper-sync-controls" hidden>
+        <input id="sleeper-draft-id" type="text" placeholder="Paste Sleeper draft ID" class="compact-input" aria-label="Sleeper draft ID" />
+        <button id="submit-sleeper-id" type="button" class="nav-sync">Sync</button>
+      </div>
 
       <div class="main-content">
         <div id="csv-help" class="csv-help-banner">
           <div class="csv-help-copy">
             <strong>Upload your rankings</strong>
-            <p>Log in, then click <em>Import</em> in the top bar and choose a <code>.csv</code> file. The file needs a player name column (<code>Player</code> or <code>Name</code>) and a rank column (<code>RK</code>, <code>Personal Rank</code>, or <code>Rank</code>). Max size 5MB. Matching players on the board will take those ranks; unmatched names are left as-is.</p>
+            <p>Log in, then use <em>Import</em> in the top bar and choose a <code>.csv</code> file. The file needs a player name column (<code>Player</code> or <code>Name</code>) and a rank column (<code>RK</code>, <code>Personal Rank</code>, or <code>Rank</code>). Max size 5MB.</p>
           </div>
           <button type="button" id="csv-help-dismiss" class="nav-btn csv-help-dismiss" aria-label="Hide CSV help">Got it</button>
         </div>
 
         <div class="filters-bar">
-          <div class="position-filters" id="position-filters" aria-label="Position filters">
-            <button type="button" class="chip-filter is-active" data-filter="ALL">All</button>
-            <button type="button" class="chip-filter" data-filter="QB">QB</button>
-            <button type="button" class="chip-filter" data-filter="RB">RB</button>
-            <button type="button" class="chip-filter" data-filter="WR">WR</button>
-            <button type="button" class="chip-filter" data-filter="TE">TE</button>
-            <button type="button" class="chip-filter" data-filter="K">K</button>
-            <button type="button" class="chip-filter" data-filter="DEF">DEF</button>
-          </div>
-          <div class="adp-selector">
-            <select id="adp-source" class="compact-select">
-              <option value="all">All ADP Sources</option>
-              <option value="espn">ESPN</option>
-              <option value="yahoo">Yahoo</option>
-              <option value="rotoballer">Underdog</option>
-              <option value="ffpc">FFPC</option>
-              <option value="average">Average ADP</option>
-            </select>
+          <div class="filters-bar-main">
+            <div class="position-filters" id="position-filters" aria-label="Position filters">
+              <button type="button" class="chip-filter is-active" data-filter="ALL">All</button>
+              <button type="button" class="chip-filter" data-filter="QB">QB</button>
+              <button type="button" class="chip-filter" data-filter="RB">RB</button>
+              <button type="button" class="chip-filter" data-filter="WR">WR</button>
+              <button type="button" class="chip-filter" data-filter="TE">TE</button>
+              <button type="button" class="chip-filter" data-filter="K">K</button>
+              <button type="button" class="chip-filter" data-filter="DEF">DEF</button>
+            </div>
+            <div class="adp-selector">
+              <select id="adp-source" class="compact-select" aria-label="ADP or expert ranking to show">
+                <option value="all">All ADP Sources</option>
+                <option value="espn">ESPN</option>
+                <option value="yahoo">Yahoo</option>
+                <option value="rotoballer">Underdog</option>
+                <option value="ffpc">FFPC</option>
+                <option value="average">Average ADP</option>
+                <option value="expert">Expert Rank</option>
+              </select>
+            </div>
           </div>
           <div class="action-buttons">
             <button id="add-tier" class="ghost compact-button">+ Add Tier</button>
@@ -103,19 +279,28 @@
           <table class="rankings-table comparison-table">
             <thead>
               <tr id="table-header">
-                <th data-key="myRank">Rank</th>
-                <th data-key="player">Player</th>
-                <th data-key="position">Pos</th>
-                <th data-key="team">Team</th>
-                <th data-key="adp">ADP</th>
-                <th data-key="expertRank">Expert</th>
-                <th data-key="adpDiff">Diff</th>
-                <th data-key="personalDiff">My Diff</th>
-                <th data-key="sosRank">SoS</th>
+                <th class="col-rank" data-key="myRank">Rank</th>
+                <th class="col-player" data-key="player">Player</th>
+                <th class="col-pos" data-key="position">Pos</th>
+                <th class="col-team" data-key="team">Team</th>
+                <th class="col-adp" data-key="adp">ADP</th>
+                <th class="col-expert" data-key="expertRank">Expert</th>
+                <th class="col-adp-diff" data-key="adpDiff">Diff</th>
+                <th class="col-personal-diff" data-key="personalDiff">My Diff</th>
+                <th class="col-sos" data-key="sosRank">SoS</th>
+                <th class="col-draft-action">Mark</th>
               </tr>
             </thead>
             <tbody id="rankings-body"></tbody>
           </table>
+        </div>
+
+        <div id="drafted-players-section" class="drafted-section">
+          <div class="drafted-section-header">
+            <h3>Drafted <span id="drafted-count" class="drafted-count">0</span></h3>
+            <p id="draft-mode-hint" class="drafted-hint">Manual mode: mark players off as they come off the board. Use search, the Mark button, or press Enter on a selected row.</p>
+          </div>
+          <div id="drafted-players-list" class="drafted-list"></div>
         </div>
 
         <div id="settings-summary" class="status-bar"></div>
@@ -130,6 +315,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=20260826-myrank-expert-tiers"></script>
+    <script src="app.js?v=20260827-desktop-account"></script>
   </body>
 </html>
