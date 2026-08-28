@@ -68,6 +68,26 @@ function syncSavedCustomRanksSnapshot() {
   }
 }
 
+function prepareAccountStateBeforeLiveLoad() {
+  if (!currentUsername) {
+    return null;
+  }
+
+  const accountState = parseStoredState(localStorage.getItem(getUserStorageKey(currentUsername)));
+  if (!accountState) {
+    return null;
+  }
+
+  if (accountState.savedCustomRanks) {
+    state.savedCustomRanks = accountState.savedCustomRanks;
+  }
+  if (Array.isArray(accountState.players) && accountState.players.length) {
+    state.players = accountState.players;
+  }
+
+  return accountState;
+}
+
 function findSavedRankForPlayer(player, savedCustomRanks = null) {
   const ranks = savedCustomRanks?.ranks || state.savedCustomRanks?.ranks || {};
   const directRank = ranks[getRankKey(player)];
@@ -656,6 +676,7 @@ document.addEventListener('DOMContentLoaded', () => {
       updateAuthUi();
       hideUsernameModal();
 
+      prepareAccountStateBeforeLiveLoad();
       await loadLiveRankings();
       const loaded = await loadStateFromServer();
       if (!loaded) {
@@ -733,6 +754,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initializeBoardData({ loadServerState = false } = {}) {
+  if (loadServerState) {
+    prepareAccountStateBeforeLiveLoad();
+  }
   await loadLiveRankings();
   if (loadServerState) {
     await loadStateFromServer();
@@ -2921,14 +2945,9 @@ function applySavedCustomRanksToPlayers(players) {
 
   let applied = 0;
   const updatedPlayers = players.map((player) => {
-    const rank = saved.ranks[getRankKey(player)];
-    if (!Number.isFinite(rank)) {
-      // Same behavior as CSV import: no saved rank means unranked, shown at the end.
-      return {
-        ...player,
-        myRank: 0,
-        manualRank: false
-      };
+    const rank = saved.ranks[getRankKey(player)] ?? findSavedRankForPlayer(player, saved);
+    if (!Number.isFinite(rank) || rank <= 0) {
+      return player;
     }
 
     applied += 1;
@@ -2993,6 +3012,24 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_FETCH_TIM
     return await fetch(url, { ...options, signal: controller.signal });
   } finally {
     clearTimeout(timeoutId);
+  }
+}
+
+async function fetchLocalRankingsApi(endpoint, label) {
+  const embedded = typeof window !== 'undefined' ? window.EMBEDDED_RANKINGS?.[endpoint] : null;
+  if (embedded?.players) {
+    console.log(`[CSV] Using embedded ${label}`);
+    return embedded;
+  }
+
+  try {
+    return await fetchJsonWithProxyFallback(`/api/${endpoint}`, label);
+  } catch (error) {
+    if (embedded?.players) {
+      console.log(`[CSV] Falling back to embedded ${label} after API failure`);
+      return embedded;
+    }
+    throw error;
   }
 }
 
@@ -3306,10 +3343,10 @@ async function loadLiveRankings() {
   try {
     // Fetch local CSV rankings for ESPN, Yahoo, Underdog, and FFPC
     const [espnResponse, yahooResponse, rotoballerResponse, ffpcResponse] = await Promise.all([
-      fetchJsonWithProxyFallback('/api/espn', 'ESPN rankings'),
-      fetchJsonWithProxyFallback('/api/yahoo', 'Yahoo rankings'),
-      fetchJsonWithProxyFallback('/api/rotoballer', 'Underdog rankings'),
-      fetchJsonWithProxyFallback('/api/ffpc', 'FFPC rankings')
+      fetchLocalRankingsApi('espn', 'ESPN rankings'),
+      fetchLocalRankingsApi('yahoo', 'Yahoo rankings'),
+      fetchLocalRankingsApi('rotoballer', 'Underdog rankings'),
+      fetchLocalRankingsApi('ffpc', 'FFPC rankings')
     ]);
 
     // Don't fetch Ghost rankings here - they will be applied after login
@@ -4320,9 +4357,9 @@ function resetDraftBoard() {
   
   stopSleeperSync('Draft board reset.');
   
-  // Recalculate everything
+  // Recalculate everything without wiping custom rankings.
   syncDraftedPlayerIds();
-  state.players = assignDefaultRanksByAdp(state.players);
+  restorePersistedRankings();
   calculatePositionalRanks();
   applySmartTiering();
   
