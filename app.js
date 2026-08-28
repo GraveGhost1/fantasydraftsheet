@@ -154,17 +154,14 @@ function updateAuthUi() {
   const loggedIn = isUserLoggedIn();
   const loginDisplay = loggedIn ? 'none' : 'inline-flex';
   const logoutDisplay = loggedIn ? 'inline-flex' : 'none';
-  const importDisplay = loggedIn ? 'inline-flex' : 'none';
 
   const userDisplay = document.getElementById('user-display');
   const loginButton = document.getElementById('login-button');
   const logoutButton = document.getElementById('logout-button');
-  const csvUploadLabel = document.getElementById('csv-upload-label');
 
   if (userDisplay) userDisplay.textContent = loggedIn ? currentUsername : '';
   if (loginButton) loginButton.style.display = loginDisplay;
   if (logoutButton) logoutButton.style.display = logoutDisplay;
-  if (csvUploadLabel) csvUploadLabel.style.display = importDisplay;
 }
 
 const basePlayers = [
@@ -720,6 +717,16 @@ document.addEventListener('DOMContentLoaded', () => {
         type: 'success'
       });
     });
+  }
+
+  const exportRankingsButton = document.getElementById('export-rankings');
+  const exportRankingsNavButton = document.getElementById('export-rankings-nav');
+  const handleExportClick = () => exportRankingsToCsv();
+  if (exportRankingsButton) {
+    exportRankingsButton.addEventListener('click', handleExportClick);
+  }
+  if (exportRankingsNavButton) {
+    exportRankingsNavButton.addEventListener('click', handleExportClick);
   }
 
   // CSV upload functionality
@@ -3728,6 +3735,58 @@ async function applyGhostRankings() {
   }
 }
 
+function escapeCsvField(value) {
+  const text = value == null ? '' : String(value);
+  if (/[",\n\r]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+function exportRankingsToCsv() {
+  const rankedPlayers = state.players
+    .filter((player) => Number.isFinite(Number(player.myRank)) && Number(player.myRank) > 0)
+    .sort((a, b) => a.myRank - b.myRank || a.name.localeCompare(b.name));
+
+  if (!rankedPlayers.length) {
+    showAppModal('No rankings to export yet. Upload a CSV or drag players to reorder first.', {
+      title: 'Nothing to export',
+      type: 'error'
+    });
+    return false;
+  }
+
+  const header = ['RK', 'Player', 'Pos', 'Team'];
+  const rows = rankedPlayers.map((player, index) => [
+    index + 1,
+    player.name,
+    player.position || '',
+    player.team || ''
+  ]);
+
+  const csv = [header, ...rows]
+    .map((row) => row.map(escapeCsvField).join(','))
+    .join('\n');
+
+  const dateStamp = new Date().toISOString().slice(0, 10);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `fantasy-rankings-${dateStamp}.csv`;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+
+  showAppModal(
+    `Exported ${rankedPlayers.length} players to fantasy-rankings-${dateStamp}.csv. Save the file and use Import next time to restore your rankings.`,
+    { title: 'Rankings exported', type: 'success' }
+  );
+  return true;
+}
+
 // CSV upload handling
 function handleCsvUpload(event) {
   const file = event.target.files[0];
@@ -3769,7 +3828,7 @@ function handleCsvUpload(event) {
           }
         } else {
           saveState();
-          showAppModal(`Successfully imported ${result.applied} rankings! Log in and click Save to sync across phones.`, {
+          showAppModal(`Successfully imported ${result.applied} rankings! Use Export to save a copy for next time.`, {
             title: 'Rankings imported',
             type: 'success'
           });

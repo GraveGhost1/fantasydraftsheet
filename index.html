@@ -210,7 +210,8 @@
             <span id="user-display" class="user-display"></span>
             <button id="login-button" class="nav-login">Log in</button>
             <button id="logout-button" class="nav-btn" style="display: none;">Log out</button>
-            <label for="csv-upload" class="nav-btn" id="csv-upload-label" style="display: none;">Import</label>
+            <label for="csv-upload" class="nav-btn" id="csv-upload-label">Import</label>
+            <button type="button" id="export-rankings-nav" class="nav-btn">Export</button>
           </div>
         </div>
 
@@ -235,7 +236,7 @@
         <div id="csv-help" class="csv-help-banner">
           <div class="csv-help-copy">
             <strong>Upload your rankings</strong>
-            <p>Log in, then use <em>Import</em> in the top bar and choose a <code>.csv</code> file. The file needs a player name column (<code>Player</code> or <code>Name</code>) and a rank column (<code>RK</code>, <code>Personal Rank</code>, or <code>Rank</code>). Max size 5MB.</p>
+            <p>Use <em>Import</em> to load a <code>.csv</code> file and <em>Export</em> to save your current rankings. The file needs a player name column (<code>Player</code> or <code>Name</code>) and a rank column (<code>RK</code>, <code>Personal Rank</code>, or <code>Rank</code>). Max import size 5MB.</p>
           </div>
           <button type="button" id="csv-help-dismiss" class="nav-btn csv-help-dismiss" aria-label="Hide CSV help">Got it</button>
         </div>
@@ -266,6 +267,7 @@
           <div class="action-buttons">
             <button id="add-tier" class="ghost compact-button">+ Add Tier</button>
             <button id="delete-tier" class="ghost compact-button">- Delete Tier</button>
+            <button id="export-rankings" class="ghost compact-button">Export</button>
             <button id="save-rankings" class="ghost compact-button">Save</button>
             <button id="apply-saved-rankings" class="ghost compact-button">Load</button>
             <button id="reset-board" class="ghost compact-button">Refresh Board</button>
@@ -315,6 +317,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=20260828-save-load-fix"></script>
+    <script src="app.js?v=20260828-export"></script>
   </body>
 </html>
