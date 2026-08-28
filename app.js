@@ -682,14 +682,16 @@ document.addEventListener('DOMContentLoaded', () => {
       hideUsernameModal();
 
       prepareAccountStateBeforeLiveLoad();
+      const prefetched = await fetchAccountState();
+      if (prefetched.source === 'auth-error') {
+        return;
+      }
+
       isHydratingAccountState = true;
       let loaded = false;
       try {
         await loadLiveRankings();
-        loaded = await loadStateFromServer();
-        if (!loaded) {
-          restorePersistedRankings();
-        }
+        loaded = await restoreAccountStateAfterLiveLoad(prefetched);
       } finally {
         isHydratingAccountState = false;
       }
@@ -754,13 +756,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function initializeBoardData({ loadServerState = false } = {}) {
   isHydratingAccountState = true;
+  let prefetched = null;
   try {
     if (loadServerState) {
       prepareAccountStateBeforeLiveLoad();
+      prefetched = await fetchAccountState();
     }
     await loadLiveRankings();
     if (loadServerState) {
-      await loadStateFromServer();
+      await restoreAccountStateAfterLiveLoad(prefetched);
     } else {
       restorePersistedRankings();
     }
@@ -842,7 +846,129 @@ function mergeLivePlayersWithSavedPlayers(livePlayers, savedPlayers, savedCustom
     }
   });
 
+  const hasSavedRankSnapshot = Object.values(customRanks).some((rank) => Number.isFinite(rank) && rank > 0);
+  if (hasSavedRankSnapshot) {
+    return merged;
+  }
+
   return assignDefaultRanksByAdp(merged);
+}
+
+async function fetchAccountState() {
+  let serverState = null;
+
+  if (currentUsername && currentPassword) {
+    try {
+      const response = await fetch(
+        `/api/user-state?username=${encodeURIComponent(currentUsername)}&password=${encodeURIComponent(currentPassword)}`
+      );
+      console.log('[SERVER] Fetch account state status:', response.status);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.state) {
+          serverState = JSON.parse(data.state);
+        }
+      } else if (response.status === 401) {
+        return { loadedState: null, serverState: null, source: 'auth-error' };
+      }
+    } catch (error) {
+      console.warn('[SERVER] Failed to fetch account state:', error);
+    }
+  }
+
+  const backupState = currentUsername
+    ? parseStoredState(localStorage.getItem(getUserStorageKey(currentUsername)))
+    : null;
+  const sessionState = parseStoredState(localStorage.getItem(STORAGE_KEY));
+  const loadedState = pickNewestState(serverState, backupState, sessionState);
+
+  let source = 'none';
+  if (loadedState && loadedState === serverState) {
+    source = 'server';
+  } else if (loadedState && loadedState === backupState) {
+    source = 'backup';
+  } else if (loadedState && loadedState === sessionState) {
+    source = 'session';
+  }
+
+  return { loadedState, serverState, source };
+}
+
+async function restoreAccountStateAfterLiveLoad(prefetched = null) {
+  const { loadedState, serverState, source } = prefetched || (await fetchAccountState());
+
+  if (source === 'auth-error') {
+    showAppModal('Invalid username or password', { title: 'Login failed', type: 'error' });
+    return false;
+  }
+
+  if (!loadedState) {
+    console.log('[STATE] No saved account state found');
+    return restorePersistedRankings();
+  }
+
+  try {
+    const livePlayersSnapshot = Array.isArray(state.players) ? [...state.players] : [];
+    applyLoadedUserState(loadedState, livePlayersSnapshot);
+    console.log('[STATE] Restored account state from', source, 'players:', state.players?.length);
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(getPersistableState()));
+    if (currentUsername) {
+      localStorage.setItem(getUserStorageKey(currentUsername), JSON.stringify(getPersistableState()));
+    }
+
+    const serverTimestamp = getStateTimestamp(serverState);
+    const loadedTimestamp = getStateTimestamp(loadedState);
+    if (currentUsername && loadedTimestamp > serverTimestamp) {
+      await saveState({ awaitServer: true, silent: true });
+    }
+
+    return true;
+  } catch (error) {
+    console.error('[STATE] Failed to restore account state:', error);
+    showAppModal('Failed to load saved data.', { title: 'Load failed', type: 'error' });
+    return false;
+  }
+}
+
+async function verifyServerSavedRankings(expectedCount = 0) {
+  if (!currentUsername || !currentPassword) {
+    return false;
+  }
+
+  try {
+    const response = await fetch(
+      `/api/user-state?username=${encodeURIComponent(currentUsername)}&password=${encodeURIComponent(currentPassword)}`
+    );
+    if (!response.ok) {
+      console.warn('[SERVER] Verify save failed - status:', response.status);
+      return false;
+    }
+
+    const data = await response.json();
+    if (!data.state) {
+      console.warn('[SERVER] Verify save failed - empty server state');
+      return false;
+    }
+
+    const loadedState = JSON.parse(data.state);
+    const savedRanks = loadedState?.savedCustomRanks?.ranks || {};
+    const savedCount = Object.values(savedRanks).filter((rank) => Number.isFinite(rank) && rank > 0).length;
+    console.log('[SERVER] Verify save on server - savedCount:', savedCount, 'expected:', expectedCount);
+
+    if (savedCount === 0) {
+      return false;
+    }
+
+    if (expectedCount > 0 && savedCount < Math.min(expectedCount, 5)) {
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.warn('[SERVER] Verify save failed:', error);
+    return false;
+  }
 }
 
 function assignDefaultRanksByAdp(players) {
@@ -996,60 +1122,8 @@ async function loadStateFromServer() {
     return false;
   }
 
-  console.log('[SERVER] Loading state from server for user:', currentUsername);
-  const livePlayersSnapshot = Array.isArray(state.players) ? [...state.players] : [];
-  let serverState = null;
-
-  try {
-    const response = await fetch(
-      `/api/user-state?username=${encodeURIComponent(currentUsername)}&password=${encodeURIComponent(currentPassword)}`
-    );
-    console.log('[SERVER] Load response status:', response.status);
-    if (response.ok) {
-      const data = await response.json();
-      console.log('[SERVER] Load response data:', data);
-      if (data.state) {
-        serverState = JSON.parse(data.state);
-      }
-    } else {
-      const errorText = await response.text();
-      console.log('[SERVER] Failed to load state - server returned', response.status, errorText);
-      if (response.status === 401) {
-        showAppModal('Invalid username or password', { title: 'Login failed', type: 'error' });
-        return false;
-      }
-    }
-  } catch (error) {
-    console.warn('[SERVER] Failed to load from server, trying local backup:', error);
-  }
-
-  const backupState = parseStoredState(localStorage.getItem(getUserStorageKey(currentUsername)));
-  const sessionState = parseStoredState(localStorage.getItem(STORAGE_KEY));
-  const loadedState = pickNewestState(serverState, backupState, sessionState);
-
-  if (!loadedState) {
-    console.log('[SERVER] No saved state found (first time login)');
-    return restorePersistedRankings();
-  }
-
-  try {
-    applyLoadedUserState(loadedState, livePlayersSnapshot);
-    console.log('[STATE] State loaded successfully, current players:', state.players?.length);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(getPersistableState()));
-    localStorage.setItem(getUserStorageKey(currentUsername), JSON.stringify(getPersistableState()));
-
-    const serverTimestamp = getStateTimestamp(serverState);
-    const loadedTimestamp = getStateTimestamp(loadedState);
-    if (loadedTimestamp > serverTimestamp) {
-      await saveState({ awaitServer: true, silent: true });
-    }
-
-    return true;
-  } catch (error) {
-    console.error('[STATE] Failed to apply loaded state:', error);
-    showAppModal('Failed to load saved data.', { title: 'Load failed', type: 'error' });
-    return false;
-  }
+  const prefetched = await fetchAccountState();
+  return restoreAccountStateAfterLiveLoad(prefetched);
 }
 
 function showUsernameModal() {
@@ -2934,13 +3008,16 @@ function getRankKey(player) {
 function buildSavedCustomRanks() {
   const ranks = {};
   for (const player of state.players) {
-    ranks[getRankKey(player)] = Number(player.myRank);
+    const rank = Number(player.myRank);
+    if (player.manualRank === true && Number.isFinite(rank) && rank > 0) {
+      ranks[getRankKey(player)] = rank;
+    }
   }
 
   return {
     savedAt: Date.now(),
     scoringFormat: state.settings.scoringFormat,
-    count: state.players.length,
+    count: Object.keys(ranks).length,
     ranks
   };
 }
@@ -2955,6 +3032,14 @@ async function saveCustomRankings() {
   }
 
   state.savedCustomRanks = buildSavedCustomRanks();
+  if (!state.savedCustomRanks.count) {
+    showAppModal('No custom rankings to save yet. Upload a CSV or drag players to reorder first.', {
+      title: 'Nothing to save',
+      type: 'error'
+    });
+    return false;
+  }
+
   for (const player of state.players) {
     if (Number.isFinite(Number(player.myRank)) && Number(player.myRank) > 0) {
       player.manualRank = true;
@@ -2962,8 +3047,21 @@ async function saveCustomRankings() {
   }
   state.liveDataStatus = `Saved custom rankings for ${state.savedCustomRanks.count} players.`;
   const saved = await saveState({ awaitServer: true });
+  if (!saved) {
+    return false;
+  }
+
+  const verified = await verifyServerSavedRankings(state.savedCustomRanks.count);
+  if (!verified) {
+    showAppModal(
+      'The server did not confirm your save. Check that Render has a persistent disk at /var/data and DB_PATH=/var/data/adp_profile.db, then try again.',
+      { title: 'Save not confirmed', type: 'error' }
+    );
+    return false;
+  }
+
   render();
-  return saved;
+  return true;
 }
 
 function applySavedCustomRanksToPlayers(players) {
@@ -3649,14 +3747,33 @@ function handleCsvUpload(event) {
   }
   
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = async function(e) {
     try {
       const csvContent = e.target.result;
       const result = parseAndApplyCsvRankings(csvContent);
       
       if (result.success) {
-        showAppModal(`Successfully imported ${result.applied} rankings!`, { title: 'Rankings imported', type: 'success' });
-        saveState();
+        state.savedCustomRanks = buildSavedCustomRanks();
+        if (isUserLoggedIn()) {
+          const saved = await saveState({ awaitServer: true });
+          if (!saved) {
+            showAppModal('CSV imported on this device, but the server save failed. Click Save after checking Render settings.', {
+              title: 'Imported locally only',
+              type: 'error'
+            });
+          } else {
+            showAppModal(`Successfully imported and saved ${result.applied} rankings!`, {
+              title: 'Rankings imported',
+              type: 'success'
+            });
+          }
+        } else {
+          saveState();
+          showAppModal(`Successfully imported ${result.applied} rankings! Log in and click Save to sync across phones.`, {
+            title: 'Rankings imported',
+            type: 'success'
+          });
+        }
         render();
       } else {
         showAppModal(`Error: ${result.error}`, { title: 'Import failed', type: 'error' });
