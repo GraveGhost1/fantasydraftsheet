@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
-from server import init_db, load_adp_profile, save_adp_profile, save_user_state, load_user_state, load_rotoballer_rankings, load_ffpc_rankings, load_yahoo_rankings, load_espn_rankings, load_ghost_rankings
+from server import init_db, load_adp_profile, save_adp_profile, save_user_state, load_user_state, load_rotoballer_rankings, load_ffpc_rankings, load_yahoo_rankings, load_espn_rankings, load_ghost_rankings, DB_PATH
 import os
 from pathlib import Path
 
@@ -22,7 +22,11 @@ def serve_standalone():
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    return jsonify({'ok': True})
+    return jsonify({
+        'ok': True,
+        'dbPath': str(DB_PATH),
+        'dbExists': DB_PATH.exists()
+    })
 
 
 @app.route('/adp-profile', methods=['GET'])

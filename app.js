@@ -622,18 +622,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }, 100);
 
-  // Handle login/logout
-  if (savedUsername && savedPassword) {
-    currentUsername = savedUsername;
-    currentPassword = savedPassword;
-    updateAuthUi();
-    initializeBoardData({ loadServerState: true });
-  } else {
+  // Handle login/logout and initial data load.
+  // Must finish loading saved rankings before rendering, or refresh can overwrite server data.
+  (async () => {
+    if (savedUsername && savedPassword) {
+      currentUsername = savedUsername;
+      currentPassword = savedPassword;
+      updateAuthUi();
+      await initializeBoardData({ loadServerState: true });
+      return;
+    }
+
     currentUsername = null;
     currentPassword = null;
     updateAuthUi();
-    initializeBoardData({ loadServerState: false });
-  }
+    await initializeBoardData({ loadServerState: false });
+  })();
 
   if (loginButton) {
     loginButton.addEventListener('click', () => {
@@ -679,9 +683,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       prepareAccountStateBeforeLiveLoad();
       isHydratingAccountState = true;
+      let loaded = false;
       try {
         await loadLiveRankings();
-        const loaded = await loadStateFromServer();
+        loaded = await loadStateFromServer();
         if (!loaded) {
           restorePersistedRankings();
         }
@@ -705,22 +710,13 @@ document.addEventListener('DOMContentLoaded', () => {
   if (saveRankingsButton) {
     saveRankingsButton.addEventListener('click', async () => {
       const saved = await saveCustomRankings();
-      if (saved) {
-        showAppModal('Your rankings have been saved and will stay when you log back in.', {
-          title: 'Rankings saved',
-          type: 'success'
-        });
-      } else if (isUserLoggedIn()) {
-        showAppModal(
-          'Could not reach the server, but your rankings were saved on this device for your account.',
-          { title: 'Saved locally', type: 'info' }
-        );
-      } else {
-        showAppModal('Your rankings were saved on this device.', {
-          title: 'Rankings saved',
-          type: 'success'
-        });
+      if (!saved) {
+        return;
       }
+      showAppModal('Your rankings have been saved and will sync across phones when you log in.', {
+        title: 'Rankings saved',
+        type: 'success'
+      });
     });
   }
 
@@ -754,9 +750,6 @@ document.addEventListener('DOMContentLoaded', () => {
       render();
     });
   }
-  
-  // Initial render
-  render();
 });
 
 async function initializeBoardData({ loadServerState = false } = {}) {
@@ -1044,6 +1037,13 @@ async function loadStateFromServer() {
     console.log('[STATE] State loaded successfully, current players:', state.players?.length);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(getPersistableState()));
     localStorage.setItem(getUserStorageKey(currentUsername), JSON.stringify(getPersistableState()));
+
+    const serverTimestamp = getStateTimestamp(serverState);
+    const loadedTimestamp = getStateTimestamp(loadedState);
+    if (loadedTimestamp > serverTimestamp) {
+      await saveState({ awaitServer: true, silent: true });
+    }
+
     return true;
   } catch (error) {
     console.error('[STATE] Failed to apply loaded state:', error);
@@ -2946,6 +2946,14 @@ function buildSavedCustomRanks() {
 }
 
 async function saveCustomRankings() {
+  if (!isUserLoggedIn()) {
+    showAppModal('Log in first so your rankings sync across phones and browsers.', {
+      title: 'Login required',
+      type: 'error'
+    });
+    return false;
+  }
+
   state.savedCustomRanks = buildSavedCustomRanks();
   for (const player of state.players) {
     if (Number.isFinite(Number(player.myRank)) && Number(player.myRank) > 0) {
@@ -2955,10 +2963,7 @@ async function saveCustomRankings() {
   state.liveDataStatus = `Saved custom rankings for ${state.savedCustomRanks.count} players.`;
   const saved = await saveState({ awaitServer: true });
   render();
-  if (!isUserLoggedIn()) {
-    return true;
-  }
-  return saved || Boolean(localStorage.getItem(getUserStorageKey(currentUsername)));
+  return saved;
 }
 
 function applySavedCustomRanksToPlayers(players) {
