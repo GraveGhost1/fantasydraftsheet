@@ -1780,6 +1780,10 @@ const API_CONFIG = {
 };
 
 const STORAGE_KEY = 'fantasy-draft-sheet-state';
+
+function getUserStorageKey(username) {
+  return `${STORAGE_KEY}-${username}`;
+}
 const OPENING_TIER_SIZES = [3, 8, 10, 12, 12];
 const TIER_MIN_SIZE = 3;
 const TIER_TARGET_SIZE = 8;
@@ -2304,20 +2308,23 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (logoutButton) {
-    logoutButton.addEventListener('click', () => {
+    logoutButton.addEventListener('click', async () => {
+      if (currentUsername) {
+        await saveState({ awaitServer: true });
+      }
+
       currentUsername = null;
       currentPassword = null;
       localStorage.removeItem('fantasy-draft-username');
       localStorage.removeItem('fantasy-draft-password');
       updateAuthUi();
-      
+
       localStorage.removeItem(STORAGE_KEY);
       Object.assign(state, structuredClone(defaultState));
       autoFillPlayers();
       initializeBoardData({ loadServerState: false });
-      
-      // Don't delete from server - keep the data for next login
-      console.log('[SERVER] Logged out, keeping server data intact');
+
+      console.log('[SERVER] Logged out, account rankings kept for next login');
     });
   }
 
@@ -2353,8 +2360,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (saveRankingsButton) {
-    saveRankingsButton.addEventListener('click', () => {
-      saveCustomRankings();
+    saveRankingsButton.addEventListener('click', async () => {
+      await saveCustomRankings();
+      showAppModal('Your rankings have been saved and will stay when you log back in.', {
+        title: 'Rankings saved',
+        type: 'success'
+      });
     });
   }
 
@@ -2402,9 +2413,10 @@ async function initializeBoardData({ loadServerState = false } = {}) {
   initSleeperSyncFromState();
 }
 
-function mergeLivePlayersWithSavedPlayers(livePlayers, savedPlayers) {
+function mergeLivePlayersWithSavedPlayers(livePlayers, savedPlayers, savedCustomRanks = null) {
   const liveList = Array.isArray(livePlayers) ? livePlayers : [];
   const savedList = Array.isArray(savedPlayers) ? savedPlayers : [];
+  const customRanks = savedCustomRanks?.ranks || {};
   const savedByKey = new Map();
 
   savedList.forEach((player) => {
@@ -2420,13 +2432,18 @@ function mergeLivePlayersWithSavedPlayers(livePlayers, savedPlayers) {
       return livePlayer;
     }
 
-    const keepManualRank = savedPlayer.manualRank === true && Number(savedPlayer.myRank) > 0;
+    const savedSnapshotRank = customRanks[key];
+    const hasSavedSnapshotRank = Number.isFinite(savedSnapshotRank) && savedSnapshotRank > 0;
+    const keepManualRank =
+      (savedPlayer.manualRank === true && Number(savedPlayer.myRank) > 0) || hasSavedSnapshotRank;
 
     return {
       ...livePlayer,
       id: savedPlayer.id || livePlayer.id,
       // Only keep personal/CSV ranks. Otherwise keep the live ADP-based rank.
-      myRank: keepManualRank ? savedPlayer.myRank : livePlayer.myRank,
+      myRank: keepManualRank
+        ? (hasSavedSnapshotRank ? savedSnapshotRank : savedPlayer.myRank)
+        : livePlayer.myRank,
       manualRank: keepManualRank,
       tier: savedPlayer.tier ?? livePlayer.tier,
       posRank: savedPlayer.posRank ?? livePlayer.posRank,
@@ -2490,15 +2507,24 @@ function getPersistableState() {
   return persistable;
 }
 
-async function saveState() {
+async function saveState({ awaitServer = false } = {}) {
   console.log('[STATE] Saving state, user logged in:', !!currentUsername);
   const persistable = getPersistableState();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(persistable));
   if (currentUsername) {
-    saveStateToServer().catch(error => {
+    localStorage.setItem(getUserStorageKey(currentUsername), JSON.stringify(persistable));
+    const serverSave = saveStateToServer().catch((error) => {
       console.error('[SERVER] Failed to save state:', error);
-      showAppModal('Failed to save to server. Your data is saved locally only.', { title: 'Save failed', type: 'error' });
+      if (awaitServer) {
+        showAppModal(
+          'Failed to save to server. Your rankings are saved on this device for your account.',
+          { title: 'Save failed', type: 'error' }
+        );
+      }
     });
+    if (awaitServer) {
+      await serverSave;
+    }
   }
 }
 
@@ -2539,6 +2565,34 @@ async function saveStateToServer() {
   }
 }
 
+function restorePersistedRankings() {
+  if (!state.savedCustomRanks?.ranks || !state.players?.length) {
+    return false;
+  }
+  return applySavedCustomRanksToPlayers(state.players);
+}
+
+function applyLoadedUserState(loadedState, livePlayersSnapshot) {
+  console.log('[STATE] Applying loaded state, players count:', loadedState.players?.length);
+
+  Object.keys(state).forEach((key) => delete state[key]);
+  Object.assign(state, loadedState);
+
+  state.players = mergeLivePlayersWithSavedPlayers(
+    livePlayersSnapshot,
+    state.players,
+    state.savedCustomRanks
+  );
+  restorePersistedRankings();
+
+  if (!state.sleeperSync || typeof state.sleeperSync !== 'object') {
+    state.sleeperSync = structuredClone(defaultState.sleeperSync);
+  }
+  state.sleeperSync.draftId = '';
+  state.sleeperSync.enabled = false;
+  state.autoTiering = false;
+}
+
 async function loadStateFromServer() {
   if (!currentUsername || !currentPassword) {
     console.log('[SERVER] Skipping server load - no credentials');
@@ -2546,57 +2600,56 @@ async function loadStateFromServer() {
   }
 
   console.log('[SERVER] Loading state from server for user:', currentUsername);
+  const livePlayersSnapshot = Array.isArray(state.players) ? [...state.players] : [];
+  let loadedState = null;
+
   try {
-    const response = await fetch(`/api/user-state?username=${encodeURIComponent(currentUsername)}&password=${encodeURIComponent(currentPassword)}`);
+    const response = await fetch(
+      `/api/user-state?username=${encodeURIComponent(currentUsername)}&password=${encodeURIComponent(currentPassword)}`
+    );
     console.log('[SERVER] Load response status:', response.status);
     if (response.ok) {
       const data = await response.json();
       console.log('[SERVER] Load response data:', data);
       if (data.state) {
-        try {
-          const loadedState = JSON.parse(data.state);
-          console.log('[SERVER] Parsed loaded state, players count:', loadedState.players?.length);
-
-          const livePlayersSnapshot = Array.isArray(state.players) ? [...state.players] : [];
-
-          // Replace the entire state instead of shallow merge
-          Object.keys(state).forEach(key => delete state[key]);
-          Object.assign(state, loadedState);
-
-          state.players = mergeLivePlayersWithSavedPlayers(livePlayersSnapshot, state.players);
-
-          if (!state.sleeperSync || typeof state.sleeperSync !== 'object') {
-            state.sleeperSync = structuredClone(defaultState.sleeperSync);
-          }
-          state.sleeperSync.draftId = '';
-          state.sleeperSync.enabled = false;
-          
-          // Disable auto-tiering to preserve manual tier assignments
-          state.autoTiering = false;
-          console.log('[SERVER] State loaded successfully, current players:', state.players?.length);
-          return true;
-        } catch (error) {
-          console.error('[SERVER] Failed to parse state:', error);
-          showAppModal('Failed to load saved data from server.', { title: 'Load failed', type: 'error' });
-          return false;
-        }
-      } else {
-        console.log('[SERVER] No saved state found (first time login)');
-        return false; // First time login, no error
+        loadedState = JSON.parse(data.state);
       }
     } else {
       const errorText = await response.text();
       console.log('[SERVER] Failed to load state - server returned', response.status, errorText);
       if (response.status === 401) {
         showAppModal('Invalid username or password', { title: 'Login failed', type: 'error' });
-      } else {
-        showAppModal(`Failed to load from server: ${response.status} - ${errorText}`, { title: 'Load failed', type: 'error' });
+        return false;
       }
-      return false;
     }
   } catch (error) {
-    console.error('[SERVER] Failed to load state:', error);
-    showAppModal(`Failed to load from server: ${error.message}`, { title: 'Load failed', type: 'error' });
+    console.warn('[SERVER] Failed to load from server, trying local backup:', error);
+  }
+
+  if (!loadedState) {
+    const localBackup = localStorage.getItem(getUserStorageKey(currentUsername));
+    if (localBackup) {
+      try {
+        loadedState = JSON.parse(localBackup);
+        console.log('[STATE] Loaded rankings from local backup for user:', currentUsername);
+      } catch (error) {
+        console.error('[STATE] Failed to parse local backup:', error);
+      }
+    }
+  }
+
+  if (!loadedState) {
+    console.log('[SERVER] No saved state found (first time login)');
+    return false;
+  }
+
+  try {
+    applyLoadedUserState(loadedState, livePlayersSnapshot);
+    console.log('[STATE] State loaded successfully, current players:', state.players?.length);
+    return true;
+  } catch (error) {
+    console.error('[STATE] Failed to apply loaded state:', error);
+    showAppModal('Failed to load saved data.', { title: 'Load failed', type: 'error' });
     return false;
   }
 }
@@ -4493,10 +4546,15 @@ function buildSavedCustomRanks() {
   };
 }
 
-function saveCustomRankings() {
+async function saveCustomRankings() {
   state.savedCustomRanks = buildSavedCustomRanks();
+  for (const player of state.players) {
+    if (Number.isFinite(Number(player.myRank)) && Number(player.myRank) > 0) {
+      player.manualRank = true;
+    }
+  }
   state.liveDataStatus = `Saved custom rankings for ${state.savedCustomRanks.count} players.`;
-  saveState();
+  await saveState({ awaitServer: true });
   render();
 }
 
