@@ -144,6 +144,7 @@ let sleeperSyncInFlight = false;
 let sleeperSyncLoopActive = false;
 let currentUsername = null;
 let currentPassword = null;
+let isHydratingAccountState = false;
 
 function isUserLoggedIn() {
   return Boolean(currentUsername && currentPassword);
@@ -677,10 +678,15 @@ document.addEventListener('DOMContentLoaded', () => {
       hideUsernameModal();
 
       prepareAccountStateBeforeLiveLoad();
-      await loadLiveRankings();
-      const loaded = await loadStateFromServer();
-      if (!loaded) {
-        restorePersistedRankings();
+      isHydratingAccountState = true;
+      try {
+        await loadLiveRankings();
+        const loaded = await loadStateFromServer();
+        if (!loaded) {
+          restorePersistedRankings();
+        }
+      } finally {
+        isHydratingAccountState = false;
       }
       render();
       initSleeperSyncFromState();
@@ -754,14 +760,19 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initializeBoardData({ loadServerState = false } = {}) {
-  if (loadServerState) {
-    prepareAccountStateBeforeLiveLoad();
-  }
-  await loadLiveRankings();
-  if (loadServerState) {
-    await loadStateFromServer();
-  } else {
-    restorePersistedRankings();
+  isHydratingAccountState = true;
+  try {
+    if (loadServerState) {
+      prepareAccountStateBeforeLiveLoad();
+    }
+    await loadLiveRankings();
+    if (loadServerState) {
+      await loadStateFromServer();
+    } else {
+      restorePersistedRankings();
+    }
+  } finally {
+    isHydratingAccountState = false;
   }
   render();
   initSleeperSyncFromState();
@@ -883,7 +894,11 @@ function getPersistableState() {
   return persistable;
 }
 
-async function saveState({ awaitServer = false } = {}) {
+async function saveState({ awaitServer = false, silent = false } = {}) {
+  if (isHydratingAccountState && !awaitServer) {
+    return true;
+  }
+
   console.log('[STATE] Saving state, user logged in:', !!currentUsername);
   state.updatedAt = Date.now();
   syncSavedCustomRanksSnapshot();
@@ -891,7 +906,10 @@ async function saveState({ awaitServer = false } = {}) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(persistable));
   if (currentUsername) {
     localStorage.setItem(getUserStorageKey(currentUsername), JSON.stringify(persistable));
-    const serverSave = saveStateToServer().catch((error) => {
+    if (isHydratingAccountState && !awaitServer) {
+      return true;
+    }
+    const serverSave = saveStateToServer({ silent: silent || !awaitServer }).catch((error) => {
       console.error('[SERVER] Failed to save state:', error);
       return false;
     });
@@ -902,7 +920,7 @@ async function saveState({ awaitServer = false } = {}) {
   return true;
 }
 
-async function saveStateToServer() {
+async function saveStateToServer({ silent = false } = {}) {
   if (!currentUsername || !currentPassword) {
     console.log('[SERVER] Skipping server save - no credentials');
     return false;
@@ -932,17 +950,21 @@ async function saveStateToServer() {
     }
     const errorText = await response.text();
     console.error('[SERVER] Save failed - status:', response.status, 'error:', errorText);
-    showAppModal(
-      `Failed to save to server: ${response.status} - ${errorText}\n\nUse python server.py and open http://localhost:8000. Current URL: ${window.location.href}`,
-      { title: 'Save failed', type: 'error' }
-    );
+    if (!silent) {
+      showAppModal(
+        `Failed to save to server: ${response.status} - ${errorText}\n\nCurrent URL: ${window.location.href}`,
+        { title: 'Save failed', type: 'error' }
+      );
+    }
     return false;
   } catch (error) {
     console.error('[SERVER] Failed to save state:', error);
-    showAppModal(
-      `Failed to save to server: ${error.message}\n\nUse python server.py and open http://localhost:8000. Current URL: ${window.location.href}`,
-      { title: 'Save failed', type: 'error' }
-    );
+    if (!silent) {
+      showAppModal(
+        `Failed to save to server: ${error.message}\n\nCurrent URL: ${window.location.href}`,
+        { title: 'Save failed', type: 'error' }
+      );
+    }
     return false;
   }
 }
@@ -1020,6 +1042,8 @@ async function loadStateFromServer() {
   try {
     applyLoadedUserState(loadedState, livePlayersSnapshot);
     console.log('[STATE] State loaded successfully, current players:', state.players?.length);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(getPersistableState()));
+    localStorage.setItem(getUserStorageKey(currentUsername), JSON.stringify(getPersistableState()));
     return true;
   } catch (error) {
     console.error('[STATE] Failed to apply loaded state:', error);
@@ -1682,7 +1706,7 @@ async function render() {
   calculatePositionalRanks();
   renderDraftBoard();
   renderDraftedPlayersSection();
-  saveState();
+  saveState({ silent: true });
 }
 
 function isExpertMetricSelected() {

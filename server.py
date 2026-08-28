@@ -12,7 +12,11 @@ from urllib.parse import parse_qs, urlparse, unquote
 ROOT = Path(__file__).resolve().parent
 PORT = int(os.environ.get('PORT', 8000))
 PROXY_TIMEOUT_SECONDS = 8
-DB_PATH = ROOT / 'adp_profile.db'
+DB_PATH = Path(os.environ.get('DB_PATH', ROOT / 'adp_profile.db'))
+
+
+def ensure_db_directory():
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 # API configurations
 FANTASYPROS_API_KEY = 'PNnzNP9Brm5ZdldankRwc8l6Z1z9HpJR1KKEQTjF'
@@ -233,6 +237,8 @@ def load_espn_rankings():
         return {'error': str(exc)}
 
 def init_db():
+    ensure_db_directory()
+    print(f'[DB] Using database at {DB_PATH}', flush=True)
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute(
             '''
