@@ -170,6 +170,7 @@ select {
   flex: 1 1 280px;
   max-width: 420px;
   min-width: 0;
+  gap: 8px;
 }
 
 .settings-bar {
@@ -263,7 +264,9 @@ select {
 
 .nav-search .compact-input {
   flex: 1 1 auto;
+  width: 100%;
   min-width: 0;
+  max-width: 100%;
   min-height: 32px;
   padding: 0 12px;
   border: 0;
