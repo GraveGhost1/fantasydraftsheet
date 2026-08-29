@@ -236,7 +236,7 @@
         <div id="csv-help" class="csv-help-banner">
           <div class="csv-help-copy">
             <strong>Upload your rankings</strong>
-            <p>Use <em>Import</em> to load a <code>.csv</code> file and <em>Export</em> to save your current rankings. The file needs a player name column (<code>Player</code> or <code>Name</code>) and a rank column (<code>RK</code>, <code>Personal Rank</code>, or <code>Rank</code>). Max import size 5MB.</p>
+            <p>Drag players to set your ranks, then <em>Export</em> to save. <em>Import</em> restores a saved sheet (needs <code>Player</code> and <code>RK</code> columns). Max import size 5MB.</p>
           </div>
           <button type="button" id="csv-help-dismiss" class="nav-btn csv-help-dismiss" aria-label="Hide CSV help">Got it</button>
         </div>
@@ -257,6 +257,7 @@
                 <option value="all">All ADP Sources</option>
                 <option value="espn">ESPN</option>
                 <option value="yahoo">Yahoo</option>
+                <option value="sleeper">Sleeper</option>
                 <option value="rotoballer">Underdog</option>
                 <option value="ffpc">FFPC</option>
                 <option value="average">Average ADP</option>
@@ -317,6 +318,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=20260828-export"></script>
+    <script src="app.js?v=20260828-vorp-tiering"></script>
   </body>
 </html>

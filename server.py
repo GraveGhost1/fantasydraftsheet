@@ -24,6 +24,19 @@ FANTASYNERDS_API_KEY = 'TEST'
 THE_ODDS_API_KEY = '14c838df8c4ec407c40336ca9594213b'
 
 
+def parse_csv_points(row):
+    """Prefer current-season projections over prior-year actual points."""
+    for key in ('PTS (Projections)', 'PTS'):
+        raw = row.get(key)
+        if raw in (None, ''):
+            continue
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            continue
+    return 0
+
+
 def load_rotoballer_rankings():
     """Load and parse the Underdog/Rotoballer CSV rankings file"""
     csv_path = ROOT / 'rotoballer-rankings.csv'
@@ -43,7 +56,7 @@ def load_rotoballer_rankings():
                         'team': row.get('Team', ''),
                         'bye': row.get('BYE', ''),
                         'opponent': row.get('Opp', ''),
-                        'points': float(row.get('PTS', 0)) if row.get('PTS') else 0,
+                        'points': parse_csv_points(row),
                         'sosRank': int(row.get('SoS Rank', 0)) if row.get('SoS Rank') else 0,
                         'adpUnderdog': float(row.get('ADP (Underdog)', 0)) if row.get('ADP (Underdog)') else 0,
                         'posRank': row.get('P-RK', ''),
@@ -109,7 +122,7 @@ def load_ffpc_rankings():
                         'team': row.get('Team', ''),
                         'bye': row.get('BYE', ''),
                         'opponent': row.get('Opp', ''),
-                        'points': float(row.get('PTS', 0)) if row.get('PTS') else 0,
+                        'points': parse_csv_points(row),
                         'sosRank': int(row.get('SoS Rank', 0)) if row.get('SoS Rank') else 0,
                         'adpFFPC': float(row.get('ADP (FFPC)', 0)) if row.get('ADP (FFPC)') else 0,
                         'posRank': row.get('P-RK', ''),
@@ -144,7 +157,7 @@ def load_ffpc_rankings():
                         'team': row.get('Team', ''),
                         'bye': row.get('BYE', ''),
                         'opponent': row.get('Opp', ''),
-                        'points': float(row.get('PTS', 0)) if row.get('PTS') else 0,
+                        'points': parse_csv_points(row),
                         'sosRank': int(row.get('SoS Rank', 0)) if row.get('SoS Rank') else 0,
                         'adpFFPC': float(row.get('ADP (FFPC)', 0)) if row.get('ADP (FFPC)') else 0,
                         'posRank': row.get('P-RK', ''),
@@ -181,7 +194,7 @@ def load_yahoo_rankings():
                         'team': row.get('Team', ''),
                         'bye': row.get('BYE', ''),
                         'opponent': row.get('Opp', ''),
-                        'points': float(row.get('PTS', 0)) if row.get('PTS') else 0,
+                        'points': parse_csv_points(row),
                         'sosRank': int(row.get('SoS Rank', 0)) if row.get('SoS Rank') else 0,
                         'adpYahoo': float(row.get('ADP (Y!)', 0)) if row.get('ADP (Y!)') else 0,
                         'posRank': row.get('P-RK', ''),
@@ -218,7 +231,7 @@ def load_espn_rankings():
                         'team': row.get('Team', ''),
                         'bye': row.get('BYE', ''),
                         'opponent': row.get('Opp', ''),
-                        'points': float(row.get('PTS', 0)) if row.get('PTS') else 0,
+                        'points': parse_csv_points(row),
                         'sosRank': int(row.get('SoS Rank', 0)) if row.get('SoS Rank') else 0,
                         'adpESPN': float(row.get('ADP (ESPN)', 0)) if row.get('ADP (ESPN)') else 0,
                         'posRank': row.get('P-RK', ''),
@@ -234,6 +247,43 @@ def load_espn_rankings():
         return {'players': players}
     except Exception as exc:
         print(f'[ESPN] Error loading CSV: {exc}', flush=True)
+        return {'error': str(exc)}
+
+def load_sleeper_rankings():
+    """Load and parse the Sleeper CSV rankings file"""
+    csv_path = ROOT / 'sleeper-rankings.csv'
+    if not csv_path.exists():
+        return {'error': 'Sleeper rankings file not found'}
+
+    try:
+        players = []
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                try:
+                    player = {
+                        'rank': int(row.get('RK', 0)),
+                        'name': row.get('Player', ''),
+                        'position': row.get('Pos', ''),
+                        'team': row.get('Team', ''),
+                        'bye': row.get('BYE', ''),
+                        'opponent': row.get('Opp', ''),
+                        'points': parse_csv_points(row),
+                        'sosRank': int(row.get('SoS Rank', 0)) if row.get('SoS Rank') else 0,
+                        'adpSleeper': float(row.get('ADP (Sleeper)', 0)) if row.get('ADP (Sleeper)') else 0,
+                        'posRank': row.get('P-RK', ''),
+                        'auctionValue': row.get('Auction $', ''),
+                        'targetRound': row.get('Target Round', ''),
+                        'expertRank': int(row.get('RK', 0))
+                    }
+                    players.append(player)
+                except (ValueError, KeyError) as e:
+                    print(f'[SLEEPER] Error parsing row: {e}', flush=True)
+                    continue
+
+        return {'players': players}
+    except Exception as exc:
+        print(f'[SLEEPER] Error loading CSV: {exc}', flush=True)
         return {'error': str(exc)}
 
 def init_db():
@@ -484,6 +534,10 @@ class Handler(BaseHTTPRequestHandler):
             self.handle_espn(parsed)
             return
 
+        if parsed.path == '/api/sleeper':
+            self.handle_sleeper(parsed)
+            return
+
         if parsed.path in ('/', '/index.html'):
             target = ROOT / 'index.html'
         else:
@@ -716,6 +770,25 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(result_json)
         except Exception as exc:
             print(f'[ESPN] ERROR: {type(exc).__name__}: {exc}', flush=True)
+            self.send_response(500)
+            self._set_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': str(exc)}).encode('utf-8'))
+
+    def handle_sleeper(self, parsed):
+        """Serve Sleeper rankings from local CSV file"""
+        try:
+            data = load_sleeper_rankings()
+            result_json = json.dumps(data).encode('utf-8')
+            print(f'[SLEEPER] Serving {len(data.get("players", []))} players', flush=True)
+
+            self.send_response(200)
+            self._set_cors_headers()
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(result_json)
+        except Exception as exc:
+            print(f'[SLEEPER] ERROR: {type(exc).__name__}: {exc}', flush=True)
             self.send_response(500)
             self._set_cors_headers()
             self.end_headers()

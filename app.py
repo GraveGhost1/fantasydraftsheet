@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
-from server import init_db, load_adp_profile, save_adp_profile, save_user_state, load_user_state, load_rotoballer_rankings, load_ffpc_rankings, load_yahoo_rankings, load_espn_rankings, load_ghost_rankings, DB_PATH
+from server import init_db, load_adp_profile, save_adp_profile, save_user_state, load_user_state, load_rotoballer_rankings, load_ffpc_rankings, load_yahoo_rankings, load_espn_rankings, load_sleeper_rankings, load_ghost_rankings, DB_PATH
 import os
 from pathlib import Path
 
@@ -142,6 +142,15 @@ def get_yahoo_rankings():
 def get_espn_rankings():
     try:
         data = load_espn_rankings()
+        return jsonify(data)
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+
+@app.route('/api/sleeper', methods=['GET'])
+def get_sleeper_rankings():
+    try:
+        data = load_sleeper_rankings()
         return jsonify(data)
     except Exception as exc:
         return jsonify({'error': str(exc)}), 500

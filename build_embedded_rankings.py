@@ -32,7 +32,7 @@ def load_yahoo():
                     'name': row.get('Player', ''),
                     'position': row.get('Pos', ''),
                     'team': row.get('Team', ''),
-                    'adpYahoo': float(row.get('ADP (Yahoo)', 0) or 0),
+                    'adpYahoo': float(row.get('ADP (Y!)', 0) or 0),
                 }
             )
     return {'players': players}
@@ -70,12 +70,29 @@ def load_ffpc():
     return {'players': players}
 
 
+def load_sleeper():
+    players = []
+    with open(ROOT / 'sleeper-rankings.csv', encoding='utf-8') as handle:
+        for row in csv.DictReader(handle):
+            players.append(
+                {
+                    'rank': int(row.get('RK', 0) or 0),
+                    'name': row.get('Player', ''),
+                    'position': row.get('Pos', ''),
+                    'team': row.get('Team', ''),
+                    'adpSleeper': float(row.get('ADP (Sleeper)', 0) or 0),
+                }
+            )
+    return {'players': players}
+
+
 def main():
     payload = {
         'espn': load_espn(),
         'yahoo': load_yahoo(),
         'rotoballer': load_rotoballer(),
         'ffpc': load_ffpc(),
+        'sleeper': load_sleeper(),
     }
     print(json.dumps(payload, separators=(',', ':')))
 

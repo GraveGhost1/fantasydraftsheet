@@ -123,14 +123,17 @@ const TIER_TARGET_SIZE = 8;
 const TIER_HARD_MAX = 12;
 const ADP_SOFT_CUT_GAP = 1.75;
 const POSITIONAL_CLIFF_WEIGHT = 0.35;
-const POSITIONAL_POINT_MIN_DROP = {
-  QB: 10,
-  RB: 7,
-  WR: 9,
-  TE: 6,
-  PK: 4,
-  K: 4,
-  DEF: 4
+const DEFAULT_LEAGUE_TEAMS = 12;
+const VORP_CLIFF_MIN_DROP = {
+  QB: 8,
+  RB: 8,
+  WR: 8,
+  TE: 8,
+  PK: 6,
+  K: 6,
+  DEF: 6,
+  DST: 6,
+  D: 6
 };
 
 const SLEEPER_SYNC_INTERVAL_MS = 1000;
@@ -254,7 +257,7 @@ if (typeof state.autoTiering !== 'boolean') {
 if (!state.positionFilter) {
   state.positionFilter = 'ALL';
 }
-const VALID_ADP_SOURCES = new Set(['all', 'espn', 'yahoo', 'rotoballer', 'ffpc', 'average', 'expert']);
+const VALID_ADP_SOURCES = new Set(['all', 'espn', 'yahoo', 'sleeper', 'rotoballer', 'ffpc', 'average', 'expert']);
 if (!VALID_ADP_SOURCES.has(state.adpSource)) {
   state.adpSource = 'all';
 }
@@ -550,7 +553,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const resetBoardButton = document.getElementById('reset-board');
   if (resetBoardButton) {
     resetBoardButton.addEventListener('click', () => {
-      if (confirm('Refresh the board? This clears drafted status (except manual picks) and rebuilds tiers from projected-point cliffs.')) {
+      if (confirm('Refresh the board? This clears drafted status (except manual picks) and rebuilds tiers from ADP and VORP positional cliffs.')) {
         resetDraftBoard();
       }
     });
@@ -1267,6 +1270,7 @@ function compareActiveRankingOrder(a, b) {
     || sortKey === 'averageAdp'
     || sortKey === 'espn'
     || sortKey === 'yahoo'
+    || sortKey === 'sleeper'
     || sortKey === 'rotoballer'
     || sortKey === 'ffpc'
   ) {
@@ -1442,6 +1446,85 @@ function getProjectedPoints(player) {
   return Number.isFinite(points) && points > 0 ? points : null;
 }
 
+function getReplacementRankForPosition(position) {
+  const normalized = normalizePositionCode(position);
+  const settings = state.settings || {};
+  const teams = DEFAULT_LEAGUE_TEAMS;
+
+  switch (normalized) {
+    case 'QB':
+      return settings.superflex ? teams * 2 : Math.max(teams, (settings.qbSlots || 1) * teams);
+    case 'RB':
+      return Math.max(teams, (settings.rbSlots || 2) * teams);
+    case 'WR':
+      return Math.max(teams, (settings.wrSlots || 3) * teams);
+    case 'TE':
+      return Math.max(teams, (settings.teSlots || 1) * teams);
+    case 'K':
+    case 'PK':
+      return teams;
+    case 'DEF':
+    case 'DST':
+    case 'D':
+      return teams;
+    default:
+      return teams;
+  }
+}
+
+function buildReplacementBaselines(players) {
+  const byPosition = {};
+
+  (players || []).forEach((player) => {
+    const position = normalizePositionCode(player.position);
+    if (!position || getProjectedPoints(player) == null) {
+      return;
+    }
+    if (!byPosition[position]) {
+      byPosition[position] = [];
+    }
+    byPosition[position].push(player);
+  });
+
+  const baselines = new Map();
+
+  Object.keys(byPosition).forEach((position) => {
+    const ranked = byPosition[position]
+      .slice()
+      .sort((a, b) => getProjectedPoints(b) - getProjectedPoints(a) || (a.myRank || 0) - (b.myRank || 0));
+
+    const replacementRank = getReplacementRankForPosition(position);
+    const replacementIndex = Math.min(replacementRank, ranked.length) - 1;
+    const replacementPlayer = ranked[Math.max(0, replacementIndex)];
+    const baseline = getProjectedPoints(replacementPlayer);
+
+    if (Number.isFinite(baseline) && baseline > 0) {
+      baselines.set(position, baseline);
+    }
+  });
+
+  return baselines;
+}
+
+function getValueOverReplacement(player, replacementBaselines) {
+  const points = getProjectedPoints(player);
+  if (points == null) {
+    return null;
+  }
+
+  const position = normalizePositionCode(player.position);
+  const baseline = replacementBaselines?.get(position);
+  if (!Number.isFinite(baseline)) {
+    return points;
+  }
+
+  return points - baseline;
+}
+
+function playersSharePosition(a, b) {
+  return normalizePositionCode(a?.position) === normalizePositionCode(b?.position);
+}
+
 function mergeProjectedPoints(existing, incoming) {
   const next = Number(incoming);
   if (!Number.isFinite(next) || next <= 0) {
@@ -1469,6 +1552,7 @@ function applyCsvPlayerFields(allPlayers, player, sourceFields = {}) {
       team: player.team,
       espn: null,
       yahoo: null,
+      sleeper: null,
       rotoballer: null,
       ffpc: null,
       sosRank: player.sosRank || null,
@@ -1492,6 +1576,7 @@ function applyCsvPlayerFields(allPlayers, player, sourceFields = {}) {
 }
 
 function buildPositionalCliffByPlayerId(players) {
+  const replacementBaselines = buildReplacementBaselines(players);
   const byPosition = {};
   (players || []).forEach((player) => {
     const position = normalizePositionCode(player.position);
@@ -1505,8 +1590,14 @@ function buildPositionalCliffByPlayerId(players) {
 
   Object.keys(byPosition).forEach((position) => {
     const ranked = byPosition[position]
-      .filter((player) => getProjectedPoints(player) != null)
-      .sort((a, b) => getProjectedPoints(b) - getProjectedPoints(a) || (a.myRank || 0) - (b.myRank || 0));
+      .filter((player) => getValueOverReplacement(player, replacementBaselines) != null)
+      .sort((a, b) => {
+        const vorpDiff = getValueOverReplacement(b, replacementBaselines) - getValueOverReplacement(a, replacementBaselines);
+        if (vorpDiff !== 0) {
+          return vorpDiff;
+        }
+        return (a.myRank || 0) - (b.myRank || 0);
+      });
 
     if (ranked.length < 2) {
       return;
@@ -1514,13 +1605,16 @@ function buildPositionalCliffByPlayerId(players) {
 
     const gaps = [];
     for (let index = 0; index < ranked.length - 1; index += 1) {
-      gaps.push(getProjectedPoints(ranked[index]) - getProjectedPoints(ranked[index + 1]));
+      gaps.push(
+        getValueOverReplacement(ranked[index], replacementBaselines)
+        - getValueOverReplacement(ranked[index + 1], replacementBaselines)
+      );
     }
 
     const mean = gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length;
     const variance = gaps.reduce((sum, gap) => sum + ((gap - mean) ** 2), 0) / gaps.length;
     const stdDev = Math.sqrt(variance);
-    const minDrop = POSITIONAL_POINT_MIN_DROP[position] ?? 6;
+    const minDrop = VORP_CLIFF_MIN_DROP[position] ?? 8;
     const threshold = Math.max(minDrop, mean + stdDev);
 
     for (let index = 0; index < ranked.length - 1; index += 1) {
@@ -1549,8 +1643,11 @@ function findBestTierBreakIndex(players, start, maxCount, cliffGapById = null) {
 
   for (let index = earliest; index <= latest && index < players.length; index += 1) {
     const previous = players[index - 1];
-    const adpGap = getTierBreakValue(players[index]) - getTierBreakValue(previous);
-    const positionalGap = cliffGapById?.get(previous.id) || 0;
+    const current = players[index];
+    const adpGap = getTierBreakValue(current) - getTierBreakValue(previous);
+    const positionalGap = playersSharePosition(previous, current)
+      ? (cliffGapById?.get(previous.id) || 0)
+      : 0;
     const size = index - start;
     const score = adpGap
       + (POSITIONAL_CLIFF_WEIGHT * positionalGap)
@@ -1642,7 +1739,9 @@ function applySmartTiering({ mode = null } = {}) {
       const adpGap = getTierBreakValue(player, tierMode) - getTierBreakValue(previous, tierMode);
       const positionalGap = cliffGapById.get(previous.id) || 0;
       const forcedCut = playersInTier >= capacity;
-      const cliffCut = playersInTier >= TIER_MIN_SIZE && positionalGap > 0;
+      const cliffCut = playersInTier >= TIER_MIN_SIZE
+        && positionalGap > 0
+        && playersSharePosition(previous, player);
       const softAdpCut = playersInTier >= TIER_TARGET_SIZE && adpGap >= ADP_SOFT_CUT_GAP;
 
       if (forcedCut || cliffCut || softAdpCut) {
@@ -1753,7 +1852,11 @@ function scorePlayer(player, settings) {
 }
 
 function sortBy(key) {
-  if (state.sort.key === key) {
+  const sameColumn = key === state.sort.key
+    || (key === 'adp' && state.sort.key === 'averageAdp')
+    || (key === 'averageAdp' && state.sort.key === 'adp');
+
+  if (sameColumn) {
     state.sort.direction = state.sort.direction === 'asc' ? 'desc' : 'asc';
   } else {
     state.sort.key = key;
@@ -3149,6 +3252,116 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_FETCH_TIM
   }
 }
 
+const LOCAL_RANKINGS_CSV_SOURCES = {
+  espn: { file: 'espn-rankings.csv', adpField: 'adpESPN', adpColumn: 'ADP (ESPN)' },
+  yahoo: { file: 'yahoo-rankings.csv', adpField: 'adpYahoo', adpColumn: 'ADP (Y!)' },
+  sleeper: { file: 'sleeper-rankings.csv', adpField: 'adpSleeper', adpColumn: 'ADP (Sleeper)' },
+  rotoballer: { file: 'rotoballer-rankings.csv', adpField: 'adpUnderdog', adpColumn: 'ADP (Underdog)' },
+  ffpc: { file: 'ffpc-rankings.csv', adpField: 'adpFFPC', adpColumn: 'ADP (FFPC)' }
+};
+
+function parseLocalRankingsCsv(csvContent, { adpField, adpColumn }) {
+  const lines = csvContent.split('\n').filter((line) => line.trim());
+  if (lines.length < 2) {
+    return { players: [] };
+  }
+
+  const headers = lines[0].split(',').map((header) => header.trim());
+  const adpIndex = headers.indexOf(adpColumn);
+  const rankIndex = headers.indexOf('RK');
+  const nameIndex = headers.findIndex((header) => header.toLowerCase().includes('player'));
+  const posIndex = headers.findIndex((header) => header.toLowerCase() === 'pos');
+  const teamIndex = headers.findIndex((header) => header.toLowerCase() === 'team');
+  const sosIndex = headers.findIndex((header) => header.toLowerCase() === 'sos rank');
+  const pointsIndex = headers.findIndex((header) => header.toLowerCase() === 'pts (projections)');
+  const fallbackPointsIndex = pointsIndex >= 0
+    ? -1
+    : headers.findIndex((header) => header.toLowerCase() === 'pts');
+  const resolvedPointsIndex = pointsIndex >= 0 ? pointsIndex : fallbackPointsIndex;
+
+  if (nameIndex === -1 || rankIndex === -1) {
+    return { players: [] };
+  }
+
+  const players = [];
+  for (let i = 1; i < lines.length; i += 1) {
+    const columns = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (const char of lines[i]) {
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        columns.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    columns.push(current.trim());
+
+    const name = columns[nameIndex]?.replace(/"/g, '').trim();
+    const rank = parseInt(columns[rankIndex], 10);
+    if (!name || !Number.isFinite(rank)) {
+      continue;
+    }
+
+    const adpValue = adpIndex >= 0 ? parseFloat(columns[adpIndex]) : rank;
+    const player = {
+      rank,
+      name,
+      position: posIndex >= 0 ? columns[posIndex] : '',
+      team: teamIndex >= 0 ? columns[teamIndex] : '',
+      expertRank: rank
+    };
+
+    if (Number.isFinite(adpValue)) {
+      player[adpField] = adpValue;
+    }
+    if (sosIndex >= 0) {
+      const sosRank = parseInt(columns[sosIndex], 10);
+      if (Number.isFinite(sosRank)) {
+        player.sosRank = sosRank;
+      }
+    }
+    if (resolvedPointsIndex >= 0) {
+      const points = parseFloat(columns[resolvedPointsIndex]);
+      if (Number.isFinite(points)) {
+        player.points = points;
+      }
+    }
+
+    players.push(player);
+  }
+
+  return { players };
+}
+
+async function fetchLocalRankingsCsv(endpoint, label) {
+  const source = LOCAL_RANKINGS_CSV_SOURCES[endpoint];
+  if (!source) {
+    return null;
+  }
+
+  try {
+    const response = await fetchWithTimeout(`/${source.file}`, {}, DEFAULT_FETCH_TIMEOUT_MS);
+    if (!response.ok) {
+      return null;
+    }
+    const csvContent = await response.text();
+    const parsed = parseLocalRankingsCsv(csvContent, source);
+    if (parsed.players?.length) {
+      console.log(`[CSV] Loaded ${parsed.players.length} players from ${source.file} for ${label}`);
+      return parsed;
+    }
+  } catch (error) {
+    console.warn(`[CSV] Failed to load ${source.file}:`, error?.message || error);
+  }
+
+  return null;
+}
+
 async function fetchLocalRankingsApi(endpoint, label) {
   const embedded = typeof window !== 'undefined' ? window.EMBEDDED_RANKINGS?.[endpoint] : null;
   if (embedded?.players) {
@@ -3157,13 +3370,32 @@ async function fetchLocalRankingsApi(endpoint, label) {
   }
 
   try {
-    return await fetchJsonWithProxyFallback(`/api/${endpoint}`, label);
+    const response = await fetchWithTimeout(`/api/${endpoint}`, {}, DEFAULT_FETCH_TIMEOUT_MS);
+    if (!response.ok) {
+      throw new Error(`${label} unavailable (${response.status})`);
+    }
+    const data = await response.json();
+    if (data?.error) {
+      throw new Error(data.error);
+    }
+    if (data?.players?.length) {
+      return data;
+    }
+    throw new Error(`${label} returned no players`);
   } catch (error) {
     if (embedded?.players) {
       console.log(`[CSV] Falling back to embedded ${label} after API failure`);
       return embedded;
     }
-    throw error;
+
+    const csvData = await fetchLocalRankingsCsv(endpoint, label);
+    if (csvData?.players?.length) {
+      console.log(`[CSV] Using ${label} from local CSV fallback`);
+      return csvData;
+    }
+
+    console.warn(`[CSV] ${label} unavailable:`, error?.message || error);
+    return { players: [] };
   }
 }
 
@@ -3235,7 +3467,9 @@ function getAverageAdp(player) {
   if (player.yahoo !== null && player.yahoo !== undefined) {
     values.push(player.yahoo);
   }
-  if (player.sleeperAdp !== null && player.sleeperAdp !== undefined) {
+  if (player.sleeper !== null && player.sleeper !== undefined) {
+    values.push(player.sleeper);
+  } else if (player.sleeperAdp !== null && player.sleeperAdp !== undefined) {
     values.push(player.sleeperAdp);
   }
   if (player.rotoballer !== null && player.rotoballer !== undefined) {
@@ -3314,6 +3548,7 @@ function renderRankingStatus() {
     all: 'All ADP',
     espn: 'ESPN',
     yahoo: 'Yahoo',
+    sleeper: 'Sleeper',
     rotoballer: 'Underdog',
     ffpc: 'FFPC',
     average: 'Average ADP',
@@ -3475,10 +3710,11 @@ async function loadLiveRankings() {
   render();
 
   try {
-    // Fetch local CSV rankings for ESPN, Yahoo, Underdog, and FFPC
-    const [espnResponse, yahooResponse, rotoballerResponse, ffpcResponse] = await Promise.all([
+    // Fetch local CSV rankings for ESPN, Yahoo, Sleeper, Underdog, and FFPC
+    const [espnResponse, yahooResponse, sleeperResponse, rotoballerResponse, ffpcResponse] = await Promise.all([
       fetchLocalRankingsApi('espn', 'ESPN rankings'),
       fetchLocalRankingsApi('yahoo', 'Yahoo rankings'),
+      fetchLocalRankingsApi('sleeper', 'Sleeper rankings'),
       fetchLocalRankingsApi('rotoballer', 'Underdog rankings'),
       fetchLocalRankingsApi('ffpc', 'FFPC rankings')
     ]);
@@ -3501,6 +3737,15 @@ async function loadLiveRankings() {
       yahooResponse.players.forEach(yahooPlayer => {
         const normalizedName = normalizeName(yahooPlayer.name);
         yahooMap.set(normalizedName, yahooPlayer.adpYahoo || yahooPlayer.rank);
+      });
+    }
+
+    // Create a map of Sleeper rankings by normalized name for quick lookup
+    const sleeperMap = new Map();
+    if (sleeperResponse && sleeperResponse.players) {
+      sleeperResponse.players.forEach(sleeperPlayer => {
+        const normalizedName = normalizeName(sleeperPlayer.name);
+        sleeperMap.set(normalizedName, sleeperPlayer.adpSleeper || sleeperPlayer.rank);
       });
     }
 
@@ -3543,6 +3788,15 @@ async function loadLiveRankings() {
       });
     }
 
+    // Add Sleeper data
+    if (sleeperResponse && sleeperResponse.players) {
+      sleeperResponse.players.forEach(player => {
+        applyCsvPlayerFields(allPlayers, player, {
+          sleeper: player.adpSleeper || player.rank
+        });
+      });
+    }
+
     // Add Underdog data
     if (rotoballerResponse && rotoballerResponse.players) {
       rotoballerResponse.players.forEach(player => {
@@ -3563,10 +3817,10 @@ async function loadLiveRankings() {
 
     // Convert to array and filter players that have at least one ranking
     const mergedPlayers = Array.from(new Set(allPlayers.values()))
-      .filter(player => player.espn || player.yahoo || player.rotoballer || player.ffpc)
+      .filter(player => player.espn || player.yahoo || player.sleeper || player.rotoballer || player.ffpc)
       .map((player, index) => {
         // Use ESPN as primary if available, otherwise Yahoo, otherwise first available
-        const primaryAdp = player.espn || player.yahoo || player.rotoballer || player.ffpc || 100;
+        const primaryAdp = player.espn || player.yahoo || player.sleeper || player.rotoballer || player.ffpc || 100;
         
         // Check if this player already exists in state (to preserve custom rankings, drafted status, etc.)
         const existingPlayer = state.players.find(p => 
@@ -3584,6 +3838,7 @@ async function loadLiveRankings() {
           team: player.team,
           espn: player.espn || null,
           yahoo: player.yahoo || null,
+          sleeper: player.sleeper || null,
           sleeperAdp: null,
           rotoballer: player.rotoballer || null,
           ffpc: player.ffpc || null,
@@ -3664,14 +3919,16 @@ async function loadLiveRankings() {
     
     const espnCount = espnResponse && espnResponse.players ? espnResponse.players.length : 0;
     const yahooCount = yahooResponse && yahooResponse.players ? yahooResponse.players.length : 0;
+    const sleeperCount = sleeperResponse && sleeperResponse.players ? sleeperResponse.players.length : 0;
     const underdogCount = rotoballerResponse && rotoballerResponse.players ? rotoballerResponse.players.length : 0;
     const ffpcCount = ffpcResponse && ffpcResponse.players ? ffpcResponse.players.length : 0;
-    state.liveDataStatus = `Loaded ${state.players.length} players from local CSV files (${espnCount} ESPN, ${yahooCount} Yahoo, ${underdogCount} Underdog, ${ffpcCount} FFPC).`;
+    state.liveDataStatus = `Loaded ${state.players.length} players from local CSV files (${espnCount} ESPN, ${yahooCount} Yahoo, ${sleeperCount} Sleeper, ${underdogCount} Underdog, ${ffpcCount} FFPC).`;
     
     console.log('[CSV] Sample player data:', {
       name: state.players[0]?.name,
       expertRank: state.players[0]?.expertRank,
       projectedPoints: state.players[0]?.projectedPoints,
+      sleeper: state.players[0]?.sleeper,
       rotoballer: state.players[0]?.rotoballer,
       ffpc: state.players[0]?.ffpc
     });
@@ -4136,6 +4393,10 @@ function normalizePositionForCss(value) {
   return normalized;
 }
 
+function isAdpColumnSort() {
+  return state.sort?.key === 'adp' || state.sort?.key === 'averageAdp';
+}
+
 function renderDraftBoard() {
   const rankingsBodyEl = document.getElementById('rankings-body');
   if (!rankingsBodyEl) {
@@ -4151,25 +4412,9 @@ function renderDraftBoard() {
   let rows = [];
   const showMarkButtons = isManualDraftMode();
   const columnCount = showMarkButtons ? 10 : 9;
-  
-  // Always show tier dividers
-  const tiersToRender = [...new Set(visiblePlayers.map((player) => Number(player.tier)).filter((tier) => Number.isFinite(tier) && tier > 0))]
-    .sort((a, b) => a - b);
+  const flatAdpSort = isAdpColumnSort();
 
-  tiersToRender.forEach((tier) => {
-    const players = visiblePlayers.filter((player) => Number(player.tier) === tier);
-    
-    rows.push(`
-      <tr class="tier-divider${Number(state.ui?.selectedTier) === tier ? ' is-selected' : ''}" data-tier="${tier}">
-        <td colspan="${columnCount}">
-          <div class="tier-bar">
-            <span class="tier-pill t${tier}">Tier ${tier}</span>
-            <span class="tier-divider-count">${players.length} players</span>
-          </div>
-        </td>
-      </tr>
-    `);
-    
+  const appendPlayerRows = (players) => {
     players.forEach((player) => {
       const adpValue = getAdpValue(player, state.adpSource);
       const expertValue = player.expertRank ? player.expertRank : '-';
@@ -4184,7 +4429,7 @@ function renderDraftBoard() {
             <button type="button" class="row-draft-btn" data-action="draft" data-player-id="${player.id}" title="Mark drafted">Mark</button>
           </td>`
         : '';
-      
+
       rows.push(`
         <tr data-player-id="${player.id}" class="${player.drafted ? 'drafted-row' : ''} ${isSelected ? 'selected-row' : ''}" draggable="true">
           <td class="col-rank">
@@ -4207,7 +4452,31 @@ function renderDraftBoard() {
         </tr>
       `);
     });
-  });
+  };
+
+  if (flatAdpSort) {
+    appendPlayerRows(visiblePlayers);
+  } else {
+    const tiersToRender = [...new Set(visiblePlayers.map((player) => Number(player.tier)).filter((tier) => Number.isFinite(tier) && tier > 0))]
+      .sort((a, b) => a - b);
+
+    tiersToRender.forEach((tier) => {
+      const players = visiblePlayers.filter((player) => Number(player.tier) === tier);
+
+      rows.push(`
+        <tr class="tier-divider${Number(state.ui?.selectedTier) === tier ? ' is-selected' : ''}" data-tier="${tier}">
+          <td colspan="${columnCount}">
+            <div class="tier-bar">
+              <span class="tier-pill t${tier}">Tier ${tier}</span>
+              <span class="tier-divider-count">${players.length} players</span>
+            </div>
+          </td>
+        </tr>
+      `);
+
+      appendPlayerRows(players);
+    });
+  }
 
   rankingsBodyEl.innerHTML = rows.join('');
   console.log('Rendered', rows.length, 'rows');
@@ -4225,6 +4494,8 @@ function getAdpValue(player, source) {
       return player.espn ? player.espn.toFixed(1) : '-';
     case 'yahoo':
       return player.yahoo ? player.yahoo.toFixed(1) : '-';
+    case 'sleeper':
+      return getSleeperAdpValue(player)?.toFixed(1) ?? '-';
     case 'rotoballer':
       return player.rotoballer ? player.rotoballer.toFixed(1) : '-';
     case 'ffpc':
@@ -4247,7 +4518,8 @@ function updateTableHeader() {
   const adpLabels = {
     all: 'ADP',
     espn: 'ESPN',
-    yahoo: 'Yahoo', 
+    yahoo: 'Yahoo',
+    sleeper: 'Sleeper',
     rotoballer: 'Underdog',
     ffpc: 'FFPC',
     average: 'Average',
@@ -4318,6 +4590,8 @@ function comparePlayers(a, b) {
     result = (a.espn || 999) - (b.espn || 999);
   } else if (key === 'yahoo') {
     result = (a.yahoo || 999) - (b.yahoo || 999);
+  } else if (key === 'sleeper') {
+    result = getDisplayedAdpNumeric(a, 'sleeper') - getDisplayedAdpNumeric(b, 'sleeper');
   } else if (key === 'rotoballer') {
     result = (a.rotoballer || 999) - (b.rotoballer || 999);
   } else if (key === 'ffpc') {
@@ -4376,24 +4650,38 @@ function compareUserRankThenAdp(a, b, direction = 'asc') {
   return a.name.localeCompare(b.name);
 }
 
-function getAdpValueForSort(player) {
-  switch(state.adpSource) {
+function getSleeperAdpValue(player) {
+  if (player.sleeper !== null && player.sleeper !== undefined) {
+    return player.sleeper;
+  }
+  if (player.sleeperAdp !== null && player.sleeperAdp !== undefined) {
+    return player.sleeperAdp;
+  }
+  return null;
+}
+
+function getDisplayedAdpNumeric(player, source = state.adpSource) {
+  switch (source) {
     case 'espn':
-      return player.espn || 999;
+      return Number.isFinite(player.espn) ? player.espn : 999;
     case 'yahoo':
-      return player.yahoo || 999;
+      return Number.isFinite(player.yahoo) ? player.yahoo : 999;
+    case 'sleeper':
+      return getSleeperAdpValue(player) ?? 999;
     case 'rotoballer':
-      return player.rotoballer || 999;
+      return Number.isFinite(player.rotoballer) ? player.rotoballer : 999;
     case 'ffpc':
-      return player.ffpc || 999;
+      return Number.isFinite(player.ffpc) ? player.ffpc : 999;
     case 'average':
-      return getDraftAdjustedAdp(player);
     case 'expert':
-      return Number.isFinite(player.expertRank) ? player.expertRank : 999;
     case 'all':
     default:
       return getDraftAdjustedAdp(player);
   }
+}
+
+function getAdpValueForSort(player) {
+  return getDisplayedAdpNumeric(player, state.adpSource);
 }
 
 function getAdpSourceForDiff(adpSource) {
@@ -4409,6 +4697,9 @@ function calculateAdpDifference(player, adpSource) {
       break;
     case 'yahoo':
       currentAdp = player.yahoo;
+      break;
+    case 'sleeper':
+      currentAdp = getSleeperAdpValue(player);
       break;
     case 'rotoballer':
       currentAdp = player.rotoballer;
@@ -4468,6 +4759,9 @@ function calculatePersonalDifference(player, adpSource) {
       break;
     case 'yahoo':
       currentAdp = player.yahoo;
+      break;
+    case 'sleeper':
+      currentAdp = getSleeperAdpValue(player);
       break;
     case 'rotoballer':
       currentAdp = player.rotoballer;
