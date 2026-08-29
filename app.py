@@ -1,5 +1,21 @@
 from flask import Flask, request, jsonify, send_from_directory
-from server import init_db, load_adp_profile, save_adp_profile, save_user_state, load_user_state, load_rotoballer_rankings, load_ffpc_rankings, load_yahoo_rankings, load_espn_rankings, load_sleeper_rankings, load_ghost_rankings, DB_PATH
+from server import (
+    init_db,
+    load_adp_profile,
+    save_adp_profile,
+    save_user_state,
+    load_user_state,
+    ensure_user_account,
+    request_password_reset,
+    reset_password,
+    load_rotoballer_rankings,
+    load_ffpc_rankings,
+    load_yahoo_rankings,
+    load_espn_rankings,
+    load_sleeper_rankings,
+    load_ghost_rankings,
+    DB_PATH
+)
 import os
 from pathlib import Path
 
@@ -22,10 +38,20 @@ def serve_standalone():
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
+    mongo_configured = bool(os.environ.get('MONGODB_URI'))
+    mongo_connected = False
+    if mongo_configured:
+        try:
+            from server import get_mongo_db
+            mongo_connected = get_mongo_db() is not None
+        except Exception:
+            mongo_connected = False
     return jsonify({
         'ok': True,
         'dbPath': str(DB_PATH),
-        'dbExists': DB_PATH.exists()
+        'dbExists': DB_PATH.exists(),
+        'mongoConfigured': mongo_configured,
+        'mongoConnected': mongo_connected
     })
 
 
@@ -107,6 +133,50 @@ def load_user_state_api():
         if state_json:
             return jsonify({'state': state_json})
         return jsonify({'state': None})
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+
+@app.route('/api/account', methods=['POST'])
+def account_api():
+    try:
+        data = request.get_json() or {}
+        status = ensure_user_account(data.get('username'), data.get('password'), data.get('email'))
+        if status == 'INVALID_PASSWORD':
+            return jsonify({'error': 'Invalid username or password'}), 401
+        if status == 'EMAIL_REQUIRED':
+            return jsonify({'error': 'Email is required when creating a new account'}), 400
+        if status == 'INVALID_EMAIL':
+            return jsonify({'error': 'Enter a valid email address'}), 400
+        if status == 'EMAIL_ALREADY_SET':
+            return jsonify({'error': 'That account already has a different email address'}), 409
+        if status == 'MISSING_FIELDS':
+            return jsonify({'error': 'Missing username or password'}), 400
+        return jsonify({'ok': True, 'created': status == 'CREATED'})
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+
+@app.route('/api/password-reset/request', methods=['POST'])
+def password_reset_request_api():
+    try:
+        data = request.get_json() or {}
+        request_password_reset(data.get('email'))
+        return jsonify({
+            'ok': True,
+            'message': 'If an account uses that email, a reset link has been sent.'
+        })
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+
+@app.route('/api/password-reset/confirm', methods=['POST'])
+def password_reset_confirm_api():
+    try:
+        data = request.get_json() or {}
+        if not reset_password(data.get('token'), data.get('password')):
+            return jsonify({'error': 'This reset link is invalid or expired.'}), 400
+        return jsonify({'ok': True})
     except Exception as exc:
         return jsonify({'error': str(exc)}), 500
 
