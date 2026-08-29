@@ -8,7 +8,7 @@ const appJs = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
 
 let embeddedRankingsJson = '{}';
 try {
-  embeddedRankingsJson = execSync('python build_embedded_rankings.py', {
+  embeddedRankingsJson = execSync('py build_embedded_rankings.py', {
     cwd: __dirname,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'inherit']

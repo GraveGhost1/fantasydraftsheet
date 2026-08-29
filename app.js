@@ -144,6 +144,7 @@ const POSITION_ORDER = { QB: 1, RB: 2, WR: 3, TE: 4, FLEX: 5, K: 6, DEF: 7, DST:
 let sleeperSyncTimer = null;
 let sleeperPlayersByIdCache = null;
 let sleeperSyncInFlight = false;
+let sleeperSyncQueued = false;
 let sleeperSyncLoopActive = false;
 let currentUsername = null;
 let currentPassword = null;
@@ -540,6 +541,11 @@ document.addEventListener('DOMContentLoaded', () => {
       render();
       showAppModal('Sleeper draft ID updated! Sync started.', { title: 'Sync started', type: 'success' });
     });
+  }
+
+  const refreshPicksButton = document.getElementById('refresh-picks');
+  if (refreshPicksButton) {
+    refreshPicksButton.addEventListener('click', () => refreshSleeperPicksNow(refreshPicksButton));
   }
 
   const addUnmatchedButton = document.getElementById('add-unmatched-to-board');
@@ -2269,6 +2275,7 @@ function startSleeperSyncTimer() {
 
 function stopSleeperSyncTimer() {
   sleeperSyncLoopActive = false;
+  sleeperSyncQueued = false;
   if (sleeperSyncTimer) {
     clearTimeout(sleeperSyncTimer);
     sleeperSyncTimer = null;
@@ -3178,8 +3185,11 @@ async function getSleeperPlayersById() {
   return sleeperPlayersByIdCache;
 }
 
-async function syncSleeperDraft({ initiatedByUser = false } = {}) {
+async function syncSleeperDraft({ initiatedByUser = false, queueIfBusy = false } = {}) {
   if (sleeperSyncInFlight) {
+    if (queueIfBusy) {
+      sleeperSyncQueued = true;
+    }
     return false;
   }
 
@@ -3285,7 +3295,45 @@ async function syncSleeperDraft({ initiatedByUser = false } = {}) {
 
   saveState();
   render();
+
+  if (sleeperSyncQueued && state.sleeperSync?.enabled && `${state.sleeperSync?.draftId || ''}`.trim()) {
+    sleeperSyncQueued = false;
+    return syncSleeperDraft();
+  }
+
+  sleeperSyncQueued = false;
   return wasSuccessful;
+}
+
+async function refreshSleeperPicksNow(button) {
+  collectSettings();
+  const draftId = `${state.sleeperSync?.draftId || ''}`.trim();
+  if (!draftId) {
+    showAppModal('Paste a Sleeper draft ID first.', { title: 'No draft ID', type: 'error' });
+    return false;
+  }
+
+  state.draftMode = 'sleeper';
+  state.sleeperSync.enabled = true;
+  startSleeperSyncTimer();
+  updateDraftModeControls();
+
+  if (button) {
+    button.disabled = true;
+  }
+
+  try {
+    const ok = await syncSleeperDraft({ queueIfBusy: true });
+    if (!ok && sleeperSyncInFlight) {
+      state.liveDataStatus = 'Refreshing picks as soon as the current sync finishes...';
+      render();
+    }
+    return ok;
+  } finally {
+    if (button) {
+      button.disabled = false;
+    }
+  }
 }
 
 function initSleeperSyncFromState() {

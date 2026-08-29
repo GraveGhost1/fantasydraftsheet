@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Fantasy Draft Sheet</title>
-    <link rel="stylesheet" href="styles.css?v=20260828-responsive-header" />
+    <link rel="stylesheet" href="styles.css?v=20260829-refresh-picks" />
     <style id="mobile-nav-critical">
       /* Critical mobile nav — inline so it cannot be lost to CSS cache */
       .header-cluster {
@@ -77,7 +77,7 @@
         display: flex;
         align-items: center;
         flex: 1 1 280px;
-        max-width: 420px;
+        max-width: 540px;
         min-width: 0;
         gap: 8px;
         margin-left: 0;
@@ -259,6 +259,7 @@
       <div class="nav-search draft-controls draft-dock" id="sleeper-sync-controls" hidden>
         <input id="sleeper-draft-id" type="text" placeholder="Paste Sleeper draft ID" class="compact-input" aria-label="Sleeper draft ID" />
         <button id="submit-sleeper-id" type="button" class="nav-sync">Sync</button>
+        <button id="refresh-picks" type="button" class="nav-sync nav-sync-secondary" title="Pull the latest Sleeper picks now">Refresh picks</button>
       </div>
 
       <div class="main-content">
@@ -347,6 +348,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=20260828-vorp-tiering"></script>
+    <script src="app.js?v=20260829-refresh-picks"></script>
   </body>
 </html>
