@@ -175,12 +175,13 @@ def load_ffpc_rankings():
         print(f'[FFPC] Error loading CSV: {exc}', flush=True)
         return {'error': str(exc)}
 
-def load_yahoo_rankings():
-    """Load and parse the Yahoo CSV rankings file"""
-    csv_path = ROOT / 'yahoo-rankings.csv'
+def load_yahoo_style_rankings(csv_name, label):
+    """Load a Yahoo-style rankings CSV (RK + ADP (Y!))."""
+    csv_path = ROOT / csv_name
+    log_label = label.upper()
     if not csv_path.exists():
-        return {'error': 'Yahoo rankings file not found'}
-    
+        return {'error': f'{label} rankings file not found'}
+
     try:
         players = []
         with open(csv_path, 'r', encoding='utf-8') as f:
@@ -200,17 +201,27 @@ def load_yahoo_rankings():
                         'posRank': row.get('P-RK', ''),
                         'auctionValue': row.get('Auction $', ''),
                         'targetRound': row.get('Target Round', ''),
-                        'expertRank': int(row.get('RK', 0))  # Rotoballer's expert ranking
+                        'expertRank': int(row.get('RK', 0))
                     }
                     players.append(player)
                 except (ValueError, KeyError) as e:
-                    print(f'[YAHOO] Error parsing row: {e}', flush=True)
+                    print(f'[{log_label}] Error parsing row: {e}', flush=True)
                     continue
-        
+
         return {'players': players}
     except Exception as exc:
-        print(f'[YAHOO] Error loading CSV: {exc}', flush=True)
+        print(f'[{log_label}] Error loading CSV: {exc}', flush=True)
         return {'error': str(exc)}
+
+
+def load_yahoo_rankings():
+    """Load and parse the half-PPR Yahoo CSV rankings file"""
+    return load_yahoo_style_rankings('yahoo-rankings.csv', 'Yahoo')
+
+
+def load_standard_rankings():
+    """Load and parse the standard-scoring Yahoo CSV rankings file"""
+    return load_yahoo_style_rankings('standard-rankings.csv', 'Standard')
 
 def load_espn_rankings():
     """Load and parse the ESPN CSV rankings file"""
@@ -530,6 +541,10 @@ class Handler(BaseHTTPRequestHandler):
             self.handle_yahoo(parsed)
             return
 
+        if parsed.path == '/api/standard':
+            self.handle_standard(parsed)
+            return
+
         if parsed.path == '/api/espn':
             self.handle_espn(parsed)
             return
@@ -751,6 +766,25 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(result_json)
         except Exception as exc:
             print(f'[YAHOO] ERROR: {type(exc).__name__}: {exc}', flush=True)
+            self.send_response(500)
+            self._set_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': str(exc)}).encode('utf-8'))
+
+    def handle_standard(self, parsed):
+        """Serve standard-scoring Yahoo rankings from local CSV file"""
+        try:
+            data = load_standard_rankings()
+            result_json = json.dumps(data).encode('utf-8')
+            print(f'[STANDARD] Serving {len(data.get("players", []))} players', flush=True)
+
+            self.send_response(200)
+            self._set_cors_headers()
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(result_json)
+        except Exception as exc:
+            print(f'[STANDARD] ERROR: {type(exc).__name__}: {exc}', flush=True)
             self.send_response(500)
             self._set_cors_headers()
             self.end_headers()

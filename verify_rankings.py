@@ -2,13 +2,14 @@ import csv
 from datetime import datetime
 from pathlib import Path
 
-from server import load_espn_rankings, load_ffpc_rankings, load_rotoballer_rankings, load_yahoo_rankings
+from server import load_espn_rankings, load_ffpc_rankings, load_rotoballer_rankings, load_yahoo_rankings, load_standard_rankings
 
 ROOT = Path(__file__).resolve().parent
 
 CSV_FILES = [
     'espn-rankings.csv',
     'yahoo-rankings.csv',
+    'standard-rankings.csv',
     'rotoballer-rankings.csv',
     'ffpc-rankings.csv',
     'sleeper-rankings.csv',
@@ -17,6 +18,7 @@ CSV_FILES = [
 LOADERS = {
     'espn-rankings.csv': load_espn_rankings,
     'yahoo-rankings.csv': load_yahoo_rankings,
+    'standard-rankings.csv': load_standard_rankings,
     'rotoballer-rankings.csv': load_rotoballer_rankings,
     'ffpc-rankings.csv': load_ffpc_rankings,
 }

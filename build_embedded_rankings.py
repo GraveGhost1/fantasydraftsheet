@@ -22,9 +22,9 @@ def load_espn():
     return {'players': players}
 
 
-def load_yahoo():
+def load_yahoo_style(csv_name):
     players = []
-    with open(ROOT / 'yahoo-rankings.csv', encoding='utf-8') as handle:
+    with open(ROOT / csv_name, encoding='utf-8') as handle:
         for row in csv.DictReader(handle):
             players.append(
                 {
@@ -33,9 +33,18 @@ def load_yahoo():
                     'position': row.get('Pos', ''),
                     'team': row.get('Team', ''),
                     'adpYahoo': float(row.get('ADP (Y!)', 0) or 0),
+                    'expertRank': int(row.get('RK', 0) or 0),
                 }
             )
     return {'players': players}
+
+
+def load_yahoo():
+    return load_yahoo_style('yahoo-rankings.csv')
+
+
+def load_standard():
+    return load_yahoo_style('standard-rankings.csv')
 
 
 def load_rotoballer():
@@ -90,6 +99,7 @@ def main():
     payload = {
         'espn': load_espn(),
         'yahoo': load_yahoo(),
+        'standard': load_standard(),
         'rotoballer': load_rotoballer(),
         'ffpc': load_ffpc(),
         'sleeper': load_sleeper(),

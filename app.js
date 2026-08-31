@@ -196,7 +196,8 @@ const basePlayers = [
 
 const defaultState = {
   settings: {
-    scoringFormat: 'standard',
+    scoringFormat: 'half',
+    scoringFormatDefaultVersion: 2,
     qbSlots: 1,
     rbSlots: 2,
     wrSlots: 3,
@@ -257,6 +258,10 @@ if (typeof state.autoTiering !== 'boolean') {
 if (!state.positionFilter) {
   state.positionFilter = 'ALL';
 }
+if (!state.settings || typeof state.settings !== 'object') {
+  state.settings = structuredClone(defaultState.settings);
+}
+normalizeScoringFormatSettings();
 const VALID_ADP_SOURCES = new Set(['all', 'espn', 'yahoo', 'sleeper', 'rotoballer', 'ffpc', 'average', 'expert']);
 if (!VALID_ADP_SOURCES.has(state.adpSource)) {
   state.adpSource = 'all';
@@ -692,6 +697,8 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         await loadLiveRankings();
         loaded = await restoreAccountStateAfterLiveLoad(prefetched);
+        normalizeScoringFormatSettings();
+        applyScoringFormatData();
       } finally {
         isHydratingAccountState = false;
       }
@@ -758,6 +765,10 @@ document.addEventListener('DOMContentLoaded', () => {
   if (scoringFormatSelect) {
     scoringFormatSelect.addEventListener('change', () => {
       collectSettings();
+      applyScoringFormatData();
+      if (state.sort?.key === 'expertRank') {
+        applySmartTiering({ mode: 'expertRank' });
+      }
       saveState();
       render();
     });
@@ -778,6 +789,8 @@ async function initializeBoardData({ loadServerState = false } = {}) {
     } else {
       restorePersistedRankings();
     }
+    normalizeScoringFormatSettings();
+    applyScoringFormatData();
   } finally {
     isHydratingAccountState = false;
   }
@@ -1552,11 +1565,15 @@ function applyCsvPlayerFields(allPlayers, player, sourceFields = {}) {
       team: player.team,
       espn: null,
       yahoo: null,
+      yahooHalfPpr: null,
+      yahooStandard: null,
       sleeper: null,
       rotoballer: null,
       ffpc: null,
       sosRank: player.sosRank || null,
       expertRank: player.expertRank || null,
+      expertRankHalfPpr: null,
+      expertRankStandard: null,
       projectedPoints: points,
       ...sourceFields
     };
@@ -1825,7 +1842,7 @@ function collectSettings() {
 
   state.settings = {
     ...state.settings,
-    scoringFormat: scoringFormat?.value || state.settings?.scoringFormat || 'standard'
+    scoringFormat: scoringFormat?.value || state.settings?.scoringFormat || 'half'
   };
   
   // Update Sleeper draft ID
@@ -3255,6 +3272,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_FETCH_TIM
 const LOCAL_RANKINGS_CSV_SOURCES = {
   espn: { file: 'espn-rankings.csv', adpField: 'adpESPN', adpColumn: 'ADP (ESPN)' },
   yahoo: { file: 'yahoo-rankings.csv', adpField: 'adpYahoo', adpColumn: 'ADP (Y!)' },
+  standard: { file: 'standard-rankings.csv', adpField: 'adpYahoo', adpColumn: 'ADP (Y!)' },
   sleeper: { file: 'sleeper-rankings.csv', adpField: 'adpSleeper', adpColumn: 'ADP (Sleeper)' },
   rotoballer: { file: 'rotoballer-rankings.csv', adpField: 'adpUnderdog', adpColumn: 'ADP (Underdog)' },
   ffpc: { file: 'ffpc-rankings.csv', adpField: 'adpFFPC', adpColumn: 'ADP (FFPC)' }
@@ -3705,18 +3723,57 @@ async function fetchFantasyNerdsProjections() {
   }
 }
 
+function normalizeScoringFormatSettings() {
+  if (!state.settings || typeof state.settings !== 'object') {
+    state.settings = structuredClone(defaultState.settings);
+  }
+  // Previous builds stored Standard as the default even though all CSVs were half-PPR.
+  // Migrate that implicit default once so Half-PPR is the starting format.
+  if (state.settings.scoringFormatDefaultVersion !== 2) {
+    if (state.settings.scoringFormat === 'standard') {
+      state.settings.scoringFormat = 'half';
+    }
+    state.settings.scoringFormatDefaultVersion = 2;
+  }
+  if (state.settings.scoringFormat !== 'half' && state.settings.scoringFormat !== 'standard' && state.settings.scoringFormat !== 'ppr') {
+    state.settings.scoringFormat = 'half';
+  }
+}
+
+function pickFiniteRankValue(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+}
+
+function isStandardScoringFormat() {
+  return state.settings?.scoringFormat === 'standard';
+}
+
+function applyScoringFormatData() {
+  const useStandard = isStandardScoringFormat();
+  (state.players || []).forEach((player) => {
+    player.yahoo = useStandard
+      ? pickFiniteRankValue(player.yahooStandard)
+      : pickFiniteRankValue(player.yahooHalfPpr);
+    player.expertRank = useStandard
+      ? pickFiniteRankValue(player.expertRankStandard)
+      : pickFiniteRankValue(player.expertRankHalfPpr);
+  });
+}
+
 async function loadLiveRankings() {
   state.liveDataStatus = `Loading rankings from local CSV files...`;
   render();
 
   try {
     // Fetch local CSV rankings for ESPN, Yahoo, Sleeper, Underdog, and FFPC
-    const [espnResponse, yahooResponse, sleeperResponse, rotoballerResponse, ffpcResponse] = await Promise.all([
+    const [espnResponse, yahooResponse, sleeperResponse, rotoballerResponse, ffpcResponse, standardResponse] = await Promise.all([
       fetchLocalRankingsApi('espn', 'ESPN rankings'),
       fetchLocalRankingsApi('yahoo', 'Yahoo rankings'),
       fetchLocalRankingsApi('sleeper', 'Sleeper rankings'),
       fetchLocalRankingsApi('rotoballer', 'Underdog rankings'),
-      fetchLocalRankingsApi('ffpc', 'FFPC rankings')
+      fetchLocalRankingsApi('ffpc', 'FFPC rankings'),
+      fetchLocalRankingsApi('standard', 'Standard rankings')
     ]);
 
     // Don't fetch Ghost rankings here - they will be applied after login
@@ -3815,9 +3872,30 @@ async function loadLiveRankings() {
       });
     }
 
+    // Snapshot half-PPR Yahoo ADP and expert rank before overlaying standard.
+    allPlayers.forEach((player) => {
+      if (player.yahooHalfPpr == null) {
+        player.yahooHalfPpr = player.yahoo ?? null;
+      }
+      if (player.expertRankHalfPpr == null) {
+        player.expertRankHalfPpr = player.expertRank ?? null;
+      }
+    });
+
+    // Standard format supplies Yahoo ADP + expert rank only. Do not overwrite
+    // half-PPR expertRank during this merge.
+    if (standardResponse && standardResponse.players) {
+      standardResponse.players.forEach(player => {
+        applyCsvPlayerFields(allPlayers, { ...player, expertRank: null }, {
+          yahooStandard: player.adpYahoo || player.rank,
+          expertRankStandard: player.expertRank || player.rank
+        });
+      });
+    }
+
     // Convert to array and filter players that have at least one ranking
     const mergedPlayers = Array.from(new Set(allPlayers.values()))
-      .filter(player => player.espn || player.yahoo || player.sleeper || player.rotoballer || player.ffpc)
+      .filter(player => player.espn || player.yahoo || player.sleeper || player.rotoballer || player.ffpc || player.yahooStandard)
       .map((player, index) => {
         // Use ESPN as primary if available, otherwise Yahoo, otherwise first available
         const primaryAdp = player.espn || player.yahoo || player.sleeper || player.rotoballer || player.ffpc || 100;
@@ -3838,12 +3916,16 @@ async function loadLiveRankings() {
           team: player.team,
           espn: player.espn || null,
           yahoo: player.yahoo || null,
+          yahooHalfPpr: player.yahooHalfPpr ?? player.yahoo ?? null,
+          yahooStandard: player.yahooStandard || null,
           sleeper: player.sleeper || null,
           sleeperAdp: null,
           rotoballer: player.rotoballer || null,
           ffpc: player.ffpc || null,
           sosRank: player.sosRank || null,
           expertRank: player.expertRank || null,
+          expertRankHalfPpr: player.expertRankHalfPpr ?? player.expertRank ?? null,
+          expertRankStandard: player.expertRankStandard || null,
           projectedPoints: Number.isFinite(player.projectedPoints) ? player.projectedPoints : null,
           baseValue: Math.max(70, 100 - primaryAdp * 4),
           tier: 1,
@@ -3911,6 +3993,7 @@ async function loadLiveRankings() {
 
     // Completely replace state.players with merged data to ensure new fields are present
     state.players = rankedPlayers;
+    applyScoringFormatData();
     restorePersistedRankings();
     calculatePositionalRanks();
     if (!hasSavedTierLayout) {
@@ -3922,7 +4005,8 @@ async function loadLiveRankings() {
     const sleeperCount = sleeperResponse && sleeperResponse.players ? sleeperResponse.players.length : 0;
     const underdogCount = rotoballerResponse && rotoballerResponse.players ? rotoballerResponse.players.length : 0;
     const ffpcCount = ffpcResponse && ffpcResponse.players ? ffpcResponse.players.length : 0;
-    state.liveDataStatus = `Loaded ${state.players.length} players from local CSV files (${espnCount} ESPN, ${yahooCount} Yahoo, ${sleeperCount} Sleeper, ${underdogCount} Underdog, ${ffpcCount} FFPC).`;
+    const standardCount = standardResponse && standardResponse.players ? standardResponse.players.length : 0;
+    state.liveDataStatus = `Loaded ${state.players.length} players from local CSV files (${espnCount} ESPN, ${yahooCount} Yahoo, ${sleeperCount} Sleeper, ${underdogCount} Underdog, ${ffpcCount} FFPC, ${standardCount} Standard).`;
     
     console.log('[CSV] Sample player data:', {
       name: state.players[0]?.name,
