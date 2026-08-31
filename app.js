@@ -144,10 +144,12 @@ const POSITION_ORDER = { QB: 1, RB: 2, WR: 3, TE: 4, FLEX: 5, K: 6, DEF: 7, DST:
 let sleeperSyncTimer = null;
 let sleeperPlayersByIdCache = null;
 let sleeperSyncInFlight = false;
+let sleeperSyncQueued = false;
 let sleeperSyncLoopActive = false;
 let currentUsername = null;
 let currentPassword = null;
 let isHydratingAccountState = false;
+let boardLoadToken = 0;
 
 function isUserLoggedIn() {
   return Boolean(currentUsername && currentPassword);
@@ -346,8 +348,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const usernameModal = document.getElementById('username-modal');
   const usernameInput = document.getElementById('username-input');
   const passwordInput = document.getElementById('password-input');
+  const emailInput = document.getElementById('email-input');
   const usernameSubmit = document.getElementById('username-submit');
   const usernameCancel = document.getElementById('username-cancel');
+  const forgotPasswordButton = document.getElementById('forgot-password-button');
+  const forgotPasswordModal = document.getElementById('forgot-password-modal');
+  const resetEmailInput = document.getElementById('reset-email-input');
+  const resetRequestSubmit = document.getElementById('reset-request-submit');
+  const resetRequestCancel = document.getElementById('reset-request-cancel');
+  const resetPasswordModal = document.getElementById('reset-password-modal');
+  const newPasswordInput = document.getElementById('new-password-input');
+  const confirmPasswordInput = document.getElementById('confirm-password-input');
+  const resetPasswordSubmit = document.getElementById('reset-password-submit');
   const loginButton = document.getElementById('login-button');
   const logoutButton = document.getElementById('logout-button');
   const userDisplay = document.getElementById('user-display');
@@ -536,6 +548,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  const refreshPicksButton = document.getElementById('refresh-picks');
+  if (refreshPicksButton) {
+    refreshPicksButton.addEventListener('click', () => refreshSleeperPicksNow(refreshPicksButton));
+  }
+
   const addUnmatchedButton = document.getElementById('add-unmatched-to-board');
   if (addUnmatchedButton) {
     addUnmatchedButton.addEventListener('click', async () => {
@@ -652,6 +669,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (logoutButton) {
     logoutButton.addEventListener('click', async () => {
+      boardLoadToken += 1;
       if (currentUsername) {
         await saveState({ awaitServer: true });
       }
@@ -681,6 +699,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
       currentUsername = username;
       currentPassword = password;
+      const loadToken = ++boardLoadToken;
+      try {
+        await ensureUserAccount(username, password, emailInput?.value || '');
+      } catch (error) {
+        showAppModal(error.message, { title: 'Account unavailable', type: 'error' });
+        return;
+      }
       localStorage.setItem('fantasy-draft-username', username);
       localStorage.setItem('fantasy-draft-password', password);
       updateAuthUi();
@@ -695,12 +720,20 @@ document.addEventListener('DOMContentLoaded', () => {
       isHydratingAccountState = true;
       let loaded = false;
       try {
-        await loadLiveRankings();
+        await loadLiveRankings(loadToken);
+        if (loadToken !== boardLoadToken) {
+          return;
+        }
         loaded = await restoreAccountStateAfterLiveLoad(prefetched);
         normalizeScoringFormatSettings();
         applyScoringFormatData();
       } finally {
-        isHydratingAccountState = false;
+        if (loadToken === boardLoadToken) {
+          isHydratingAccountState = false;
+        }
+      }
+      if (loadToken !== boardLoadToken) {
+        return;
       }
       render();
       initSleeperSyncFromState();
@@ -713,6 +746,106 @@ document.addEventListener('DOMContentLoaded', () => {
   if (usernameCancel) {
     usernameCancel.addEventListener('click', () => {
       hideUsernameModal();
+    });
+  }
+
+  if (forgotPasswordButton) {
+    forgotPasswordButton.addEventListener('click', () => {
+      if (resetEmailInput && emailInput?.value) {
+        resetEmailInput.value = emailInput.value.trim();
+      }
+      hideUsernameModal();
+      showForgotPasswordModal();
+    });
+  }
+
+  if (resetRequestCancel) {
+    resetRequestCancel.addEventListener('click', () => {
+      hideForgotPasswordModal();
+      showUsernameModal();
+    });
+  }
+
+  if (resetRequestSubmit) {
+    resetRequestSubmit.addEventListener('click', async () => {
+      const email = resetEmailInput?.value.trim() || '';
+      if (!email) {
+        showAppModal('Enter the email address associated with your account.', {
+          title: 'Email required',
+          type: 'error'
+        });
+        return;
+      }
+
+      resetRequestSubmit.disabled = true;
+      try {
+        const response = await fetch('/api/password-reset/request', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.error || 'Unable to request a password reset.');
+        }
+        hideForgotPasswordModal();
+        showAppModal(data.message || 'If an account uses that email, a reset link has been sent.', {
+          title: 'Check your email',
+          type: 'success'
+        });
+      } catch (error) {
+        showAppModal(error.message, { title: 'Reset request failed', type: 'error' });
+      } finally {
+        resetRequestSubmit.disabled = false;
+      }
+    });
+  }
+
+  if (resetPasswordSubmit) {
+    resetPasswordSubmit.addEventListener('click', async () => {
+      const token = getPasswordResetToken();
+      const password = newPasswordInput?.value || '';
+      const confirmation = confirmPasswordInput?.value || '';
+      if (!token) {
+        hideResetPasswordModal();
+        showAppModal('This reset link is missing or invalid.', { title: 'Reset link invalid', type: 'error' });
+        return;
+      }
+      if (password.length < 8) {
+        showAppModal('Your new password must be at least 8 characters.', {
+          title: 'Password too short',
+          type: 'error'
+        });
+        return;
+      }
+      if (password !== confirmation) {
+        showAppModal('The passwords do not match.', { title: 'Check your password', type: 'error' });
+        return;
+      }
+
+      resetPasswordSubmit.disabled = true;
+      try {
+        const response = await fetch('/api/password-reset/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, password })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.error || 'Unable to reset your password.');
+        }
+        hideResetPasswordModal();
+        window.history.replaceState({}, document.title, window.location.pathname);
+        showUsernameModal();
+        showAppModal('Your password was updated. Log in with your new password.', {
+          title: 'Password updated',
+          type: 'success'
+        });
+      } catch (error) {
+        showAppModal(error.message, { title: 'Password reset failed', type: 'error' });
+      } finally {
+        resetPasswordSubmit.disabled = false;
+      }
     });
   }
 
@@ -773,9 +906,14 @@ document.addEventListener('DOMContentLoaded', () => {
       render();
     });
   }
+
+  if (getPasswordResetToken()) {
+    showResetPasswordModal();
+  }
 });
 
 async function initializeBoardData({ loadServerState = false } = {}) {
+  const loadToken = ++boardLoadToken;
   isHydratingAccountState = true;
   let prefetched = null;
   try {
@@ -783,16 +921,24 @@ async function initializeBoardData({ loadServerState = false } = {}) {
       prepareAccountStateBeforeLiveLoad();
       prefetched = await fetchAccountState();
     }
-    await loadLiveRankings();
+    await loadLiveRankings(loadToken);
+    if (loadToken !== boardLoadToken) {
+      return false;
+    }
     if (loadServerState) {
       await restoreAccountStateAfterLiveLoad(prefetched);
     } else {
       restorePersistedRankings();
     }
+    if (loadToken !== boardLoadToken) {
+      return false;
+    }
     normalizeScoringFormatSettings();
     applyScoringFormatData();
   } finally {
-    isHydratingAccountState = false;
+    if (loadToken === boardLoadToken) {
+      isHydratingAccountState = false;
+    }
   }
   render();
   initSleeperSyncFromState();
@@ -879,6 +1025,7 @@ function mergeLivePlayersWithSavedPlayers(livePlayers, savedPlayers, savedCustom
 
 async function fetchAccountState() {
   let serverState = null;
+  let serverRequestSucceeded = false;
 
   if (currentUsername && currentPassword) {
     try {
@@ -887,6 +1034,7 @@ async function fetchAccountState() {
       );
       console.log('[SERVER] Fetch account state status:', response.status);
       if (response.ok) {
+        serverRequestSucceeded = true;
         const data = await response.json();
         if (data.state) {
           serverState = JSON.parse(data.state);
@@ -903,7 +1051,12 @@ async function fetchAccountState() {
     ? parseStoredState(localStorage.getItem(getUserStorageKey(currentUsername)))
     : null;
   const sessionState = parseStoredState(localStorage.getItem(STORAGE_KEY));
-  const loadedState = pickNewestState(serverState, backupState, sessionState);
+  // Once an account is authenticated, MongoDB is the source of truth. The
+  // shared session key can belong to a previous account or contain an older
+  // state that was written locally after a server save. Letting it win here
+  // can restore stale rankings and then overwrite the server on login.
+  const loadedState = serverState
+    || (serverRequestSucceeded ? backupState : pickNewestState(backupState, sessionState));
 
   let source = 'none';
   if (loadedState && loadedState === serverState) {
@@ -940,9 +1093,10 @@ async function restoreAccountStateAfterLiveLoad(prefetched = null) {
       localStorage.setItem(getUserStorageKey(currentUsername), JSON.stringify(getPersistableState()));
     }
 
-    const serverTimestamp = getStateTimestamp(serverState);
-    const loadedTimestamp = getStateTimestamp(loadedState);
-    if (currentUsername && loadedTimestamp > serverTimestamp) {
+    // Only promote an account-specific fallback when the server had no saved
+    // state. Never overwrite an existing server state during login just
+    // because a local copy has a later client timestamp.
+    if (currentUsername && source === 'backup' && !serverState) {
       await saveState({ awaitServer: true, silent: true });
     }
 
@@ -1157,6 +1311,45 @@ function showUsernameModal() {
 function hideUsernameModal() {
   const modal = document.getElementById('username-modal');
   modal.style.display = 'none';
+}
+
+function showForgotPasswordModal() {
+  const modal = document.getElementById('forgot-password-modal');
+  if (modal) modal.style.display = 'flex';
+  document.getElementById('reset-email-input')?.focus();
+}
+
+function hideForgotPasswordModal() {
+  const modal = document.getElementById('forgot-password-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function showResetPasswordModal() {
+  const modal = document.getElementById('reset-password-modal');
+  if (modal) modal.style.display = 'flex';
+  document.getElementById('new-password-input')?.focus();
+}
+
+function hideResetPasswordModal() {
+  const modal = document.getElementById('reset-password-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function getPasswordResetToken() {
+  return new URLSearchParams(window.location.search).get('reset_token') || '';
+}
+
+async function ensureUserAccount(username, password, email) {
+  const response = await fetch('/api/account', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password, email })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Unable to access this account.');
+  }
+  return data;
 }
 
 function showAppModal(message, { title = 'Notice', type = 'info' } = {}) {
@@ -2099,6 +2292,7 @@ function startSleeperSyncTimer() {
 
 function stopSleeperSyncTimer() {
   sleeperSyncLoopActive = false;
+  sleeperSyncQueued = false;
   if (sleeperSyncTimer) {
     clearTimeout(sleeperSyncTimer);
     sleeperSyncTimer = null;
@@ -3008,8 +3202,11 @@ async function getSleeperPlayersById() {
   return sleeperPlayersByIdCache;
 }
 
-async function syncSleeperDraft({ initiatedByUser = false } = {}) {
+async function syncSleeperDraft({ initiatedByUser = false, queueIfBusy = false } = {}) {
   if (sleeperSyncInFlight) {
+    if (queueIfBusy) {
+      sleeperSyncQueued = true;
+    }
     return false;
   }
 
@@ -3115,7 +3312,45 @@ async function syncSleeperDraft({ initiatedByUser = false } = {}) {
 
   saveState();
   render();
+
+  if (sleeperSyncQueued && state.sleeperSync?.enabled && `${state.sleeperSync?.draftId || ''}`.trim()) {
+    sleeperSyncQueued = false;
+    return syncSleeperDraft();
+  }
+
+  sleeperSyncQueued = false;
   return wasSuccessful;
+}
+
+async function refreshSleeperPicksNow(button) {
+  collectSettings();
+  const draftId = `${state.sleeperSync?.draftId || ''}`.trim();
+  if (!draftId) {
+    showAppModal('Paste a Sleeper draft ID first.', { title: 'No draft ID', type: 'error' });
+    return false;
+  }
+
+  state.draftMode = 'sleeper';
+  state.sleeperSync.enabled = true;
+  startSleeperSyncTimer();
+  updateDraftModeControls();
+
+  if (button) {
+    button.disabled = true;
+  }
+
+  try {
+    const ok = await syncSleeperDraft({ queueIfBusy: true });
+    if (!ok && sleeperSyncInFlight) {
+      state.liveDataStatus = 'Refreshing picks as soon as the current sync finishes...';
+      render();
+    }
+    return ok;
+  } finally {
+    if (button) {
+      button.disabled = false;
+    }
+  }
 }
 
 function initSleeperSyncFromState() {
@@ -3158,6 +3393,11 @@ async function saveCustomRankings() {
     return false;
   }
 
+  for (const player of state.players) {
+    if (Number.isFinite(Number(player.myRank)) && Number(player.myRank) > 0) {
+      player.manualRank = true;
+    }
+  }
   state.savedCustomRanks = buildSavedCustomRanks();
   if (!state.savedCustomRanks.count) {
     showAppModal('No custom rankings to save yet. Upload a CSV or drag players to reorder first.', {
@@ -3165,12 +3405,6 @@ async function saveCustomRankings() {
       type: 'error'
     });
     return false;
-  }
-
-  for (const player of state.players) {
-    if (Number.isFinite(Number(player.myRank)) && Number(player.myRank) > 0) {
-      player.manualRank = true;
-    }
   }
   state.liveDataStatus = `Saved custom rankings for ${state.savedCustomRanks.count} players.`;
   const saved = await saveState({ awaitServer: true });
@@ -3761,7 +3995,7 @@ function applyScoringFormatData() {
   });
 }
 
-async function loadLiveRankings() {
+async function loadLiveRankings(loadToken = boardLoadToken) {
   state.liveDataStatus = `Loading rankings from local CSV files...`;
   render();
 
@@ -3775,6 +4009,10 @@ async function loadLiveRankings() {
       fetchLocalRankingsApi('ffpc', 'FFPC rankings'),
       fetchLocalRankingsApi('standard', 'Standard rankings')
     ]);
+
+    if (loadToken !== boardLoadToken) {
+      return false;
+    }
 
     // Don't fetch Ghost rankings here - they will be applied after login
     let ghostResponse = null;
@@ -4018,6 +4256,9 @@ async function loadLiveRankings() {
     });
     render();
   } catch (error) {
+    if (loadToken !== boardLoadToken) {
+      return false;
+    }
     console.error('[CSV] Error loading rankings:', error);
     state.liveDataStatus = `Error loading rankings: ${error.message}`;
     render();

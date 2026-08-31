@@ -168,8 +168,9 @@ select {
 .draft-dock,
 .top-bar > .draft-controls {
   flex: 1 1 280px;
-  max-width: 420px;
+  max-width: 540px;
   min-width: 0;
+  gap: 8px;
 }
 
 .settings-bar {
@@ -263,7 +264,9 @@ select {
 
 .nav-search .compact-input {
   flex: 1 1 auto;
+  width: 100%;
   min-width: 0;
+  max-width: 100%;
   min-height: 32px;
   padding: 0 12px;
   border: 0;
@@ -279,11 +282,13 @@ select {
 }
 
 .nav-sync {
+  flex: 0 0 auto;
   min-height: 30px;
   padding: 0 14px;
   border-radius: 999px;
   font-size: 0.8rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .nav-sync-secondary {
@@ -294,6 +299,11 @@ select {
 
 .nav-sync-secondary:hover {
   background: rgba(255, 255, 255, 0.08);
+}
+
+.nav-sync:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 .manual-mode-btn {

@@ -3,20 +3,71 @@ import os
 import sqlite3
 import time
 import hashlib
+import re
+import secrets
+import smtplib
 import urllib.request
 import csv
+from email.message import EmailMessage
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse, unquote
 
+try:
+    from pymongo import MongoClient
+except ImportError:  # Keep the local SQLite fallback usable before install.
+    MongoClient = None
+
 ROOT = Path(__file__).resolve().parent
+
+
+def load_local_env(path):
+    """Load simple KEY=value credentials for local development only."""
+    if not path.exists():
+        return
+    try:
+        for raw_line in path.read_text(encoding='utf-8').splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith('#') or '=' not in line:
+                continue
+            key, value = line.split('=', 1)
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            os.environ.setdefault(key, value)
+    except OSError as exc:
+        print(f'[DB] Could not read local env file: {exc}', flush=True)
+
+
+load_local_env(ROOT / 'atlas-credentials.env')
+load_local_env(ROOT / '.env')
+
 PORT = int(os.environ.get('PORT', 8000))
 PROXY_TIMEOUT_SECONDS = 8
 DB_PATH = Path(os.environ.get('DB_PATH', ROOT / 'adp_profile.db'))
+MONGODB_URI = os.environ.get('MONGODB_URI')
+MONGODB_DATABASE = os.environ.get('MONGODB_DATABASE', 'fantasy_draft_sheet')
+APP_BASE_URL = os.environ.get('APP_BASE_URL', 'http://localhost:8000').rstrip('/')
+APP_ENV = os.environ.get('APP_ENV', 'development').lower()
+_mongo_client = None
+_mongo_db = None
 
 
 def ensure_db_directory():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+
+def get_mongo_db():
+    """Return the configured Atlas database, or None when Mongo is unavailable."""
+    global _mongo_client, _mongo_db
+    if not MONGODB_URI or MongoClient is None:
+        return None
+    if _mongo_db is None:
+        _mongo_client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
+        _mongo_client.admin.command('ping')
+        _mongo_db = _mongo_client[MONGODB_DATABASE]
+        _mongo_db.user_states.create_index('username', unique=True)
+        print(f'[DB] Using MongoDB database: {MONGODB_DATABASE}', flush=True)
+    return _mongo_db
 
 # API configurations
 FANTASYPROS_API_KEY = 'PNnzNP9Brm5ZdldankRwc8l6Z1z9HpJR1KKEQTjF'
@@ -333,7 +384,22 @@ def init_db():
             )
             '''
         )
+        for column, definition in (
+            ('email', 'TEXT'),
+            ('reset_token_hash', 'TEXT'),
+            ('reset_expires_at', 'INTEGER')
+        ):
+            try:
+                conn.execute(f'ALTER TABLE user_states ADD COLUMN {column} {definition}')
+            except sqlite3.OperationalError:
+                pass
         conn.commit()
+
+    if MONGODB_URI and MongoClient is not None:
+        try:
+            get_mongo_db()
+        except Exception as exc:
+            print(f'[DB] MongoDB connection check failed: {exc}', flush=True)
 
 
 def load_adp_profile():
@@ -381,21 +447,137 @@ def load_adp_profile():
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
+
+def normalize_email(email):
+    return str(email or '').strip().lower()
+
+
+def is_valid_email(email):
+    return bool(re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', normalize_email(email)))
+
+
+def _get_user_document(username):
+    mongo_db = get_mongo_db()
+    if mongo_db is not None:
+        return mongo_db.user_states.find_one({'_id': username})
+
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            '''
+            SELECT username, password_hash, state_json, updated_at, email,
+                   reset_token_hash, reset_expires_at
+            FROM user_states
+            WHERE username = ?
+            ''',
+            (username,)
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def ensure_user_account(username, password, email=''):
+    """Validate credentials and attach an email to new/legacy accounts."""
+    username = str(username or '').strip()
+    email = normalize_email(email)
+    if not username or not password:
+        return 'MISSING_FIELDS'
+    if email and not is_valid_email(email):
+        return 'INVALID_EMAIL'
+
+    document = _get_user_document(username)
+    if document and document.get('password_hash') != hash_password(password):
+        return 'INVALID_PASSWORD'
+
+    existing_email = normalize_email(document.get('email')) if document else ''
+    if existing_email and email and existing_email != email:
+        return 'EMAIL_ALREADY_SET'
+
+    if document:
+        if not existing_email and email:
+            mongo_db = get_mongo_db()
+            if mongo_db is not None:
+                mongo_db.user_states.update_one({'_id': username}, {'$set': {'email': email}})
+            else:
+                with sqlite3.connect(DB_PATH) as conn:
+                    conn.execute('UPDATE user_states SET email = ? WHERE username = ?', (email, username))
+                    conn.commit()
+        return 'OK'
+
+    if not email:
+        return 'EMAIL_REQUIRED'
+
+    password_hash = hash_password(password)
+    mongo_db = get_mongo_db()
+    if mongo_db is not None:
+        mongo_db.user_states.insert_one({
+            '_id': username,
+            'username': username,
+            'password_hash': password_hash,
+            'email': email,
+            'state_json': None,
+            'updated_at': int(time.time())
+        })
+    else:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute(
+                '''
+                INSERT INTO user_states
+                    (username, password_hash, state_json, updated_at, email)
+                VALUES (?, ?, ?, ?, ?)
+                ''',
+                (username, password_hash, '', int(time.time()), email)
+            )
+            conn.commit()
+    return 'CREATED'
+
+
 def save_user_state(username, password, state_json):
     password_hash = hash_password(password)
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute(
-            '''
-            INSERT OR REPLACE INTO user_states (username, password_hash, state_json, updated_at)
-            VALUES (?, ?, ?, ?)
-            ''',
-            (username, password_hash, state_json, int(time.time()))
+    mongo_db = get_mongo_db()
+    if mongo_db is not None:
+        mongo_db.user_states.update_one(
+            {'_id': username},
+            {'$set': {
+                'username': username,
+                'password_hash': password_hash,
+                'state_json': state_json,
+                'updated_at': int(time.time())
+            }},
+            upsert=True
         )
+        return
+
+    with sqlite3.connect(DB_PATH) as conn:
+        updated = conn.execute(
+            '''
+            UPDATE user_states
+            SET password_hash = ?, state_json = ?, updated_at = ?
+            WHERE username = ?
+            ''',
+            (password_hash, state_json, int(time.time()), username)
+        ).rowcount
+        if not updated:
+            conn.execute(
+                '''
+                INSERT INTO user_states (username, password_hash, state_json, updated_at)
+                VALUES (?, ?, ?, ?)
+                ''',
+                (username, password_hash, state_json, int(time.time()))
+            )
         conn.commit()
 
 
 def load_user_state(username, password):
     password_hash = hash_password(password)
+    mongo_db = get_mongo_db()
+    if mongo_db is not None:
+        document = mongo_db.user_states.find_one({'_id': username})
+        if not document:
+            return None
+        if document.get('password_hash') != password_hash:
+            return 'INVALID_PASSWORD'
+        return document.get('state_json')
+
     with sqlite3.connect(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
         row = conn.execute(
@@ -407,6 +589,138 @@ def load_user_state(username, password):
         if row and row['password_hash'] != password_hash:
             return 'INVALID_PASSWORD'
         return None
+
+
+def send_password_reset_email(email, token):
+    reset_url = f'{APP_BASE_URL}/?reset_token={token}'
+    smtp_host = os.environ.get('SMTP_HOST')
+    if not smtp_host:
+        if APP_ENV != 'production':
+            print(f'[AUTH] Development password reset link: {reset_url}', flush=True)
+            return
+        raise RuntimeError('SMTP_HOST is not configured')
+
+    smtp_port = int(os.environ.get('SMTP_PORT', '587'))
+    smtp_username = os.environ.get('SMTP_USERNAME')
+    smtp_password = os.environ.get('SMTP_PASSWORD')
+    from_email = os.environ.get('SMTP_FROM_EMAIL', smtp_username or 'no-reply@localhost')
+    message = EmailMessage()
+    message['Subject'] = 'Reset your Fantasy Draft Sheet password'
+    message['From'] = from_email
+    message['To'] = email
+    message.set_content(
+        'Use this link to reset your Fantasy Draft Sheet password. '
+        f'The link expires in 15 minutes:\n\n{reset_url}\n'
+    )
+
+    if smtp_port == 465:
+        with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=15) as smtp:
+            if smtp_username and smtp_password:
+                smtp.login(smtp_username, smtp_password)
+            smtp.send_message(message)
+        return
+
+    with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as smtp:
+        smtp.ehlo()
+        smtp.starttls()
+        smtp.ehlo()
+        if smtp_username and smtp_password:
+            smtp.login(smtp_username, smtp_password)
+        smtp.send_message(message)
+
+
+def request_password_reset(email):
+    email = normalize_email(email)
+    if not is_valid_email(email):
+        return
+
+    mongo_db = get_mongo_db()
+    if mongo_db is not None:
+        document = mongo_db.user_states.find_one({'email': email})
+    else:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute('SELECT * FROM user_states WHERE email = ?', (email,)).fetchone()
+        document = dict(row) if row else None
+
+    if not document:
+        return
+
+    token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    expires_at = int(time.time()) + 15 * 60
+    if mongo_db is not None:
+        mongo_db.user_states.update_one(
+            {'_id': document['_id']},
+            {'$set': {'reset_token_hash': token_hash, 'reset_expires_at': expires_at}}
+        )
+    else:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute(
+                'UPDATE user_states SET reset_token_hash = ?, reset_expires_at = ? WHERE username = ?',
+                (token_hash, expires_at, document['username'])
+            )
+            conn.commit()
+
+    try:
+        send_password_reset_email(email, token)
+    except Exception:
+        if mongo_db is not None:
+            mongo_db.user_states.update_one(
+                {'_id': document['_id']},
+                {'$unset': {'reset_token_hash': '', 'reset_expires_at': ''}}
+            )
+        else:
+            with sqlite3.connect(DB_PATH) as conn:
+                conn.execute(
+                    'UPDATE user_states SET reset_token_hash = NULL, reset_expires_at = NULL WHERE username = ?',
+                    (document['username'],)
+                )
+                conn.commit()
+        raise
+
+
+def reset_password(token, new_password):
+    if not token or not new_password or len(new_password) < 8:
+        return False
+
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    now = int(time.time())
+    mongo_db = get_mongo_db()
+    if mongo_db is not None:
+        document = mongo_db.user_states.find_one({
+            'reset_token_hash': token_hash,
+            'reset_expires_at': {'$gt': now}
+        })
+        if not document:
+            return False
+        mongo_db.user_states.update_one(
+            {'_id': document['_id']},
+            {'$set': {'password_hash': hash_password(new_password)},
+             '$unset': {'reset_token_hash': '', 'reset_expires_at': ''}}
+        )
+        return True
+
+    with sqlite3.connect(DB_PATH) as conn:
+        row = conn.execute(
+            '''
+            SELECT username FROM user_states
+            WHERE reset_token_hash = ? AND reset_expires_at > ?
+            ''',
+            (token_hash, now)
+        ).fetchone()
+        if not row:
+            return False
+        conn.execute(
+            '''
+            UPDATE user_states
+            SET password_hash = ?, reset_token_hash = NULL, reset_expires_at = NULL
+            WHERE username = ?
+            ''',
+            (hash_password(new_password), row[0])
+        )
+        conn.commit()
+    return True
 
 
 def save_adp_profile(payload):
@@ -578,6 +892,18 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path == '/api/user-state':
             self.handle_post_user_state()
+            return
+
+        if parsed.path == '/api/account':
+            self.handle_post_account()
+            return
+
+        if parsed.path == '/api/password-reset/request':
+            self.handle_password_reset_request()
+            return
+
+        if parsed.path == '/api/password-reset/confirm':
+            self.handle_password_reset_confirm()
             return
 
         self.send_response(404)
@@ -887,7 +1213,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(json.dumps({'error': 'Invalid username or password'}).encode('utf-8'))
                 return
-            if state_json is None:
+            if not state_json:
                 # First time login - no saved state
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
@@ -942,6 +1268,65 @@ class Handler(BaseHTTPRequestHandler):
             self._set_cors_headers()
             self.end_headers()
             self.wfile.write(json.dumps({'error': str(exc)}).encode('utf-8'))
+
+    def _read_json_body(self):
+        try:
+            content_length = int(self.headers.get('Content-Length', '0'))
+        except ValueError:
+            content_length = 0
+        body = self.rfile.read(content_length) if content_length > 0 else b'{}'
+        return json.loads(body.decode('utf-8'))
+
+    def _write_json(self, payload, status=200):
+        self.send_response(status)
+        self.send_header('Content-Type', 'application/json')
+        self._set_cors_headers()
+        self.end_headers()
+        self.wfile.write(json.dumps(payload).encode('utf-8'))
+
+    def handle_post_account(self):
+        try:
+            payload = self._read_json_body()
+            status = ensure_user_account(
+                payload.get('username'),
+                payload.get('password'),
+                payload.get('email')
+            )
+            status_codes = {
+                'INVALID_PASSWORD': (401, 'Invalid username or password'),
+                'EMAIL_REQUIRED': (400, 'Email is required when creating a new account'),
+                'INVALID_EMAIL': (400, 'Enter a valid email address'),
+                'EMAIL_ALREADY_SET': (409, 'That account already has a different email address'),
+                'MISSING_FIELDS': (400, 'Missing username or password')
+            }
+            if status in status_codes:
+                code, message = status_codes[status]
+                self._write_json({'error': message}, code)
+                return
+            self._write_json({'ok': True, 'created': status == 'CREATED'})
+        except Exception as exc:
+            self._write_json({'error': str(exc)}, 500)
+
+    def handle_password_reset_request(self):
+        try:
+            payload = self._read_json_body()
+            request_password_reset(payload.get('email'))
+            self._write_json({
+                'ok': True,
+                'message': 'If an account uses that email, a reset link has been sent.'
+            })
+        except Exception as exc:
+            self._write_json({'error': str(exc)}, 500)
+
+    def handle_password_reset_confirm(self):
+        try:
+            payload = self._read_json_body()
+            if not reset_password(payload.get('token'), payload.get('password')):
+                self._write_json({'error': 'This reset link is invalid or expired.'}, 400)
+                return
+            self._write_json({'ok': True})
+        except Exception as exc:
+            self._write_json({'error': str(exc)}, 500)
 
     def handle_delete_user_state(self):
         try:

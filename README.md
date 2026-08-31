@@ -18,6 +18,39 @@ python app.py
 
 Then visit http://localhost:8000.
 
+## MongoDB Atlas user storage
+
+The server uses MongoDB Atlas for user accounts and saved draft state when
+`MONGODB_URI` is configured. For local development, place the connection
+string in the ignored `atlas-credentials.env` file:
+
+```text
+MONGODB_URI=mongodb+srv://...
+```
+
+On Render, add `MONGODB_URI` as a secret environment variable instead. The
+MongoDB database defaults to `fantasy_draft_sheet`; override it with
+`MONGODB_DATABASE` if needed.
+
+### Password reset email
+
+New accounts collect an email address, and existing accounts can add one the
+next time they log in. Configure SMTP to send password reset links:
+
+```text
+APP_BASE_URL=https://your-app.example.com
+APP_ENV=production
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USERNAME=...
+SMTP_PASSWORD=...
+SMTP_FROM_EMAIL=no-reply@your-app.example.com
+```
+
+For local development, if SMTP is not configured, the reset link is printed
+in the server terminal instead of being emailed. Reset links expire after 15
+minutes and can only be used once.
+
 For frontend-only work, you can open [index.html](index.html) or run `python server.py`.
 
 ## Deploy on Render
