@@ -264,6 +264,12 @@ if (!state.settings || typeof state.settings !== 'object') {
   state.settings = structuredClone(defaultState.settings);
 }
 normalizeScoringFormatSettings();
+if (state.adpSource === 'bestball') {
+  state.adpSource = 'rotoballer';
+}
+if (state.sort?.key === 'bestball') {
+  state.sort = { key: 'adp', direction: 'asc' };
+}
 const VALID_ADP_SOURCES = new Set(['all', 'espn', 'yahoo', 'sleeper', 'rotoballer', 'ffpc', 'average', 'expert']);
 if (!VALID_ADP_SOURCES.has(state.adpSource)) {
   state.adpSource = 'all';
@@ -575,7 +581,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const resetBoardButton = document.getElementById('reset-board');
   if (resetBoardButton) {
     resetBoardButton.addEventListener('click', () => {
-      if (confirm('Refresh the board? This clears drafted status (except manual picks) and rebuilds tiers from ADP and VORP positional cliffs.')) {
+      const message = isManualDraftMode()
+        ? 'Refresh the board? This puts all players back on the board and rebuilds tiers from ADP and VORP positional cliffs.'
+        : 'Refresh the board? This clears drafted status (except manual picks) and rebuilds tiers from ADP and VORP positional cliffs.';
+      if (confirm(message)) {
         resetDraftBoard();
       }
     });
@@ -1767,6 +1776,7 @@ function applyCsvPlayerFields(allPlayers, player, sourceFields = {}) {
       expertRank: player.expertRank || null,
       expertRankHalfPpr: null,
       expertRankStandard: null,
+      expertRankBestball: null,
       projectedPoints: points,
       ...sourceFields
     };
@@ -3485,6 +3495,9 @@ function getScoringLabel(scoringFormat) {
   if (scoringFormat === 'standard') {
     return 'Standard';
   }
+  if (scoringFormat === 'bestball') {
+    return 'Best Ball';
+  }
   return 'PPR';
 }
 
@@ -3509,6 +3522,7 @@ const LOCAL_RANKINGS_CSV_SOURCES = {
   standard: { file: 'standard-rankings.csv', adpField: 'adpYahoo', adpColumn: 'ADP (Y!)' },
   sleeper: { file: 'sleeper-rankings.csv', adpField: 'adpSleeper', adpColumn: 'ADP (Sleeper)' },
   rotoballer: { file: 'rotoballer-rankings.csv', adpField: 'adpUnderdog', adpColumn: 'ADP (Underdog)' },
+  bestball: { file: 'underdog-bestball-rankings.csv', adpField: 'adpBestball', adpColumn: 'RK' },
   ffpc: { file: 'ffpc-rankings.csv', adpField: 'adpFFPC', adpColumn: 'ADP (FFPC)' }
 };
 
@@ -3969,7 +3983,7 @@ function normalizeScoringFormatSettings() {
     }
     state.settings.scoringFormatDefaultVersion = 2;
   }
-  if (state.settings.scoringFormat !== 'half' && state.settings.scoringFormat !== 'standard' && state.settings.scoringFormat !== 'ppr') {
+  if (state.settings.scoringFormat !== 'half' && state.settings.scoringFormat !== 'standard' && state.settings.scoringFormat !== 'ppr' && state.settings.scoringFormat !== 'bestball') {
     state.settings.scoringFormat = 'half';
   }
 }
@@ -3983,15 +3997,24 @@ function isStandardScoringFormat() {
   return state.settings?.scoringFormat === 'standard';
 }
 
+function isBestballScoringFormat() {
+  return state.settings?.scoringFormat === 'bestball';
+}
+
 function applyScoringFormatData() {
   const useStandard = isStandardScoringFormat();
+  const useBestball = isBestballScoringFormat();
   (state.players || []).forEach((player) => {
     player.yahoo = useStandard
       ? pickFiniteRankValue(player.yahooStandard)
       : pickFiniteRankValue(player.yahooHalfPpr);
-    player.expertRank = useStandard
-      ? pickFiniteRankValue(player.expertRankStandard)
-      : pickFiniteRankValue(player.expertRankHalfPpr);
+    if (useBestball) {
+      player.expertRank = pickFiniteRankValue(player.expertRankBestball);
+    } else if (useStandard) {
+      player.expertRank = pickFiniteRankValue(player.expertRankStandard);
+    } else {
+      player.expertRank = pickFiniteRankValue(player.expertRankHalfPpr);
+    }
   });
 }
 
@@ -4001,13 +4024,14 @@ async function loadLiveRankings(loadToken = boardLoadToken) {
 
   try {
     // Fetch local CSV rankings for ESPN, Yahoo, Sleeper, Underdog, and FFPC
-    const [espnResponse, yahooResponse, sleeperResponse, rotoballerResponse, ffpcResponse, standardResponse] = await Promise.all([
+    const [espnResponse, yahooResponse, sleeperResponse, rotoballerResponse, ffpcResponse, standardResponse, bestballResponse] = await Promise.all([
       fetchLocalRankingsApi('espn', 'ESPN rankings'),
       fetchLocalRankingsApi('yahoo', 'Yahoo rankings'),
       fetchLocalRankingsApi('sleeper', 'Sleeper rankings'),
       fetchLocalRankingsApi('rotoballer', 'Underdog rankings'),
       fetchLocalRankingsApi('ffpc', 'FFPC rankings'),
-      fetchLocalRankingsApi('standard', 'Standard rankings')
+      fetchLocalRankingsApi('standard', 'Standard rankings'),
+      fetchLocalRankingsApi('bestball', 'Underdog best-ball rankings')
     ]);
 
     if (loadToken !== boardLoadToken) {
@@ -4110,6 +4134,16 @@ async function loadLiveRankings(loadToken = boardLoadToken) {
       });
     }
 
+    // Best-ball RK overlays Expert when Best Ball format is selected.
+    // Do not overwrite Underdog ADP or half-PPR/standard expert ranks.
+    if (bestballResponse && bestballResponse.players) {
+      bestballResponse.players.forEach(player => {
+        applyCsvPlayerFields(allPlayers, { ...player, expertRank: null }, {
+          expertRankBestball: player.rank || player.adpBestball || player.expertRank
+        });
+      });
+    }
+
     // Snapshot half-PPR Yahoo ADP and expert rank before overlaying standard.
     allPlayers.forEach((player) => {
       if (player.yahooHalfPpr == null) {
@@ -4133,7 +4167,7 @@ async function loadLiveRankings(loadToken = boardLoadToken) {
 
     // Convert to array and filter players that have at least one ranking
     const mergedPlayers = Array.from(new Set(allPlayers.values()))
-      .filter(player => player.espn || player.yahoo || player.sleeper || player.rotoballer || player.ffpc || player.yahooStandard)
+      .filter(player => player.espn || player.yahoo || player.sleeper || player.rotoballer || player.ffpc || player.yahooStandard || player.expertRankBestball)
       .map((player, index) => {
         // Use ESPN as primary if available, otherwise Yahoo, otherwise first available
         const primaryAdp = player.espn || player.yahoo || player.sleeper || player.rotoballer || player.ffpc || 100;
@@ -4164,6 +4198,7 @@ async function loadLiveRankings(loadToken = boardLoadToken) {
           expertRank: player.expertRank || null,
           expertRankHalfPpr: player.expertRankHalfPpr ?? player.expertRank ?? null,
           expertRankStandard: player.expertRankStandard || null,
+          expertRankBestball: player.expertRankBestball || null,
           projectedPoints: Number.isFinite(player.projectedPoints) ? player.projectedPoints : null,
           baseValue: Math.max(70, 100 - primaryAdp * 4),
           tier: 1,
@@ -4242,13 +4277,15 @@ async function loadLiveRankings(loadToken = boardLoadToken) {
     const yahooCount = yahooResponse && yahooResponse.players ? yahooResponse.players.length : 0;
     const sleeperCount = sleeperResponse && sleeperResponse.players ? sleeperResponse.players.length : 0;
     const underdogCount = rotoballerResponse && rotoballerResponse.players ? rotoballerResponse.players.length : 0;
+    const bestballCount = bestballResponse && bestballResponse.players ? bestballResponse.players.length : 0;
     const ffpcCount = ffpcResponse && ffpcResponse.players ? ffpcResponse.players.length : 0;
     const standardCount = standardResponse && standardResponse.players ? standardResponse.players.length : 0;
-    state.liveDataStatus = `Loaded ${state.players.length} players from local CSV files (${espnCount} ESPN, ${yahooCount} Yahoo, ${sleeperCount} Sleeper, ${underdogCount} Underdog, ${ffpcCount} FFPC, ${standardCount} Standard).`;
+    state.liveDataStatus = `Loaded ${state.players.length} players from local CSV files (${espnCount} ESPN, ${yahooCount} Yahoo, ${sleeperCount} Sleeper, ${underdogCount} Underdog, ${bestballCount} Best Ball, ${ffpcCount} FFPC, ${standardCount} Standard).`;
     
     console.log('[CSV] Sample player data:', {
       name: state.players[0]?.name,
       expertRank: state.players[0]?.expertRank,
+      expertRankBestball: state.players[0]?.expertRankBestball,
       projectedPoints: state.players[0]?.projectedPoints,
       sleeper: state.players[0]?.sleeper,
       rotoballer: state.players[0]?.rotoballer,
@@ -5138,13 +5175,14 @@ function calculatePersonalDifference(player, adpSource) {
 }
 
 function resetDraftBoard() {
-  // Clear drafted status from all players except manually drafted
+  const clearManualPicks = isManualDraftMode();
+
   state.players = state.players.map((player) => {
-    // Keep manually drafted players as is
-    if (player.draftedSource === 'manual') {
+    // In Sleeper mode, keep manually marked players off the board.
+    if (!clearManualPicks && player.draftedSource === 'manual') {
       return player;
     }
-    
+
     // For unmatched Sleeper imports, make them undrafted but preserve their rank
     if (player.draftedSource === 'sync' && player.id?.startsWith('sleeper-')) {
       return {
@@ -5157,8 +5195,7 @@ function resetDraftBoard() {
         myRank: player.roomPickNo || player.myRank
       };
     }
-    
-    // Clear drafted status for all other players
+
     return {
       ...player,
       drafted: false,

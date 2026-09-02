@@ -63,6 +63,23 @@ def load_rotoballer():
     return {'players': players}
 
 
+def load_bestball():
+    players = []
+    with open(ROOT / 'underdog-bestball-rankings.csv', encoding='utf-8') as handle:
+        for row in csv.DictReader(handle):
+            rank = int(row.get('RK', 0) or 0)
+            players.append(
+                {
+                    'rank': rank,
+                    'name': row.get('Player', ''),
+                    'position': row.get('Pos', ''),
+                    'team': row.get('Team', ''),
+                    'adpBestball': float(rank or 0),
+                }
+            )
+    return {'players': players}
+
+
 def load_ffpc():
     players = []
     with open(ROOT / 'ffpc-rankings.csv', encoding='utf-8') as handle:
@@ -101,6 +118,7 @@ def main():
         'yahoo': load_yahoo(),
         'standard': load_standard(),
         'rotoballer': load_rotoballer(),
+        'bestball': load_bestball(),
         'ffpc': load_ffpc(),
         'sleeper': load_sleeper(),
     }

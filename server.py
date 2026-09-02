@@ -125,6 +125,43 @@ def load_rotoballer_rankings():
         print(f'[UNDERDOG] Error loading CSV: {exc}', flush=True)
         return {'error': str(exc)}
 
+def load_bestball_rankings():
+    """Load Underdog best-ball rankings. RK is the ranking; this file has no ADP column."""
+    csv_path = ROOT / 'underdog-bestball-rankings.csv'
+    if not csv_path.exists():
+        return {'error': 'Underdog best-ball rankings file not found'}
+
+    try:
+        players = []
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                try:
+                    rank = int(row.get('RK', 0))
+                    player = {
+                        'rank': rank,
+                        'name': row.get('Player', ''),
+                        'position': row.get('Pos', ''),
+                        'team': row.get('Team', ''),
+                        'bye': row.get('BYE', ''),
+                        'opponent': row.get('Opp', ''),
+                        'points': parse_csv_points(row),
+                        'sosRank': int(row.get('SoS Rank', 0)) if row.get('SoS Rank') else 0,
+                        'adpBestball': float(rank) if rank else 0,
+                        'posRank': row.get('P-RK', ''),
+                        'auctionValue': row.get('Auction $', ''),
+                        'targetRound': row.get('Target Round', '')
+                    }
+                    players.append(player)
+                except (ValueError, KeyError) as e:
+                    print(f'[BESTBALL] Error parsing row: {e}', flush=True)
+                    continue
+
+        return {'players': players}
+    except Exception as exc:
+        print(f'[BESTBALL] Error loading CSV: {exc}', flush=True)
+        return {'error': str(exc)}
+
 def load_ghost_rankings():
     """Load and parse Ghost's personal rankings CSV file"""
     csv_path = ROOT / 'ghost-underdog-rankings.csv'
@@ -843,6 +880,10 @@ class Handler(BaseHTTPRequestHandler):
             self.handle_rotoballer(parsed)
             return
 
+        if parsed.path == '/api/bestball':
+            self.handle_bestball(parsed)
+            return
+
         if parsed.path == '/api/ffpc':
             self.handle_ffpc(parsed)
             return
@@ -1035,6 +1076,25 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(result_json)
         except Exception as exc:
             print(f'[UNDERDOG] ERROR: {type(exc).__name__}: {exc}', flush=True)
+            self.send_response(500)
+            self._set_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': str(exc)}).encode('utf-8'))
+
+    def handle_bestball(self, parsed):
+        """Serve Underdog best-ball rankings from local CSV file"""
+        try:
+            data = load_bestball_rankings()
+            result_json = json.dumps(data).encode('utf-8')
+            print(f'[BESTBALL] Serving {len(data.get("players", []))} players', flush=True)
+
+            self.send_response(200)
+            self._set_cors_headers()
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(result_json)
+        except Exception as exc:
+            print(f'[BESTBALL] ERROR: {type(exc).__name__}: {exc}', flush=True)
             self.send_response(500)
             self._set_cors_headers()
             self.end_headers()

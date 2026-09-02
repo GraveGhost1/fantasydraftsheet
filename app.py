@@ -9,6 +9,7 @@ from server import (
     request_password_reset,
     reset_password,
     load_rotoballer_rankings,
+    load_bestball_rankings,
     load_ffpc_rankings,
     load_yahoo_rankings,
     load_standard_rankings,
@@ -186,6 +187,15 @@ def password_reset_confirm_api():
 def get_underdog_rankings():
     try:
         data = load_rotoballer_rankings()
+        return jsonify(data)
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+
+@app.route('/api/bestball', methods=['GET'])
+def get_bestball_rankings():
+    try:
+        data = load_bestball_rankings()
         return jsonify(data)
     except Exception as exc:
         return jsonify({'error': str(exc)}), 500
