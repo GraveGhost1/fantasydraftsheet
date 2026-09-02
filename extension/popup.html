@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Draft Sheet Assistant</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="popup-header">
+      <div class="logo">DA</div>
+      <div>
+        <h1>Draft Assistant</h1>
+        <p class="lede">Underdog Best Ball overlay</p>
+      </div>
+    </header>
+
+    <div id="status" class="status-banner" role="status"></div>
+
+    <section class="card">
+      <label for="rank-source">Ranking source</label>
+      <select id="rank-source">
+        <option value="expert">Expert best ball (recommended)</option>
+        <option value="csv">Imported CSV ranks</option>
+        <option value="custom">My saved ranks</option>
+      </select>
+      <button id="public" type="button" class="primary">Load expert ranks</button>
+    </section>
+
+    <section class="card">
+      <label for="api-base">Draft Sheet URL</label>
+      <input id="api-base" type="url" placeholder="http://127.0.0.1:8000" />
+      <p class="hint">Local: run <code>python app.py</code>. Production: your Render URL.</p>
+    </section>
+
+    <details class="card collapsible">
+      <summary>Account &amp; imports</summary>
+      <div class="card-body">
+        <label for="username">Username</label>
+        <input id="username" type="text" autocomplete="username" />
+
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password" />
+
+        <div class="btn-row">
+          <button id="login" type="button">Log in</button>
+          <button id="logout" type="button" class="secondary">Log out</button>
+        </div>
+
+        <hr class="divider" />
+
+        <label class="file-label">
+          Import rank CSV
+          <input id="rank-csv" type="file" accept=".csv,text/csv" />
+        </label>
+        <label class="file-label">
+          Import exposure CSV
+          <input id="exposure-csv" type="file" accept=".csv,text/csv" />
+        </label>
+        <button id="clear-csv" type="button" class="secondary full">Clear imported CSV ranks</button>
+      </div>
+    </details>
+
+    <footer class="popup-footer">
+      <button id="open-test" type="button" class="link-btn">Open test draft room ↗</button>
+    </footer>
+
+    <script src="lib/portfolio.js"></script>
+    <script src="lib/csv-import.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

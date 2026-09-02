@@ -7,6 +7,8 @@ A browser-based fantasy football draft board that lets you:
 - sort players by any column header
 - assign tiers for a simple draft cheat sheet
 
+It also includes a **Draft Assistant** Chrome extension for Underdog Best Ball drafts — live recommendations, heat map highlighting, draft capital tracking, and portfolio exposure.
+
 ## Run locally
 
 Use the Flask app so login/save APIs work:
@@ -17,6 +19,58 @@ python app.py
 ```
 
 Then visit http://localhost:8000.
+
+## Draft Assistant (Underdog overlay)
+
+The extension in [`extension/`](extension/) adds a Solver-style sidebar on Underdog Best Ball draft rooms. It uses expert best-ball ranks by default (from `underdog-bestball-rankings.csv`), not your redraft saved list.
+
+### Quick start
+
+1. Start the backend: `python app.py`
+2. Load the extension in Chrome: **Extensions → Developer mode → Load unpacked** → select the `extension/` folder
+3. Click the extension icon → **Load expert ranks**
+4. Practice in the test room: http://localhost:8000/extension/test-draft-room.html  
+   Or open a live Underdog Best Ball draft.
+
+### Extension popup
+
+| Action | What it does |
+|--------|----------------|
+| **Load expert ranks** | Fetches the public best-ball board (no login required) |
+| **Ranking source** | Expert BB, imported CSV, or your saved custom ranks |
+| **Draft Sheet URL** | API host — `http://127.0.0.1:8000` locally, or your Render URL in production |
+| **Open test draft room** | Opens the local Underdog-style mock room for testing heat/recs |
+| **Account & imports** | Log in for custom ranks; import rank or exposure CSVs |
+
+### Overlay panel
+
+Once a draft room is detected, a panel appears on the right with three tabs:
+
+- **Recs** — top 3 pick recommendations, warnings, draft capital summary
+- **Board** — searchable remaining players with rank/ADP/diff, position filters, dock/boost/exclude
+- **Team** — your roster, capital vs targets, refresh/undo
+
+Click **⚙ Settings** for scoring weights (ranks, ADP, stacks, playoff weeks, portfolio fade), position limits, and clock alert sound. Player rows on the Underdog board are color-coded to match recommendations.
+
+### Test draft room
+
+`extension/test-draft-room.html` mimics the Underdog 3-column layout (player list, queue, roster, draft ticker). Use **Load demo (pick 16)** in the dev bar to simulate being on the clock with a partial roster.
+
+### API routes (assistant)
+
+| Route | Purpose |
+|-------|---------|
+| `GET /api/assistant/board?rankSource=expert` | Public expert best-ball board + ADP |
+| `POST /api/assistant/login` | Board merged with saved user ranks |
+| `GET /assistant` | Setup / help page |
+
+### Refresh NFL schedule data
+
+Playoff-week stack scoring uses `extension/data/nfl-schedule-2026.json`. Regenerate before the season:
+
+```bash
+python build_nfl_schedule.py
+```
 
 ## MongoDB Atlas user storage
 
@@ -76,3 +130,5 @@ Verify after deploy:
 
 - `https://your-app.onrender.com/api/health` should return `{"ok": true}`
 - Log in, change rankings, click **Save**, log out, log back in
+
+For the Draft Assistant extension, set **Draft Sheet URL** in the popup to your Render URL (e.g. `https://your-app.onrender.com`) and click **Load expert ranks**.

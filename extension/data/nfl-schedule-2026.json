@@ -1,0 +1,1318 @@
+{
+  "source": "https://www.espn.com/nfl/schedulegrid",
+  "season": 2026,
+  "teams": {
+    "ARI": {
+      "weeks": [
+        "@LAC",
+        "SEA",
+        "@SF",
+        "@NYG",
+        "DET",
+        "@LAR",
+        "DEN",
+        "@DAL",
+        "@SEA",
+        "LAR",
+        "@KC",
+        "WSH",
+        "PHI",
+        "BYE",
+        "NYJ",
+        "@NO",
+        "LV",
+        "SF"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "NYJ",
+          "home": true,
+          "raw": "NYJ"
+        },
+        "16": {
+          "opponent": "NO",
+          "home": false,
+          "raw": "@NO"
+        },
+        "17": {
+          "opponent": "LV",
+          "home": true,
+          "raw": "LV"
+        }
+      },
+      "dome": true,
+      "w17GameTier": 55
+    },
+    "ATL": {
+      "weeks": [
+        "@PIT",
+        "CAR",
+        "@GB",
+        "@NO",
+        "BAL",
+        "CHI",
+        "SF",
+        "@TB",
+        "CIN",
+        "KC",
+        "BYE",
+        "@MIN",
+        "DET",
+        "@CLE",
+        "@WSH",
+        "TB",
+        "NO",
+        "@CAR"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "WAS",
+          "home": false,
+          "raw": "@WSH"
+        },
+        "16": {
+          "opponent": "TB",
+          "home": true,
+          "raw": "TB"
+        },
+        "17": {
+          "opponent": "NO",
+          "home": true,
+          "raw": "NO"
+        }
+      },
+      "dome": true,
+      "w17GameTier": 55
+    },
+    "BAL": {
+      "weeks": [
+        "@IND",
+        "NO",
+        "@DAL",
+        "TEN",
+        "@ATL",
+        "@CLE",
+        "CIN",
+        "@BUF",
+        "JAX",
+        "LAC",
+        "@CAR",
+        "@HOU",
+        "BYE",
+        "TB",
+        "@PIT",
+        "CLE",
+        "@CIN",
+        "PIT"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "PIT",
+          "home": false,
+          "raw": "@PIT"
+        },
+        "16": {
+          "opponent": "CLE",
+          "home": true,
+          "raw": "CLE"
+        },
+        "17": {
+          "opponent": "CIN",
+          "home": false,
+          "raw": "@CIN"
+        }
+      },
+      "dome": false,
+      "w17GameTier": 98
+    },
+    "BUF": {
+      "weeks": [
+        "@HOU",
+        "DET",
+        "LAC",
+        "NE",
+        "@LAR",
+        "@LV",
+        "BYE",
+        "BAL",
+        "@MIN",
+        "@NYJ",
+        "MIA",
+        "KC",
+        "@NE",
+        "@GB",
+        "CHI",
+        "@DEN",
+        "@MIA",
+        "NYJ"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "CHI",
+          "home": true,
+          "raw": "CHI"
+        },
+        "16": {
+          "opponent": "DEN",
+          "home": false,
+          "raw": "@DEN"
+        },
+        "17": {
+          "opponent": "MIA",
+          "home": false,
+          "raw": "@MIA"
+        }
+      },
+      "dome": false,
+      "w17GameTier": 86
+    },
+    "CAR": {
+      "weeks": [
+        "CHI",
+        "@ATL",
+        "@CLE",
+        "DET",
+        "BYE",
+        "@PHI",
+        "TB",
+        "@GB",
+        "DEN",
+        "@NO",
+        "BAL",
+        "@TB",
+        "@MIN",
+        "NO",
+        "CIN",
+        "@PIT",
+        "SEA",
+        "ATL"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "CIN",
+          "home": true,
+          "raw": "CIN"
+        },
+        "16": {
+          "opponent": "PIT",
+          "home": false,
+          "raw": "@PIT"
+        },
+        "17": {
+          "opponent": "SEA",
+          "home": true,
+          "raw": "SEA"
+        }
+      },
+      "dome": false,
+      "w17GameTier": 55
+    },
+    "CHI": {
+      "weeks": [
+        "@CAR",
+        "MIN",
+        "PHI",
+        "NYJ",
+        "@GB",
+        "@ATL",
+        "NE",
+        "@SEA",
+        "TB",
+        "BYE",
+        "NO",
+        "@DET",
+        "JAX",
+        "@MIA",
+        "@BUF",
+        "GB",
+        "DET",
+        "@MIN"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "BUF",
+          "home": false,
+          "raw": "@BUF"
+        },
+        "16": {
+          "opponent": "GB",
+          "home": true,
+          "raw": "GB"
+        },
+        "17": {
+          "opponent": "DET",
+          "home": true,
+          "raw": "DET"
+        }
+      },
+      "dome": false,
+      "w17GameTier": 94
+    },
+    "CIN": {
+      "weeks": [
+        "TB",
+        "@HOU",
+        "@PIT",
+        "JAX",
+        "@MIA",
+        "BYE",
+        "@BAL",
+        "TEN",
+        "@ATL",
+        "PIT",
+        "@WSH",
+        "NO",
+        "@CLE",
+        "KC",
+        "@CAR",
+        "@IND",
+        "BAL",
+        "CLE"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "CAR",
+          "home": false,
+          "raw": "@CAR"
+        },
+        "16": {
+          "opponent": "IND",
+          "home": false,
+          "raw": "@IND"
+        },
+        "17": {
+          "opponent": "BAL",
+          "home": true,
+          "raw": "BAL"
+        }
+      },
+      "dome": false,
+      "w17GameTier": 98
+    },
+    "CLE": {
+      "weeks": [
+        "@JAX",
+        "@TB",
+        "CAR",
+        "PIT",
+        "@NYJ",
+        "BAL",
+        "@TEN",
+        "@PIT",
+        "@NO",
+        "HOU",
+        "BYE",
+        "LV",
+        "CIN",
+        "ATL",
+        "@NYG",
+        "@BAL",
+        "IND",
+        "@CIN"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "NYG",
+          "home": false,
+          "raw": "@NYG"
+        },
+        "16": {
+          "opponent": "BAL",
+          "home": false,
+          "raw": "@BAL"
+        },
+        "17": {
+          "opponent": "IND",
+          "home": true,
+          "raw": "IND"
+        }
+      },
+      "dome": false,
+      "w17GameTier": 55
+    },
+    "DAL": {
+      "weeks": [
+        "@NYG",
+        "WSH",
+        "BAL",
+        "@HOU",
+        "TB",
+        "@GB",
+        "@PHI",
+        "ARI",
+        "@IND",
+        "SF",
+        "TEN",
+        "PHI",
+        "@SEA",
+        "BYE",
+        "@LAR",
+        "JAX",
+        "NYG",
+        "@WSH"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "LAR",
+          "home": false,
+          "raw": "@LAR"
+        },
+        "16": {
+          "opponent": "JAX",
+          "home": true,
+          "raw": "JAX"
+        },
+        "17": {
+          "opponent": "NYG",
+          "home": true,
+          "raw": "NYG"
+        }
+      },
+      "dome": true,
+      "w17GameTier": 90
+    },
+    "DEN": {
+      "weeks": [
+        "@KC",
+        "JAX",
+        "LAR",
+        "@SF",
+        "@LAC",
+        "SEA",
+        "@ARI",
+        "KC",
+        "@CAR",
+        "BYE",
+        "LV",
+        "@PIT",
+        "MIA",
+        "@NYJ",
+        "@LV",
+        "BUF",
+        "@NE",
+        "LAC"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "LV",
+          "home": false,
+          "raw": "@LV"
+        },
+        "16": {
+          "opponent": "BUF",
+          "home": true,
+          "raw": "BUF"
+        },
+        "17": {
+          "opponent": "NE",
+          "home": false,
+          "raw": "@NE"
+        }
+      },
+      "dome": false,
+      "w17GameTier": 72
+    },
+    "DET": {
+      "weeks": [
+        "NO",
+        "@BUF",
+        "NYJ",
+        "@CAR",
+        "@ARI",
+        "BYE",
+        "GB",
+        "MIN",
+        "@MIA",
+        "NE",
+        "TB",
+        "CHI",
+        "@ATL",
+        "TEN",
+        "@MIN",
+        "NYG",
+        "@CHI",
+        "@GB"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "MIN",
+          "home": false,
+          "raw": "@MIN"
+        },
+        "16": {
+          "opponent": "NYG",
+          "home": true,
+          "raw": "NYG"
+        },
+        "17": {
+          "opponent": "CHI",
+          "home": false,
+          "raw": "@CHI"
+        }
+      },
+      "dome": true,
+      "w17GameTier": 94
+    },
+    "GB": {
+      "weeks": [
+        "@MIN",
+        "@NYJ",
+        "ATL",
+        "@TB",
+        "CHI",
+        "DAL",
+        "@DET",
+        "CAR",
+        "@NE",
+        "MIN",
+        "BYE",
+        "@LAR",
+        "@NO",
+        "BUF",
+        "MIA",
+        "@CHI",
+        "HOU",
+        "DET"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "MIA",
+          "home": true,
+          "raw": "MIA"
+        },
+        "16": {
+          "opponent": "CHI",
+          "home": false,
+          "raw": "@CHI"
+        },
+        "17": {
+          "opponent": "HOU",
+          "home": true,
+          "raw": "HOU"
+        }
+      },
+      "dome": false,
+      "w17GameTier": 70
+    },
+    "HOU": {
+      "weeks": [
+        "BUF",
+        "CIN",
+        "@IND",
+        "DAL",
+        "@TEN",
+        "@JAX",
+        "NYG",
+        "BYE",
+        "@LAC",
+        "@CLE",
+        "IND",
+        "BAL",
+        "@PIT",
+        "@WSH",
+        "JAX",
+        "@PHI",
+        "@GB",
+        "TEN"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "JAX",
+          "home": true,
+          "raw": "JAX"
+        },
+        "16": {
+          "opponent": "PHI",
+          "home": false,
+          "raw": "@PHI"
+        },
+        "17": {
+          "opponent": "GB",
+          "home": false,
+          "raw": "@GB"
+        }
+      },
+      "dome": true,
+      "w17GameTier": 70
+    },
+    "IND": {
+      "weeks": [
+        "BAL",
+        "@KC",
+        "HOU",
+        "@WSH",
+        "@PIT",
+        "TEN",
+        "@MIN",
+        "@JAX",
+        "DAL",
+        "MIA",
+        "@HOU",
+        "NYG",
+        "BYE",
+        "@PHI",
+        "@TEN",
+        "CIN",
+        "@CLE",
+        "JAX"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "TEN",
+          "home": false,
+          "raw": "@TEN"
+        },
+        "16": {
+          "opponent": "CIN",
+          "home": true,
+          "raw": "CIN"
+        },
+        "17": {
+          "opponent": "CLE",
+          "home": false,
+          "raw": "@CLE"
+        }
+      },
+      "dome": true,
+      "w17GameTier": 55
+    },
+    "JAX": {
+      "weeks": [
+        "CLE",
+        "@DEN",
+        "NE",
+        "@CIN",
+        "PHI",
+        "HOU",
+        "BYE",
+        "IND",
+        "@BAL",
+        "@TEN",
+        "@NYG",
+        "TEN",
+        "@CHI",
+        "PIT",
+        "@HOU",
+        "@DAL",
+        "WSH",
+        "@IND"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "HOU",
+          "home": false,
+          "raw": "@HOU"
+        },
+        "16": {
+          "opponent": "DAL",
+          "home": false,
+          "raw": "@DAL"
+        },
+        "17": {
+          "opponent": "WAS",
+          "home": true,
+          "raw": "WSH"
+        }
+      },
+      "dome": false,
+      "w17GameTier": 78
+    },
+    "KC": {
+      "weeks": [
+        "DEN",
+        "IND",
+        "@MIA",
+        "@LV",
+        "BYE",
+        "LAC",
+        "@SEA",
+        "@DEN",
+        "NYJ",
+        "@ATL",
+        "ARI",
+        "@BUF",
+        "@LAR",
+        "@CIN",
+        "NE",
+        "SF",
+        "@LAC",
+        "LV"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "NE",
+          "home": true,
+          "raw": "NE"
+        },
+        "16": {
+          "opponent": "SF",
+          "home": true,
+          "raw": "SF"
+        },
+        "17": {
+          "opponent": "LAC",
+          "home": false,
+          "raw": "@LAC"
+        }
+      },
+      "dome": false,
+      "w17GameTier": 88
+    },
+    "LV": {
+      "weeks": [
+        "MIA",
+        "@LAC",
+        "@NO",
+        "KC",
+        "@NE",
+        "BUF",
+        "LAR",
+        "@NYJ",
+        "@SF",
+        "SEA",
+        "@DEN",
+        "@CLE",
+        "BYE",
+        "LAC",
+        "DEN",
+        "TEN",
+        "@ARI",
+        "@KC"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "DEN",
+          "home": true,
+          "raw": "DEN"
+        },
+        "16": {
+          "opponent": "TEN",
+          "home": true,
+          "raw": "TEN"
+        },
+        "17": {
+          "opponent": "ARI",
+          "home": false,
+          "raw": "@ARI"
+        }
+      },
+      "dome": true,
+      "w17GameTier": 55
+    },
+    "LAR": {
+      "weeks": [
+        "SF",
+        "NYG",
+        "@DEN",
+        "@PHI",
+        "BUF",
+        "ARI",
+        "@LV",
+        "LAC",
+        "@WSH",
+        "@ARI",
+        "BYE",
+        "GB",
+        "KC",
+        "@SF",
+        "DAL",
+        "@SEA",
+        "@TB",
+        "SEA"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "DAL",
+          "home": true,
+          "raw": "DAL"
+        },
+        "16": {
+          "opponent": "SEA",
+          "home": false,
+          "raw": "@SEA"
+        },
+        "17": {
+          "opponent": "TB",
+          "home": false,
+          "raw": "@TB"
+        }
+      },
+      "dome": true,
+      "w17GameTier": 82
+    },
+    "LAC": {
+      "weeks": [
+        "ARI",
+        "LV",
+        "@BUF",
+        "@SEA",
+        "DEN",
+        "@KC",
+        "BYE",
+        "@LAR",
+        "HOU",
+        "@BAL",
+        "NYJ",
+        "NE",
+        "@TB",
+        "@LV",
+        "SF",
+        "@MIA",
+        "KC",
+        "@DEN"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "SF",
+          "home": true,
+          "raw": "SF"
+        },
+        "16": {
+          "opponent": "MIA",
+          "home": false,
+          "raw": "@MIA"
+        },
+        "17": {
+          "opponent": "KC",
+          "home": true,
+          "raw": "KC"
+        }
+      },
+      "dome": false,
+      "w17GameTier": 88
+    },
+    "MIA": {
+      "weeks": [
+        "@LV",
+        "@SF",
+        "KC",
+        "@MIN",
+        "CIN",
+        "BYE",
+        "@NYJ",
+        "NE",
+        "DET",
+        "@IND",
+        "@BUF",
+        "NYJ",
+        "@DEN",
+        "CHI",
+        "@GB",
+        "LAC",
+        "BUF",
+        "@NE"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "GB",
+          "home": false,
+          "raw": "@GB"
+        },
+        "16": {
+          "opponent": "LAC",
+          "home": true,
+          "raw": "LAC"
+        },
+        "17": {
+          "opponent": "BUF",
+          "home": true,
+          "raw": "BUF"
+        }
+      },
+      "dome": false,
+      "w17GameTier": 86
+    },
+    "MIN": {
+      "weeks": [
+        "GB",
+        "@CHI",
+        "@TB",
+        "MIA",
+        "@NO",
+        "BYE",
+        "IND",
+        "@DET",
+        "BUF",
+        "@GB",
+        "@SF",
+        "ATL",
+        "CAR",
+        "@NE",
+        "DET",
+        "WSH",
+        "@NYJ",
+        "CHI"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "DET",
+          "home": true,
+          "raw": "DET"
+        },
+        "16": {
+          "opponent": "WAS",
+          "home": true,
+          "raw": "WSH"
+        },
+        "17": {
+          "opponent": "NYJ",
+          "home": false,
+          "raw": "@NYJ"
+        }
+      },
+      "dome": true,
+      "w17GameTier": 68
+    },
+    "NE": {
+      "weeks": [
+        "@SEA",
+        "PIT",
+        "@JAX",
+        "@BUF",
+        "LV",
+        "NYJ",
+        "@CHI",
+        "@MIA",
+        "GB",
+        "@DET",
+        "BYE",
+        "@LAC",
+        "BUF",
+        "MIN",
+        "@KC",
+        "@NYJ",
+        "DEN",
+        "MIA"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "KC",
+          "home": false,
+          "raw": "@KC"
+        },
+        "16": {
+          "opponent": "NYJ",
+          "home": false,
+          "raw": "@NYJ"
+        },
+        "17": {
+          "opponent": "DEN",
+          "home": true,
+          "raw": "DEN"
+        }
+      },
+      "dome": false,
+      "w17GameTier": 72
+    },
+    "NO": {
+      "weeks": [
+        "@DET",
+        "@BAL",
+        "LV",
+        "ATL",
+        "MIN",
+        "@NYG",
+        "PIT",
+        "BYE",
+        "CLE",
+        "CAR",
+        "@CHI",
+        "@CIN",
+        "GB",
+        "@CAR",
+        "@TB",
+        "ARI",
+        "@ATL",
+        "TB"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "TB",
+          "home": false,
+          "raw": "@TB"
+        },
+        "16": {
+          "opponent": "ARI",
+          "home": true,
+          "raw": "ARI"
+        },
+        "17": {
+          "opponent": "ATL",
+          "home": false,
+          "raw": "@ATL"
+        }
+      },
+      "dome": true,
+      "w17GameTier": 55
+    },
+    "NYG": {
+      "weeks": [
+        "DAL",
+        "@LAR",
+        "TEN",
+        "ARI",
+        "@WSH",
+        "NO",
+        "@HOU",
+        "BYE",
+        "@PHI",
+        "WSH",
+        "JAX",
+        "@IND",
+        "SF",
+        "@SEA",
+        "CLE",
+        "@DET",
+        "@DAL",
+        "PHI"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "CLE",
+          "home": true,
+          "raw": "CLE"
+        },
+        "16": {
+          "opponent": "DET",
+          "home": false,
+          "raw": "@DET"
+        },
+        "17": {
+          "opponent": "DAL",
+          "home": false,
+          "raw": "@DAL"
+        }
+      },
+      "dome": false,
+      "w17GameTier": 90
+    },
+    "NYJ": {
+      "weeks": [
+        "@TEN",
+        "GB",
+        "@DET",
+        "@CHI",
+        "CLE",
+        "@NE",
+        "MIA",
+        "LV",
+        "@KC",
+        "BUF",
+        "@LAC",
+        "@MIA",
+        "BYE",
+        "DEN",
+        "@ARI",
+        "NE",
+        "MIN",
+        "@BUF"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "ARI",
+          "home": false,
+          "raw": "@ARI"
+        },
+        "16": {
+          "opponent": "NE",
+          "home": true,
+          "raw": "NE"
+        },
+        "17": {
+          "opponent": "MIN",
+          "home": true,
+          "raw": "MIN"
+        }
+      },
+      "dome": false,
+      "w17GameTier": 68
+    },
+    "PHI": {
+      "weeks": [
+        "WSH",
+        "@TEN",
+        "@CHI",
+        "LAR",
+        "@JAX",
+        "CAR",
+        "DAL",
+        "@WSH",
+        "NYG",
+        "BYE",
+        "PIT",
+        "@DAL",
+        "@ARI",
+        "IND",
+        "SEA",
+        "HOU",
+        "@SF",
+        "@NYG"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "SEA",
+          "home": true,
+          "raw": "SEA"
+        },
+        "16": {
+          "opponent": "HOU",
+          "home": true,
+          "raw": "HOU"
+        },
+        "17": {
+          "opponent": "SF",
+          "home": false,
+          "raw": "@SF"
+        }
+      },
+      "dome": false,
+      "w17GameTier": 84
+    },
+    "PIT": {
+      "weeks": [
+        "ATL",
+        "@NE",
+        "CIN",
+        "@CLE",
+        "IND",
+        "@TB",
+        "@NO",
+        "CLE",
+        "BYE",
+        "@CIN",
+        "@PHI",
+        "DEN",
+        "HOU",
+        "@JAX",
+        "BAL",
+        "CAR",
+        "@TEN",
+        "@BAL"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "BAL",
+          "home": true,
+          "raw": "BAL"
+        },
+        "16": {
+          "opponent": "CAR",
+          "home": true,
+          "raw": "CAR"
+        },
+        "17": {
+          "opponent": "TEN",
+          "home": false,
+          "raw": "@TEN"
+        }
+      },
+      "dome": false,
+      "w17GameTier": 55
+    },
+    "SF": {
+      "weeks": [
+        "@LAR",
+        "MIA",
+        "ARI",
+        "DEN",
+        "@SEA",
+        "WSH",
+        "@ATL",
+        "BYE",
+        "LV",
+        "@DAL",
+        "MIN",
+        "SEA",
+        "@NYG",
+        "LAR",
+        "@LAC",
+        "@KC",
+        "PHI",
+        "@ARI"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "LAC",
+          "home": false,
+          "raw": "@LAC"
+        },
+        "16": {
+          "opponent": "KC",
+          "home": false,
+          "raw": "@KC"
+        },
+        "17": {
+          "opponent": "PHI",
+          "home": true,
+          "raw": "PHI"
+        }
+      },
+      "dome": false,
+      "w17GameTier": 84
+    },
+    "SEA": {
+      "weeks": [
+        "NE",
+        "@ARI",
+        "@WSH",
+        "LAC",
+        "SF",
+        "@DEN",
+        "KC",
+        "CHI",
+        "ARI",
+        "@LV",
+        "BYE",
+        "@SF",
+        "DAL",
+        "NYG",
+        "@PHI",
+        "LAR",
+        "@CAR",
+        "@LAR"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "PHI",
+          "home": false,
+          "raw": "@PHI"
+        },
+        "16": {
+          "opponent": "LAR",
+          "home": true,
+          "raw": "LAR"
+        },
+        "17": {
+          "opponent": "CAR",
+          "home": false,
+          "raw": "@CAR"
+        }
+      },
+      "dome": false,
+      "w17GameTier": 55
+    },
+    "TB": {
+      "weeks": [
+        "@CIN",
+        "CLE",
+        "MIN",
+        "GB",
+        "@DAL",
+        "PIT",
+        "@CAR",
+        "ATL",
+        "@CHI",
+        "BYE",
+        "@DET",
+        "CAR",
+        "LAC",
+        "@BAL",
+        "NO",
+        "@ATL",
+        "LAR",
+        "@NO"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "NO",
+          "home": true,
+          "raw": "NO"
+        },
+        "16": {
+          "opponent": "ATL",
+          "home": false,
+          "raw": "@ATL"
+        },
+        "17": {
+          "opponent": "LAR",
+          "home": true,
+          "raw": "LAR"
+        }
+      },
+      "dome": false,
+      "w17GameTier": 82
+    },
+    "TEN": {
+      "weeks": [
+        "NYJ",
+        "PHI",
+        "@NYG",
+        "@BAL",
+        "HOU",
+        "@IND",
+        "CLE",
+        "@CIN",
+        "BYE",
+        "JAX",
+        "@DAL",
+        "@JAX",
+        "WSH",
+        "@DET",
+        "IND",
+        "@LV",
+        "PIT",
+        "@HOU"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "IND",
+          "home": true,
+          "raw": "IND"
+        },
+        "16": {
+          "opponent": "LV",
+          "home": false,
+          "raw": "@LV"
+        },
+        "17": {
+          "opponent": "PIT",
+          "home": true,
+          "raw": "PIT"
+        }
+      },
+      "dome": false,
+      "w17GameTier": 55
+    },
+    "WAS": {
+      "weeks": [
+        "@PHI",
+        "@DAL",
+        "SEA",
+        "IND",
+        "NYG",
+        "@SF",
+        "BYE",
+        "PHI",
+        "LAR",
+        "@NYG",
+        "CIN",
+        "@ARI",
+        "@TEN",
+        "HOU",
+        "ATL",
+        "@MIN",
+        "@JAX",
+        "DAL"
+      ],
+      "playoff": {
+        "15": {
+          "opponent": "ATL",
+          "home": true,
+          "raw": "ATL"
+        },
+        "16": {
+          "opponent": "MIN",
+          "home": false,
+          "raw": "@MIN"
+        },
+        "17": {
+          "opponent": "JAX",
+          "home": false,
+          "raw": "@JAX"
+        }
+      },
+      "dome": true,
+      "w17GameTier": 78
+    }
+  }
+}

@@ -1,4 +1,5 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, make_response
+from assistant_board import build_assistant_board
 from server import (
     init_db,
     load_adp_profile,
@@ -36,6 +37,68 @@ def serve_index():
 @app.route('/fantasy-draft-sheet-standalone.html')
 def serve_standalone():
     return send_from_directory(ROOT, 'fantasy-draft-sheet-standalone.html')
+
+
+@app.route('/assistant')
+def serve_assistant():
+    return send_from_directory(ROOT, 'assistant.html')
+
+
+def _assistant_cors(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    return response
+
+
+def _assistant_options():
+    return _assistant_cors(make_response('', 204))
+
+
+@app.route('/api/assistant/login', methods=['POST', 'OPTIONS'])
+def assistant_login():
+    if request.method == 'OPTIONS':
+        return _assistant_options()
+    try:
+        data = request.get_json(silent=True) or {}
+        username = (data.get('username') or '').strip()
+        password = data.get('password') or ''
+        if not username or not password:
+            return _assistant_cors(jsonify({'error': 'Missing username or password'})), 400
+        rank_source = (data.get('rankSource') or 'expert').strip()
+        board = build_assistant_board(username, password, rank_source=rank_source)
+        if not board.get('ok'):
+            return _assistant_cors(jsonify({'error': board.get('error', 'Login failed')})), board.get('status', 401)
+        return _assistant_cors(jsonify({
+            'ok': True,
+            'username': username,
+            'savedRankCount': board.get('savedRankCount', 0),
+            'playerCount': board.get('playerCount', 0)
+        }))
+    except Exception as exc:
+        return _assistant_cors(jsonify({'error': str(exc)})), 500
+
+
+@app.route('/api/assistant/board', methods=['GET', 'POST', 'OPTIONS'])
+def assistant_board():
+    if request.method == 'OPTIONS':
+        return _assistant_options()
+    try:
+        if request.method == 'POST':
+            data = request.get_json(silent=True) or {}
+            username = (data.get('username') or '').strip() or None
+            password = data.get('password') or None
+            rank_source = (data.get('rankSource') or 'expert').strip()
+        else:
+            username = (request.args.get('username') or '').strip() or None
+            password = request.args.get('password') or None
+            rank_source = (request.args.get('rankSource') or 'expert').strip()
+        board = build_assistant_board(username, password, rank_source=rank_source)
+        if not board.get('ok'):
+            return _assistant_cors(jsonify({'error': board.get('error', 'Unable to load board')})), board.get('status', 400)
+        return _assistant_cors(jsonify(board))
+    except Exception as exc:
+        return _assistant_cors(jsonify({'error': str(exc)})), 500
 
 
 @app.route('/api/health', methods=['GET'])

@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Underdog Fantasy – Draft Room (Test)</title>
+    <link rel="stylesheet" href="overlay/capital-chart.css" />
+    <style>
+      :root {
+        --ud-bg: #f4f4f5;
+        --ud-surface: #ffffff;
+        --ud-border: #e4e4e7;
+        --ud-text: #18181b;
+        --ud-muted: #71717a;
+        --ud-yellow: #f5c518;
+        --ud-yellow-dark: #111111;
+        --pos-qb: #fef3c7;
+        --pos-rb: #ccfbf1;
+        --pos-wr: #ffedd5;
+        --pos-te: #14532d;
+        --pos-te-text: #ecfdf5;
+        --ext-panel: 420px;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        font: 14px/1.35 "Segoe UI", system-ui, -apple-system, sans-serif;
+        background: var(--ud-bg);
+        color: var(--ud-text);
+        padding-right: var(--ext-panel);
+        min-height: 100vh;
+      }
+
+      button {
+        font: inherit;
+        cursor: pointer;
+        border: 0;
+        border-radius: 8px;
+        background: #27272a;
+        color: #fff;
+        padding: 6px 12px;
+      }
+      button.ghost {
+        background: #fff;
+        color: var(--ud-text);
+        border: 1px solid var(--ud-border);
+      }
+      button.star {
+        background: transparent;
+        color: #a1a1aa;
+        padding: 4px 8px;
+        font-size: 18px;
+        line-height: 1;
+      }
+      button.star.on { color: #f59e0b; }
+
+      .top-nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 20px;
+        background: var(--ud-surface);
+        border-bottom: 1px solid var(--ud-border);
+      }
+      .top-nav .tabs {
+        display: flex;
+        gap: 18px;
+        color: var(--ud-muted);
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .top-nav .tabs span.active { color: var(--ud-text); }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+      }
+      .brand-dot {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--ud-yellow);
+        display: grid;
+        place-items: center;
+        font-size: 14px;
+      }
+
+      .ticker-wrap {
+        background: var(--ud-surface);
+        border-bottom: 1px solid var(--ud-border);
+        padding: 12px 0 10px;
+        overflow: hidden;
+      }
+      .ticker-label {
+        padding: 0 20px 8px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--ud-muted);
+      }
+      .ticker {
+        display: flex;
+        gap: 10px;
+        overflow-x: auto;
+        padding: 0 20px 4px;
+        scroll-behavior: smooth;
+      }
+      .pick-card {
+        flex: 0 0 148px;
+        border: 1px solid var(--ud-border);
+        border-radius: 10px;
+        padding: 10px;
+        background: #fafafa;
+        position: relative;
+      }
+      .pick-card.current {
+        border-color: #22c55e;
+        box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
+        background: #fff;
+      }
+      .pick-card .meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        color: var(--ud-muted);
+        margin-bottom: 6px;
+      }
+      .pick-card .timer {
+        font-weight: 800;
+        color: #16a34a;
+        font-variant-numeric: tabular-nums;
+      }
+      .pick-card .name {
+        font-weight: 700;
+        font-size: 13px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .pick-card .sub {
+        font-size: 11px;
+        color: var(--ud-muted);
+        margin-top: 2px;
+      }
+      .pick-card.empty .name { color: #a1a1aa; font-weight: 500; }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.75fr) minmax(260px, 0.65fr);
+        gap: 0;
+        min-height: calc(100vh - 170px);
+      }
+
+      .col {
+        border-right: 1px solid var(--ud-border);
+        background: var(--ud-surface);
+        min-height: 100%;
+      }
+      .col:last-child { border-right: 0; }
+
+      .col-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 16px 10px;
+        border-bottom: 1px solid var(--ud-border);
+      }
+      .col-head h2 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .pos-tabs {
+        display: flex;
+        gap: 6px;
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--ud-border);
+        flex-wrap: wrap;
+      }
+      .pos-tabs button {
+        background: #f4f4f5;
+        color: #52525b;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 6px 12px;
+        border-radius: 999px;
+      }
+      .pos-tabs button.active {
+        background: #18181b;
+        color: #fff;
+      }
+
+      .table-head {
+        display: grid;
+        grid-template-columns: 52px 52px 1fr 72px;
+        gap: 8px;
+        padding: 8px 16px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--ud-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        border-bottom: 1px solid var(--ud-border);
+      }
+
+      #available {
+        max-height: calc(100vh - 320px);
+        overflow: auto;
+      }
+
+      .ud-player-row,
+      .player-row {
+        display: grid;
+        grid-template-columns: 52px 52px 1fr 72px;
+        gap: 8px;
+        align-items: center;
+        padding: 10px 16px;
+        border-bottom: 1px solid rgba(0,0,0,0.04);
+        cursor: pointer;
+        position: relative;
+      }
+      .ud-player-row:hover { filter: brightness(0.98); }
+      .ud-player-row.pos-QB { background: var(--pos-qb); }
+      .ud-player-row.pos-RB { background: var(--pos-rb); }
+      .ud-player-row.pos-WR { background: var(--pos-wr); }
+      .ud-player-row.pos-TE { background: var(--pos-te); color: var(--pos-te-text); }
+      .ud-player-row.pos-TE .muted,
+      .ud-player-row.pos-TE .pos-rank { color: #bbf7d0; }
+
+      .rank-num, .adp-num {
+        font-weight: 700;
+        font-size: 13px;
+        text-align: center;
+      }
+      .player-main {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+      .player-main .info { min-width: 0; }
+      .player-main strong {
+        display: block;
+        font-size: 14px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .pos-rank {
+        font-size: 12px;
+        color: var(--ud-muted);
+      }
+      .proj-badge {
+        justify-self: end;
+        background: #dcfce7;
+        color: #166534;
+        font-weight: 800;
+        font-size: 12px;
+        padding: 6px 10px;
+        border-radius: 8px;
+        min-width: 48px;
+        text-align: center;
+      }
+      .ud-player-row.pos-TE .proj-badge {
+        background: rgba(255,255,255,0.15);
+        color: #ecfdf5;
+      }
+
+      .queue-box {
+        margin: 16px;
+        min-height: 180px;
+        border: 2px dashed #d4d4d8;
+        border-radius: 12px;
+        padding: 20px;
+        color: var(--ud-muted);
+        text-align: center;
+      }
+      .queue-box.has-items {
+        text-align: left;
+        border-style: solid;
+        border-color: var(--ud-border);
+      }
+      .queue-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--ud-border);
+      }
+      .queue-item:last-child { border-bottom: 0; }
+
+      .capital-block {
+        margin: 0 16px 16px;
+        padding: 14px;
+        border: 1px solid var(--ud-border);
+        border-radius: 12px;
+        background: #fafafa;
+      }
+      .capital-block h3 {
+        margin: 0 0 12px;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--ud-muted);
+      }
+      .capital-cols {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        height: 120px;
+        gap: 10px;
+      }
+      .capital-col {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+      }
+      .capital-bar-wrap {
+        width: 100%;
+        height: 88px;
+        display: flex;
+        align-items: flex-end;
+        background: #e4e4e7;
+        border-radius: 8px 8px 0 0;
+        overflow: hidden;
+      }
+      .capital-bar {
+        width: 100%;
+        min-height: 4px;
+        border-radius: 8px 8px 0 0;
+      }
+      .capital-bar.QB { background: #a855f7; }
+      .capital-bar.RB { background: #22c55e; }
+      .capital-bar.WR { background: #f97316; }
+      .capital-bar.TE { background: #3b82f6; }
+      .capital-lbl { font-weight: 800; font-size: 12px; }
+      .capital-pct { font-size: 11px; color: var(--ud-muted); text-align: center; }
+      .capital-val { display: block; font-size: 10px; color: #a1a1aa; }
+
+      .team-panel { padding: 0 0 16px; }
+      .team-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--ud-border);
+      }
+      .stat-box {
+        background: #f4f4f5;
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+      .stat-box .label {
+        font-size: 11px;
+        color: var(--ud-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .stat-box .value {
+        font-size: 22px;
+        font-weight: 800;
+        margin-top: 2px;
+      }
+      .roster-counts {
+        display: flex;
+        gap: 8px;
+        padding: 10px 16px;
+        font-size: 12px;
+        color: var(--ud-muted);
+        border-bottom: 1px solid var(--ud-border);
+      }
+      .roster-counts span {
+        background: #f4f4f5;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-weight: 700;
+        color: #52525b;
+      }
+      .roster-list { padding: 8px 0; }
+      .roster-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--ud-border);
+      }
+      .roster-row .pick-no {
+        font-size: 11px;
+        color: var(--ud-muted);
+      }
+      .roster-row .meta-line {
+        font-size: 12px;
+        color: var(--ud-muted);
+      }
+      .roster-empty {
+        padding: 24px 16px;
+        color: var(--ud-muted);
+        text-align: center;
+      }
+
+      .on-the-clock-banner {
+        display: none;
+        margin: 0;
+        padding: 8px 16px;
+        background: #dcfce7;
+        color: #166534;
+        font-weight: 700;
+        font-size: 13px;
+        border-bottom: 1px solid #bbf7d0;
+      }
+      body.on-clock .on-the-clock-banner { display: block; }
+
+      .dev-bar {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        right: var(--ext-panel);
+        z-index: 50;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        padding: 10px 14px;
+        background: rgba(24, 24, 27, 0.94);
+        color: #fafafa;
+        font-size: 12px;
+        border-top: 1px solid rgba(255,255,255,0.08);
+      }
+      .dev-bar .status { margin-right: auto; color: #a1a1aa; }
+      .dev-bar button { font-size: 12px; padding: 5px 10px; }
+
+      .loading {
+        padding: 40px 16px;
+        text-align: center;
+        color: var(--ud-muted);
+      }
+
+      @media (max-width: 1100px) {
+        .layout { grid-template-columns: 1fr; }
+        body { padding-right: 0; padding-bottom: 120px; }
+        .dev-bar { right: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="room" data-fds-test-room='{"picks":[],"onTheClock":true,"mySlot":9,"draftId":"test-room"}'>
+      <nav class="top-nav">
+        <div class="tabs">
+          <span>Results</span>
+          <span class="active">Rankings</span>
+          <span>News feed</span>
+        </div>
+        <div class="brand">
+          <span class="brand-dot">🐕</span>
+          Underdog Fantasy
+        </div>
+        <div style="width: 120px"></div>
+      </nav>
+
+      <div class="ticker-wrap">
+        <div class="ticker-label">Draft board</div>
+        <div class="ticker" id="ticker"></div>
+      </div>
+
+      <p class="on-the-clock on-the-clock-banner" id="clock-banner">You're on the clock — pick before the timer expires</p>
+
+      <div class="layout">
+        <section class="col">
+          <div class="col-head">
+            <h2>Available players</h2>
+            <span id="avail-count" class="pos-rank"></span>
+          </div>
+          <div class="pos-tabs" id="pos-tabs">
+            <button type="button" data-pos="ALL" class="active">ALL</button>
+            <button type="button" data-pos="QB">QB</button>
+            <button type="button" data-pos="RB">RB</button>
+            <button type="button" data-pos="WR">WR</button>
+            <button type="button" data-pos="TE">TE</button>
+          </div>
+          <div class="table-head">
+            <span>My rank</span>
+            <span>ADP</span>
+            <span>Player</span>
+            <span style="text-align:right">Proj</span>
+          </div>
+          <div id="available"><div class="loading">Loading expert board…</div></div>
+        </section>
+
+        <section class="col">
+          <div class="col-head"><h2>Queue</h2></div>
+          <div class="queue-box" id="queue">
+            Use the ☆ button in the player list to add a player to your queue.
+          </div>
+          <div class="capital-block" id="capital-block"></div>
+        </section>
+
+        <section class="col team-panel">
+          <div class="col-head"><h2>Your team</h2></div>
+          <div class="team-stats">
+            <div class="stat-box">
+              <div class="label">Pick position</div>
+              <div class="value" id="pick-position">9</div>
+            </div>
+            <div class="stat-box">
+              <div class="label">Projected</div>
+              <div class="value" id="team-proj">0</div>
+            </div>
+          </div>
+          <div class="roster-counts" id="roster-counts"></div>
+          <div class="roster-list" id="roster-list"></div>
+          <div id="feed" hidden aria-hidden="true"></div>
+        </section>
+      </div>
+    </div>
+
+    <div class="dev-bar">
+      <span class="status" id="dev-status">Test room · load extension + expert ranks</span>
+      <button type="button" id="toggle-clock">Toggle on clock</button>
+      <button type="button" id="auto-pick" class="ghost">Auto-pick (CPU)</button>
+      <button type="button" id="load-demo" class="ghost">Load demo (pick 16)</button>
+      <button type="button" id="reset" class="ghost">Reset draft</button>
+    </div>
+
+    <script src="lib/capital-chart.js"></script>
+    <script>
+      const TEAMS = 12;
+      const TOTAL_PICKS = 216;
+      const TIMER_START = 30;
+
+      let board = [];
+      let posRankMap = new Map();
+      let state = { picks: [], onTheClock: true, mySlot: 9, draftId: 'test-room' };
+      let queue = [];
+      let posFilter = 'ALL';
+      let timerSec = TIMER_START;
+      let timerId = null;
+
+      function attr(value) {
+        return String(value ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+      }
+
+      function roundSlot(pickNo) {
+        const round = Math.ceil(pickNo / TEAMS);
+        const posInRound = (pickNo - 1) % TEAMS;
+        const slot = round % 2 === 1 ? posInRound + 1 : TEAMS - posInRound;
+        return { round, slot, label: `${round}.${String(slot).padStart(2, '0')}` };
+      }
+
+      function currentPickNo() {
+        return state.picks.length + 1;
+      }
+
+      function slotForPick(pickNo) {
+        return roundSlot(pickNo).slot;
+      }
+
+      function isMyPick(pickNo) {
+        return slotForPick(pickNo) === state.mySlot;
+      }
+
+      function findPlayer(name) {
+        return board.find((p) => p.name === name);
+      }
+
+      function buildPosRanks() {
+        posRankMap = new Map();
+        ['QB', 'RB', 'WR', 'TE'].forEach((pos) => {
+          const sorted = board
+            .filter((p) => p.position === pos && p.myRank)
+            .sort((a, b) => a.myRank - b.myRank);
+          sorted.forEach((p, i) => posRankMap.set(p.name, `${pos}${i + 1}`));
+        });
+      }
+
+      async function loadBoard() {
+        const res = await fetch('/api/assistant/board?rankSource=expert');
+        if (!res.ok) throw new Error('Board fetch failed');
+        const data = await res.json();
+        board = (data.players || []).slice(0, 120);
+        buildPosRanks();
+        document.getElementById('dev-status').textContent =
+          `Loaded ${board.length} players · ${data.rankSource || 'expert'} ranks`;
+        sync();
+      }
+
+      function draftedNames() {
+        return new Set(state.picks.map((p) => p.name));
+      }
+
+      function availablePlayers() {
+        const taken = draftedNames();
+        return board.filter((p) => !taken.has(p.name));
+      }
+
+      function formatProj(player) {
+        const pts = player.projectedPoints;
+        if (!pts) return '—';
+        return (pts / 10).toFixed(1);
+      }
+
+      function draftPlayer(player, mine) {
+        const pickNo = currentPickNo();
+        state.picks.push({
+          name: player.name,
+          position: player.position,
+          team: player.team || '',
+          pickNo,
+          mine: Boolean(mine),
+          myRank: player.myRank,
+          adp: player.adp,
+          projectedPoints: player.projectedPoints
+        });
+        queue = queue.filter((n) => n !== player.name);
+        if (mine) {
+          state.onTheClock = false;
+        } else if (isMyPick(currentPickNo())) {
+          state.onTheClock = true;
+          resetTimer();
+        }
+        sync();
+      }
+
+      function resetTimer() {
+        timerSec = TIMER_START;
+        if (state.onTheClock && !timerId) {
+          timerId = window.setInterval(() => {
+            if (!state.onTheClock) return;
+            timerSec = Math.max(0, timerSec - 1);
+            renderTicker();
+            if (timerSec === 0) clearInterval(timerId), (timerId = null);
+          }, 1000);
+        }
+      }
+
+      const POS_TARGET = { QB: 2, RB: 6, WR: 8, TE: 2 };
+      const POS_MAX = { QB: 3, RB: 8, WR: 10, TE: 3 };
+      const FULL_BUDGET = 850;
+      const USER_PICKS = 18;
+
+      function pickCapital(player) {
+        const rank = player.myRank || player.adp || 120;
+        const pickNo = player.pickNo || rank;
+        const combined = rank * 0.7 + pickNo * 0.3;
+        return Math.max(6, Math.round(128 - combined * 0.82));
+      }
+
+      function computeCapitalTargets() {
+        const positions = ['QB', 'RB', 'WR', 'TE'];
+        let totalWeight = 0;
+        const weights = {};
+        positions.forEach((pos) => {
+          const target = POS_TARGET[pos];
+          const max = POS_MAX[pos];
+          weights[pos] = Math.max(1, target) * 0.65 + Math.max(1, max) * 0.35;
+          totalWeight += weights[pos];
+        });
+        const targets = {};
+        positions.forEach((pos) => {
+          const share = totalWeight ? weights[pos] / totalWeight : 0.25;
+          targets[pos] = {
+            targetValue: Math.round(FULL_BUDGET * share),
+            targetPct: Math.round(share * 100)
+          };
+        });
+        return { fullBudget: FULL_BUDGET, targets };
+      }
+
+      function computeCapital() {
+        const mine = state.picks.filter((p) => p.mine);
+        const { fullBudget, targets } = computeCapitalTargets();
+        const byPosition = {};
+        let allocated = 0;
+        let maxTargetValue = 1;
+        const pickCount = mine.length;
+
+        ['QB', 'RB', 'WR', 'TE'].forEach((pos) => {
+          maxTargetValue = Math.max(maxTargetValue, targets[pos].targetValue);
+        });
+
+        ['QB', 'RB', 'WR', 'TE'].forEach((pos) => {
+          const grouped = mine.filter((p) => p.position === pos);
+          const value = grouped.reduce((sum, p) => sum + pickCapital(p), 0);
+          const roundedValue = Math.round(value);
+          const targetValue = targets[pos].targetValue;
+          const spentPct = targetValue ? Math.round((roundedValue / targetValue) * 100) : 0;
+          const chartScale = targetValue / maxTargetValue;
+
+          byPosition[pos] = {
+            value: roundedValue,
+            count: grouped.length,
+            targetPct: targets[pos].targetPct,
+            targetValue,
+            spentPct,
+            chartScale,
+            barPct: Math.min(100, spentPct),
+            pct: spentPct
+          };
+          allocated += value;
+        });
+
+        return {
+          byPosition,
+          allocated: Math.round(allocated),
+          pickCount,
+          remainingPicks: Math.max(0, USER_PICKS - pickCount),
+          totalPicks: USER_PICKS,
+          fullBudget,
+          remaining: Math.max(0, fullBudget - allocated),
+          maxTargetValue
+        };
+      }
+
+      function renderCapital() {
+        const capital = computeCapital();
+        const block = document.getElementById('capital-block');
+        if (window.FDSCapitalChart) {
+          block.innerHTML = window.FDSCapitalChart.renderColumns(capital, { title: 'Draft capital allocation' });
+          return;
+        }
+        block.innerHTML = '<h3>Draft capital allocation</h3><p class="loading">Capital chart loading…</p>';
+      }
+
+      function renderQueue() {
+        const el = document.getElementById('queue');
+        if (!queue.length) {
+          el.className = 'queue-box';
+          el.textContent = 'Use the ☆ button in the player list to add a player to your queue.';
+          return;
+        }
+        el.className = 'queue-box has-items';
+        el.innerHTML = queue.map((name, i) => {
+          const p = findPlayer(name);
+          if (!p) return '';
+          return `<div class="queue-item">
+            <div><strong>${i + 1}. ${p.name}</strong><div class="pos-rank">${p.position} · ${p.team || '—'}</div></div>
+            <button type="button" class="ghost" data-unqueue="${attr(name)}">Remove</button>
+          </div>`;
+        }).join('');
+      }
+
+      function renderRoster() {
+        const mine = state.picks.filter((p) => p.mine);
+        const counts = { QB: 0, RB: 0, WR: 0, TE: 0 };
+        mine.forEach((p) => { counts[p.position] = (counts[p.position] || 0) + 1; });
+        document.getElementById('roster-counts').innerHTML =
+          ['QB', 'RB', 'WR', 'TE'].map((pos) => `<span>${pos}: ${counts[pos] || 0}</span>`).join('');
+        const proj = mine.reduce((sum, p) => sum + (p.projectedPoints || 0), 0);
+        document.getElementById('team-proj').textContent = proj ? (proj / 10).toFixed(1) : '0';
+        document.getElementById('pick-position').textContent = String(state.mySlot);
+        const list = document.getElementById('roster-list');
+        if (!mine.length) {
+          list.innerHTML = '<div class="roster-empty">No picks yet — draft when you\'re on the clock.</div>';
+          return;
+        }
+        list.innerHTML = mine.map((p) => {
+          const rs = roundSlot(p.pickNo);
+          return `<div class="roster-row">
+            <div>
+              <strong>${p.name}</strong>
+              <div class="meta-line">${p.position} · ${p.team || '—'} · Rank ${p.myRank ?? '—'} · ADP ${p.adp ?? '—'}</div>
+            </div>
+            <div style="text-align:right">
+              <div class="pick-no">${rs.label}</div>
+              <div class="meta-line">Pick ${p.pickNo}</div>
+            </div>
+          </div>`;
+        }).join('');
+      }
+
+      function renderTicker() {
+        const next = currentPickNo();
+        const cards = [];
+        const start = Math.max(1, next - 2);
+        const end = Math.min(TOTAL_PICKS, next + 8);
+        for (let pickNo = start; pickNo <= end; pickNo += 1) {
+          const rs = roundSlot(pickNo);
+          const pick = state.picks[pickNo - 1];
+          const isCurrent = pickNo === next;
+          if (pick) {
+            cards.push(`<div class="pick-card${isCurrent ? ' current' : ''}">
+              <div class="meta"><span>${rs.label}</span><span>${pickNo}</span></div>
+              <div class="name">${pick.name}</div>
+              <div class="sub">${pick.position} · ${pick.team || '—'}</div>
+            </div>`);
+          } else if (isCurrent) {
+            const timer = state.onTheClock
+              ? `<span class="timer">${String(Math.floor(timerSec / 60)).padStart(2, '0')}:${String(timerSec % 60).padStart(2, '0')}</span>`
+              : '<span>Waiting</span>';
+            cards.push(`<div class="pick-card current empty">
+              <div class="meta"><span>${rs.label}</span>${timer}</div>
+              <div class="name">On the clock</div>
+              <div class="sub">Team ${slotForPick(pickNo)}${isMyPick(pickNo) ? ' (you)' : ''}</div>
+            </div>`);
+          } else {
+            cards.push(`<div class="pick-card empty">
+              <div class="meta"><span>${rs.label}</span><span>${pickNo}</span></div>
+              <div class="name">Upcoming</div>
+              <div class="sub">Team ${slotForPick(pickNo)}</div>
+            </div>`);
+          }
+        }
+        document.getElementById('ticker').innerHTML = cards.join('');
+      }
+
+      function renderAvailable() {
+        const list = availablePlayers().filter((p) => posFilter === 'ALL' || p.position === posFilter);
+        document.getElementById('avail-count').textContent = `${list.length} available`;
+        if (!board.length) return;
+        document.getElementById('available').innerHTML = list.map((player) => {
+          const posRank = posRankMap.get(player.name) || player.position;
+          const queued = queue.includes(player.name);
+          return `<div class="ud-player-row player-row pos-${player.position}"
+            data-fds-player="${attr(player.name)}"
+            data-pos="${player.position}"
+            data-name="${attr(player.name)}">
+            <div class="rank-num">${player.myRank ?? '—'}</div>
+            <div class="adp-num">${player.adp ?? '—'}</div>
+            <div class="player-main">
+              <button type="button" class="star${queued ? ' on' : ''}" data-star="${attr(player.name)}" title="Queue">☆</button>
+              <div class="info">
+                <strong>${player.name}</strong>
+                <div class="pos-rank">${posRank} · ${player.team || '—'}${player.bye ? ` · Bye ${player.bye}` : ''}</div>
+              </div>
+            </div>
+            <div class="proj-badge">${formatProj(player)}</div>
+          </div>`;
+        }).join('') || '<div class="loading">No players match this filter.</div>';
+      }
+
+      function renderFeed() {
+        document.getElementById('feed').innerHTML = state.picks.map((pick) => {
+          const rs = roundSlot(pick.pickNo);
+          return `<div class="pick">${rs.label} ${pick.name} ${pick.position} ${pick.team || 'NA'}${pick.mine ? ' (you)' : ''}</div>`;
+        }).join('');
+      }
+
+      function sync() {
+        document.getElementById('room').setAttribute('data-fds-test-room', JSON.stringify(state));
+        document.body.classList.toggle('on-clock', state.onTheClock);
+        document.getElementById('clock-banner').textContent = state.onTheClock
+          ? "You're on the clock — pick a player from the list (click row)"
+          : 'Waiting for other teams…';
+        renderTicker();
+        renderAvailable();
+        renderQueue();
+        renderRoster();
+        renderCapital();
+        renderFeed();
+      }
+
+      function autoPickOne() {
+        const avail = availablePlayers();
+        if (!avail.length || currentPickNo() > TOTAL_PICKS) return;
+        const top = avail.sort((a, b) => (a.myRank || 999) - (b.myRank || 999))[0];
+        draftPlayer(top, isMyPick(currentPickNo()) && state.onTheClock);
+      }
+
+      function loadDemo() {
+        const demoNames = [
+          'Ja\'Marr Chase', 'Bijan Robinson', 'Jahmyr Gibbs', 'Puka Nacua',
+          'Christian McCaffrey', 'Jaxon Smith-Njigba', 'Jonathan Taylor', 'CeeDee Lamb',
+          'Amon-Ra St. Brown', 'James Cook III', 'Justin Jefferson', 'Josh Allen',
+          'Derrick Henry', 'Saquon Barkley', 'Drake London'
+        ];
+        state.picks = [];
+        demoNames.forEach((name, i) => {
+          const p = findPlayer(name) || { name, position: 'WR', team: '—', myRank: i + 1, adp: i + 1, projectedPoints: 200 };
+          state.picks.push({
+            name: p.name,
+            position: p.position,
+            team: p.team || '',
+            pickNo: i + 1,
+            mine: slotForPick(i + 1) === state.mySlot,
+            myRank: p.myRank,
+            adp: p.adp,
+            projectedPoints: p.projectedPoints
+          });
+        });
+        state.onTheClock = true;
+        state.mySlot = 9;
+        resetTimer();
+        sync();
+      }
+
+      document.getElementById('pos-tabs').addEventListener('click', (event) => {
+        const btn = event.target.closest('button[data-pos]');
+        if (!btn) return;
+        posFilter = btn.getAttribute('data-pos');
+        document.querySelectorAll('#pos-tabs button').forEach((b) => b.classList.toggle('active', b === btn));
+        renderAvailable();
+      });
+
+      document.getElementById('available').addEventListener('click', (event) => {
+        const star = event.target.closest('button[data-star]');
+        if (star) {
+          event.stopPropagation();
+          const name = star.getAttribute('data-star');
+          if (queue.includes(name)) queue = queue.filter((n) => n !== name);
+          else queue.push(name);
+          renderQueue();
+          renderAvailable();
+          return;
+        }
+        const row = event.target.closest('.ud-player-row');
+        if (!row) return;
+        const name = row.getAttribute('data-name');
+        const player = findPlayer(name);
+        if (!player) return;
+        if (!state.onTheClock) {
+          draftPlayer(player, false);
+          return;
+        }
+        if (!isMyPick(currentPickNo())) {
+          draftPlayer(player, false);
+          return;
+        }
+        draftPlayer(player, true);
+      });
+
+      document.getElementById('queue').addEventListener('click', (event) => {
+        const btn = event.target.closest('button[data-unqueue]');
+        if (!btn) return;
+        const name = btn.getAttribute('data-unqueue');
+        queue = queue.filter((n) => n !== name);
+        renderQueue();
+        renderAvailable();
+      });
+
+      document.getElementById('toggle-clock').addEventListener('click', () => {
+        state.onTheClock = !state.onTheClock;
+        if (state.onTheClock) resetTimer();
+        sync();
+      });
+
+      document.getElementById('auto-pick').addEventListener('click', autoPickOne);
+      document.getElementById('load-demo').addEventListener('click', loadDemo);
+      document.getElementById('reset').addEventListener('click', () => {
+        state.picks = [];
+        state.onTheClock = true;
+        queue = [];
+        timerSec = TIMER_START;
+        if (timerId) clearInterval(timerId), (timerId = null);
+        resetTimer();
+        sync();
+      });
+
+      loadBoard().catch((err) => {
+        document.getElementById('available').innerHTML =
+          `<div class="loading">Could not load board — run <code>python app.py</code> first.<br>${err.message}</div>`;
+      });
+      resetTimer();
+    </script>
+  </body>
+</html>
