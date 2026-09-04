@@ -40,17 +40,21 @@ The extension in [`extension/`](extension/) adds a Solver-style sidebar on Under
 | **Ranking source** | Expert BB, imported CSV, or your saved custom ranks |
 | **Draft Sheet URL** | API host — `http://127.0.0.1:8000` locally, or your Render URL in production |
 | **Open test draft room** | Opens the local Underdog-style mock room for testing heat/recs |
-| **Account & imports** | Log in for custom ranks; import rank or exposure CSVs |
+| **Open test player page** | Opens a mock Underdog players page for the Portfolio card |
+| **Account & imports** | Log in for custom ranks; import rank CSV or lineup/exposure CSV |
 
 ### Overlay panel
 
-Once a draft room is detected, a panel appears on the right with three tabs:
+Once a draft room is detected, a panel appears on the right with four tabs:
 
-- **Recs** — top 3 pick recommendations, warnings, draft capital summary
-- **Board** — searchable remaining players with rank/ADP/diff, position filters, dock/boost/exclude
-- **Team** — your roster, capital vs targets, refresh/undo
+- **Recs** — top 3 pick recommendations, playoff weeks, exposure, combos, draft capital
+- **Board** — searchable remaining players with rank/ADP/exposure, position filters, dock/boost/exclude
+- **Team** — your roster, save/paste lineups for combos, exposure, capital vs targets, refresh/undo
+- **Port** — lineup/combo portfolio, update from the current Underdog page
 
-Click **⚙ Settings** for scoring weights (ranks, ADP, stacks, playoff weeks, portfolio fade), position limits, and clock alert sound. Player rows on the Underdog board are color-coded to match recommendations.
+On Underdog's player/drafts pages (not inside a room), a blue **Portfolio** card appears so you can load drafted % and lineups before you draft.
+
+Click **⚙ Settings** for scoring weights (ranks, ADP, stacks, playoff weeks, portfolio fade), position limits, and clock alert sound. Player rows on the Underdog board get a blue rec chip instead of a full-row heat wash.
 
 ### Test draft room
 

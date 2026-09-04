@@ -9,7 +9,8 @@
   const TABS = [
     ['recs', 'Recs'],
     ['board', 'Board'],
-    ['team', 'Team']
+    ['team', 'Team'],
+    ['port', 'Port']
   ];
   const SLIDER_GROUPS = [
     {
@@ -51,7 +52,13 @@
     onTheClock: false,
     settings: null,
     portfolio: null,
-    recordedDraftId: null
+    recordedDraftId: null,
+    syncing: false,
+    syncMessage: '',
+    pasteText: '',
+    demoFlag: null,
+    panelScroll: {},
+    settingsScroll: 0
   };
 
   let board = { players: [], loggedIn: false, username: null, savedRankCount: 0 };
@@ -59,6 +66,7 @@
   let boardLoadAttempts = 0;
   let lastSnapshot = { isDraftRoom: false, picks: [], onTheClock: null, source: 'none', draftId: null };
   let lastClockState = false;
+  let lastScrollKey = null;
   let cssText = '';
   let audioCtx = null;
 
@@ -112,6 +120,82 @@
     return hostEl()?.shadowRoot;
   }
 
+  function overlayPanel() {
+    return shadow()?.querySelector('.fds-panel');
+  }
+
+  function overlaySettingsSheet() {
+    return shadow()?.querySelector('.fds-settings-sheet');
+  }
+
+  function eventInOverlay(event) {
+    return event.composedPath().some((node) =>
+      node?.id === HOST_ID
+      || node?.classList?.contains('fds-root')
+      || node?.classList?.contains('fds-panel')
+      || node?.classList?.contains('fds-settings-overlay')
+      || node?.classList?.contains('fds-settings-sheet')
+    );
+  }
+
+  function wheelDelta(event) {
+    if (event.deltaMode === 1) return event.deltaY * 16;
+    if (event.deltaMode === 2) return event.deltaY * window.innerHeight;
+    return event.deltaY;
+  }
+
+  function onOverlayWheel(event) {
+    if (!eventInOverlay(event)) return;
+    if (event.timeStamp && event.timeStamp === onOverlayWheel.lastTs) return;
+    onOverlayWheel.lastTs = event.timeStamp;
+    const sheet = overlaySettingsSheet();
+    if (ui.settingsOpen && sheet) {
+      sheet.scrollTop += wheelDelta(event);
+      ui.settingsScroll = sheet.scrollTop;
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    const panel = overlayPanel();
+    if (!panel) return;
+    const target = event.composedPath().find((node) => node?.tagName === 'TEXTAREA');
+    if (target && target.scrollHeight > target.clientHeight + 1) {
+      const next = Math.max(0, Math.min(target.scrollHeight - target.clientHeight, target.scrollTop + wheelDelta(event)));
+      target.scrollTop = next;
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    panel.scrollTop += wheelDelta(event);
+    const key = panelScrollKey();
+    ui.panelScroll[key] = panel.scrollTop;
+    lastScrollKey = key;
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  function panelScrollKey() {
+    return inDraftRoom() ? `room:${ui.activeTab}` : 'explorer';
+  }
+
+  function rememberPanelScroll(root) {
+    const panel = root?.querySelector('.fds-panel');
+    if (panel && lastScrollKey) {
+      ui.panelScroll[lastScrollKey] = panel.scrollTop;
+    }
+    const sheet = root?.querySelector('.fds-settings-sheet');
+    if (sheet) ui.settingsScroll = sheet.scrollTop;
+  }
+
+  function restorePanelScroll(root) {
+    const key = panelScrollKey();
+    lastScrollKey = key;
+    const panel = root?.querySelector('.fds-panel');
+    if (panel) panel.scrollTop = ui.panelScroll[key] || 0;
+    const sheet = root?.querySelector('.fds-settings-sheet');
+    if (sheet) sheet.scrollTop = ui.settingsScroll || 0;
+  }
+
   function allPicks() {
     const seen = new Set();
     const merged = [];
@@ -156,12 +240,6 @@
     }
   }
 
-  function formatDiff(diff) {
-    if (diff == null) return '—';
-    const rounded = Math.round(diff);
-    return rounded > 0 ? `+${rounded}` : String(rounded);
-  }
-
   async function ensureHost() {
     if (hostEl()) return;
     const host = document.createElement('div');
@@ -171,6 +249,11 @@
     if (!cssText) {
       try {
         cssText = await (await fetch(chrome.runtime.getURL('overlay/panel.css'))).text();
+        try {
+          cssText += `\n${await (await fetch(chrome.runtime.getURL('overlay/capital-chart.css'))).text()}`;
+        } catch (chartErr) {
+          /* chart styles are optional if panel.css already has fallbacks */
+        }
       } catch (err) {
         cssText = '.fds-root{position:fixed;top:12px;right:12px;width:380px;background:#111;color:#fff;font-family:sans-serif;}';
       }
@@ -185,6 +268,7 @@
         event.stopPropagation();
         return;
       }
+      if (event.target.closest('button[disabled]')) return;
       const action = event.target.closest('[data-action]')?.getAttribute('data-action');
       if (!action) return;
       if (action === 'collapse') {
@@ -220,8 +304,19 @@
       } else if (action === 'clear-portfolio') {
         send('CLEAR_PORTFOLIO').then((response) => {
           if (response?.portfolio) ui.portfolio = response.portfolio;
+          ui.syncMessage = 'Portfolio cleared.';
           render();
         });
+      } else if (action === 'update-portfolio') {
+        updatePortfolioFromPage();
+      } else if (action === 'load-demo-portfolio') {
+        loadDemoPortfolio();
+      } else if (action === 'save-visible-lineup') {
+        saveVisibleLineup();
+      } else if (action === 'save-my-roster') {
+        saveMyRosterLineup();
+      } else if (action === 'add-pasted-lineup') {
+        addPastedLineup();
       }
     });
 
@@ -229,6 +324,10 @@
       if (event.target.id === 'fds-search') {
         ui.query = event.target.value;
         render({ keepSearch: true });
+        return;
+      }
+      if (event.target.id === 'fds-lineup-paste') {
+        ui.pasteText = event.target.value;
         return;
       }
       const slider = event.target.closest('[data-slider]');
@@ -274,6 +373,11 @@
       });
       render();
     });
+
+    root.addEventListener('wheel', onOverlayWheel, { capture: true, passive: false });
+    root.addEventListener('touchmove', (event) => {
+      event.stopPropagation();
+    }, { passive: true });
   }
 
   function buildContext(ranked) {
@@ -308,12 +412,14 @@
               </div>
             `).join('')}
           </div>
-          <p class="fds-rec-hint">Score 0–10 from model · rows on the board are color-coded.</p>
+          <p class="fds-rec-hint">Blue = draft · Purple = next tier · Pink = fade · same colors on the Underdog list.</p>
         </div>
       `);
     } else {
       parts.push('<div class="fds-empty">No recommendations yet — load your board from the extension popup.</div>');
     }
+    parts.push(renderCapital(capital, true));
+    parts.push(renderPlayoffMatchups(myRoster));
     parts.push(renderComboWidget(recs, myRoster));
     parts.push(renderRoomWidget(draftRoom));
     if (rosterWarnings.length) {
@@ -322,7 +428,6 @@
     if (summary) {
       parts.push(renderPostDraft(summary, capital));
     }
-    parts.push(renderCapital(capital, true));
     return parts.join('');
   }
 
@@ -332,31 +437,100 @@
     return `${parts[0][0]}. ${parts[parts.length - 1]}`;
   }
 
-  function renderComboWidget(recs, myRoster) {
-    if (!ui.portfolio?.totalDrafts || !recs?.length || !myRoster?.length || !window.FDSPortfolio?.comboBreakdown) {
-      return '';
+  function portfolioSummary() {
+    return window.FDSPortfolio?.summarize(ui.portfolio) || {
+      totalDrafts: 0,
+      lineupCount: 0,
+      playerCount: 0,
+      comboCount: 0,
+      repeatComboCount: 0,
+      hasLineups: false,
+      importedExposure: false
+    };
+  }
+
+  function renderPlayoffMatchups(myRoster) {
+    const table = window.FDSPlayoffSchedule?.renderMatchupTable?.(myRoster);
+    if (!table) return '';
+    return `<div class="fds-section">${table}</div>`;
+  }
+
+  function renderExposureWidget({ title = 'Most drafted', limit = 8 } = {}) {
+    const summary = portfolioSummary();
+    const rows = window.FDSPortfolio?.topExposures(ui.portfolio, limit) || [];
+    if (!summary.totalDrafts && !rows.length) {
+      return `
+        <div class="fds-section fds-exp-widget">
+          <h3>${escapeHtml(title)}</h3>
+          <p class="fds-combo-none">No lineups yet. Save a completed team to see your exposure.</p>
+        </div>
+      `;
     }
-    const blocks = recs.slice(0, 3).map((rec) => {
-      const combos = window.FDSPortfolio.comboBreakdown(ui.portfolio, rec.player, myRoster, { minPct: 8 });
-      if (!combos.length) {
+    const bars = rows.map((row) => `
+      <div class="fds-exp-row">
+        <span class="fds-exp-name">${escapeHtml(shortName(row.name))} <em>${escapeHtml(row.position)}</em></span>
+        <div class="fds-exp-track"><div class="fds-exp-fill" style="width:${Math.min(100, row.pct)}%"></div></div>
+        <span class="fds-exp-pct">${row.pct}%</span>
+      </div>
+    `).join('');
+    return `
+      <div class="fds-section fds-exp-widget">
+        <h3>${escapeHtml(title)}</h3>
+        ${bars || '<p class="fds-combo-none">No player rates yet.</p>'}
+      </div>
+    `;
+  }
+
+  function renderComboWidget(recs, myRoster) {
+    const summary = portfolioSummary();
+    if (!summary.hasLineups) {
+      return `
+        <div class="fds-section fds-combo-widget">
+          <h3>Combos</h3>
+          <p class="fds-combo-none">${summary.importedExposure
+            ? 'This is exposure-only data. Import lineups (Draft ID + Player) to track pairs.'
+            : 'Load lineups to see how often a pick already pairs with this roster.'}</p>
+        </div>
+      `;
+    }
+
+    if (recs?.length && myRoster?.length && window.FDSPortfolio?.comboBreakdown) {
+      const blocks = recs.slice(0, 3).map((rec) => {
+        const combos = window.FDSPortfolio.comboBreakdown(ui.portfolio, rec.player, myRoster, { minPct: 8 });
+        if (!combos.length) {
+          return `<div class="fds-combo-row">
+            <strong>${escapeHtml(shortName(rec.player.name))}</strong>
+            <span class="fds-combo-none">No pair ≥8% with this roster</span>
+          </div>`;
+        }
+        const chips = combos.slice(0, 4).map((row) => {
+          const hot = row.pct >= 25 ? ' is-hot' : row.pct >= 15 ? ' is-warn' : '';
+          return `<span class="fds-combo-chip${hot}">+ ${escapeHtml(shortName(row.owned.name))} ${row.pct}%</span>`;
+        }).join('');
         return `<div class="fds-combo-row">
           <strong>${escapeHtml(shortName(rec.player.name))}</strong>
-          <span class="fds-combo-none">No combo history ≥8%</span>
+          <div class="fds-combo-chips">${chips}</div>
         </div>`;
-      }
-      const chips = combos.slice(0, 4).map((row) => {
-        const hot = row.pct >= 25 ? ' is-hot' : row.pct >= 15 ? ' is-warn' : '';
-        return `<span class="fds-combo-chip${hot}">+ ${escapeHtml(shortName(row.owned.name))} ${row.pct}%</span>`;
       }).join('');
-      return `<div class="fds-combo-row">
-        <strong>${escapeHtml(shortName(rec.player.name))}</strong>
-        <div class="fds-combo-chips">${chips}</div>
-      </div>`;
-    }).join('');
+      return `
+        <div class="fds-section fds-combo-widget">
+          <h3>Combos vs this roster</h3>
+          ${blocks}
+        </div>
+      `;
+    }
+
+    const top = window.FDSPortfolio.topCombos(ui.portfolio, 6) || [];
+    const rows = top.map((row) => `
+      <div class="fds-combo-row">
+        <strong>${escapeHtml(shortName(row.a.name))}</strong>
+        <span class="fds-combo-chip">+ ${escapeHtml(shortName(row.b.name))} ${row.pct}%</span>
+      </div>
+    `).join('');
     return `
       <div class="fds-section fds-combo-widget">
-        <h3>Combo ownership <span class="fds-hint">${ui.portfolio.totalDrafts} drafts</span></h3>
-        ${blocks}
+        <h3>Your stacks</h3>
+        ${rows || '<p class="fds-combo-none">No repeated stacks yet.</p>'}
       </div>
     `;
   }
@@ -402,6 +576,11 @@
         ${POSITIONS.map((pos) => `<button data-action="filter" data-pos="${pos}" class="${ui.position === pos ? 'is-active' : ''}">${pos}</button>`).join('')}
         <button data-action="format" class="fds-format">${ui.settings.format === 'superflex' ? 'Superflex' : 'Best Ball'}</button>
       </div>
+      <div class="fds-heat-legend" aria-hidden="true">
+        <span class="is-best">Blue draft</span>
+        <span class="is-good">Purple next</span>
+        <span class="is-fade">Pink fade</span>
+      </div>
       <div class="fds-bias">
         ${['QB', 'RB', 'WR', 'TE'].map((pos) => {
           const mode = ui.settings.posBias?.[pos] || 'default';
@@ -410,7 +589,7 @@
         }).join('')}
       </div>
       <div class="fds-list-head">
-        <span>Rk</span><span>Player</span><span>Pos</span><span>ADP</span><span>Δ</span>
+        <span>Player</span><span>ADP</span>
       </div>
       <div class="fds-list">
         ${remaining.length
@@ -451,6 +630,7 @@
         ${proj ? `<div class="fds-post-meta" style="margin-top:10px">Projected: ${Math.round(proj)} pts</div>` : ''}
       </div>
       ${renderCapital(capital, false)}
+      ${renderPlayoffMatchups(ranked.myRoster)}
       ${ranked.unmatched.length ? `
         <div class="fds-section">
           <h3>Unmatched picks</h3>
@@ -463,6 +643,304 @@
     `;
   }
 
+  function inDraftRoom() {
+    return Boolean(lastSnapshot.isDraftRoom || document.querySelector('[data-fds-test-room]'));
+  }
+
+  function mergeResultMessage(response) {
+    const summary = portfolioSummary();
+    const added = Number(response?.added) || 0;
+    const skipped = Number(response?.skipped) || 0;
+    if (!added && skipped) {
+      return skipped === 1
+        ? `Already saved. ${summary.lineupCount} lineups.`
+        : `Already saved (${skipped} skipped). ${summary.lineupCount} lineups.`;
+    }
+    if (added && skipped) {
+      return `Saved ${added}, skipped ${skipped} duplicate${skipped === 1 ? '' : 's'}. ${summary.lineupCount} lineups.`;
+    }
+    return `Saved. ${summary.lineupCount} lineup${summary.lineupCount === 1 ? '' : 's'}.`;
+  }
+
+  function portfolioSyncLabel(summary) {
+    if (!summary.lineupCount && !summary.totalDrafts) return 'No lineups yet';
+    if (summary.source === 'account') return 'Synced to your account';
+    return 'Saved in this browser';
+  }
+
+  async function mergeLineupDrafts(drafts, source) {
+    if (!drafts?.length) return;
+    ui.syncing = true;
+    render({ keepPaste: true });
+    const response = await send('MERGE_PORTFOLIO_DRAFTS', { drafts, source });
+    ui.syncing = false;
+    if (response?.ok) {
+      ui.portfolio = response.portfolio;
+      ui.syncMessage = mergeResultMessage(response);
+      if ((Number(response.added) || 0) > 0) {
+        ui.pasteText = '';
+      }
+    } else {
+      ui.syncMessage = response?.error || 'Could not save lineup.';
+    }
+    render({ keepPaste: true });
+  }
+
+  function rosterFromVisiblePage() {
+    const visible = lastSnapshot.visibleRoster;
+    if (visible?.picks?.length && window.FDSExposureSync?.looksLikeBestBallRoster?.(visible.picks)) {
+      const picks = visible.picks.map((p) => ({ name: p.name, position: p.position, team: p.team || '' }));
+      return {
+        picks,
+        drafts: [{
+          id: visible.id || window.FDSExposureSync.lineupId(picks, 'page'),
+          savedAt: Date.now(),
+          picks
+        }],
+        error: null
+      };
+    }
+    return window.FDSExposureSync?.readVisibleRoster(board.players || []) || { error: 'No roster found.' };
+  }
+
+  async function saveVisibleLineup() {
+    ui.syncMessage = '';
+    const parsed = rosterFromVisiblePage();
+    if (parsed.error) {
+      ui.syncMessage = parsed.error;
+      render({ keepPaste: true });
+      return;
+    }
+    await mergeLineupDrafts(parsed.drafts, 'page');
+  }
+
+  function scheduleVisibleCapture() {
+    clearTimeout(scheduleVisibleCapture.timer);
+    scheduleVisibleCapture.timer = setTimeout(() => {
+      tryCaptureVisibleLineup();
+    }, 450);
+  }
+
+  async function tryCaptureVisibleLineup() {
+    if (ui.syncing) return;
+    const parsed = rosterFromVisiblePage();
+    if (parsed.error || !parsed.picks || parsed.picks.length < 12) return;
+    const fingerprint = window.FDSPortfolio?.rosterFingerprint?.(parsed.picks);
+    if (fingerprint && (ui.portfolio?.drafts || []).some((draft) => window.FDSPortfolio.rosterFingerprint(draft.picks) === fingerprint)) {
+      return;
+    }
+    await mergeLineupDrafts(parsed.drafts, 'page');
+  }
+
+  async function saveMyRosterLineup() {
+    const mine = allPicks().filter((pick) => pick.mine);
+    if (mine.length < 8) {
+      ui.syncMessage = `Need 8+ of your picks on this roster (have ${mine.length}).`;
+      render({ keepPaste: true });
+      return;
+    }
+    const picks = mine.map((p) => ({ name: p.name, position: p.position, team: p.team }));
+    const id = window.FDSExposureSync?.lineupId(picks, lastSnapshot.draftId || 'mine') || `mine-${Date.now()}`;
+    await mergeLineupDrafts([{ id, savedAt: Date.now(), picks }], 'live');
+  }
+
+  async function addPastedLineup() {
+    const parsed = window.FDSExposureSync?.parsePastedLineup(ui.pasteText, board.players || [])
+      || { error: 'Could not parse that paste.' };
+    if (parsed.error) {
+      ui.syncMessage = parsed.error;
+      render({ keepPaste: true });
+      return;
+    }
+    await mergeLineupDrafts(parsed.drafts, 'paste');
+  }
+
+  function renderPortfolioTab(recs, myRoster) {
+    const summary = portfolioSummary();
+    return `
+      <div class="fds-port-hero">
+        <div class="fds-stat">
+          <div class="label">Lineups</div>
+          <div class="value">${summary.lineupCount}</div>
+          <p class="fds-port-sub">${escapeHtml(portfolioSyncLabel(summary))}</p>
+        </div>
+      </div>
+      <div class="fds-section">
+        ${ui.syncMessage ? `<p class="fds-sync-msg">${escapeHtml(ui.syncMessage)}</p>` : ''}
+        <div class="fds-actions" style="padding:10px 0 0;border:0">
+          <button data-action="save-visible-lineup"${ui.syncing ? ' disabled' : ''}>Save this team</button>
+          <button class="secondary" data-action="clear-portfolio">Clear</button>
+        </div>
+        ${inDraftRoom() && allPicks().filter((pick) => pick.mine).length >= 8
+          ? `<div class="fds-actions" style="padding:8px 0 0;border:0"><button class="secondary" data-action="save-my-roster"${ui.syncing ? ' disabled' : ''}>Save my roster</button></div>`
+          : ''}
+        <details class="fds-paste-details">
+          <summary>Paste a lineup</summary>
+          <textarea id="fds-lineup-paste" rows="4" placeholder="One player per line, or a lineup CSV">${escapeHtml(ui.pasteText)}</textarea>
+          <div class="fds-actions fds-lineup-actions">
+            <button data-action="add-pasted-lineup"${ui.syncing ? ' disabled' : ''}>Add pasted lineup</button>
+          </div>
+        </details>
+        <details class="fds-paste-details">
+          <summary>More</summary>
+          <div class="fds-actions fds-lineup-actions">
+            <button class="secondary" data-action="update-portfolio"${ui.syncing ? ' disabled' : ''}>${ui.syncing ? 'Updating…' : 'Update from page'}</button>
+            ${document.querySelector('[data-fds-test-explorer], [data-fds-test-room]')
+              ? '<button class="secondary" data-action="load-demo-portfolio">Load demo lineups</button>'
+              : ''}
+          </div>
+        </details>
+      </div>
+      ${renderExposureWidget({ title: 'Most drafted', limit: 8 })}
+    `;
+  }
+
+  function renderExplorerShell(root) {
+    const summary = portfolioSummary();
+    const expanded = !ui.collapsed;
+    root.className = `fds-root is-explorer${ui.collapsed ? ' is-collapsed' : ''}`;
+    if (!expanded) {
+      root.innerHTML = `
+        <div class="fds-header">
+          <div class="fds-logo">DA</div>
+          <div class="fds-title">
+            <strong>Portfolio</strong>
+            <span>${summary.lineupCount} lineups</span>
+          </div>
+          <div class="fds-header-actions">
+            <button class="fds-icon-btn" data-action="collapse" title="Expand">▸</button>
+          </div>
+        </div>
+      `;
+      return;
+    }
+    const exp = window.FDSPortfolio?.topExposures(ui.portfolio, 8) || [];
+    const expRows = exp.map((row) => `
+      <div class="fds-exp-row">
+        <span class="fds-exp-name">${escapeHtml(shortName(row.name))} <em>${escapeHtml(row.position)}</em></span>
+        <div class="fds-exp-track"><div class="fds-exp-fill" style="width:${Math.min(100, row.pct)}%"></div></div>
+        <span class="fds-exp-pct">${row.pct}%</span>
+      </div>
+    `).join('');
+    root.innerHTML = `
+      <div class="fds-header">
+        <div class="fds-logo">DA</div>
+        <div class="fds-title">
+          <strong>Portfolio</strong>
+          <span>${summary.lineupCount} lineups · ${escapeHtml(portfolioSyncLabel(summary).toLowerCase())}</span>
+        </div>
+        <div class="fds-header-actions">
+          <button class="fds-icon-btn" data-action="collapse" title="Collapse">▾</button>
+        </div>
+      </div>
+      <div class="fds-body">
+        <div class="fds-panel">
+          <div class="fds-port-hero">
+            <div class="fds-stat">
+              <div class="label">Lineups</div>
+              <div class="value">${summary.lineupCount}</div>
+              <p class="fds-port-sub">${escapeHtml(portfolioSyncLabel(summary))}</p>
+            </div>
+          </div>
+          <div class="fds-section">
+            ${ui.syncMessage ? `<p class="fds-sync-msg">${escapeHtml(ui.syncMessage)}</p>` : ''}
+            <div class="fds-actions" style="padding:10px 0 0;border:0">
+              <button data-action="save-visible-lineup"${ui.syncing ? ' disabled' : ''}>Save this team</button>
+              <button class="secondary" data-action="clear-portfolio">Clear</button>
+            </div>
+            <details class="fds-paste-details">
+              <summary>Paste a lineup</summary>
+              <textarea id="fds-lineup-paste" rows="4" placeholder="One player per line, or a lineup CSV">${escapeHtml(ui.pasteText)}</textarea>
+              <div class="fds-actions fds-lineup-actions">
+                <button data-action="add-pasted-lineup"${ui.syncing ? ' disabled' : ''}>Add pasted lineup</button>
+              </div>
+            </details>
+            ${document.querySelector('[data-fds-test-explorer]')
+              ? '<div class="fds-actions" style="padding:8px 0 0;border:0"><button class="secondary" data-action="load-demo-portfolio">Load demo lineups</button></div>'
+              : ''}
+          </div>
+          <div class="fds-section fds-exp-widget">
+            <h3>Most drafted</h3>
+            ${expRows || '<p class="fds-combo-none">No lineups yet. Click a completed team, then Save this team.</p>'}
+          </div>
+        </div>
+      </div>
+    `;
+    if (window.FDSHostHighlight) {
+      window.FDSHostHighlight.clear();
+    }
+  }
+
+  async function updatePortfolioFromPage() {
+    ui.syncing = true;
+    ui.syncMessage = '';
+    render();
+    try {
+      const capture = lastSnapshot.portfolioCapture;
+      if (capture?.drafts?.length) {
+        const response = await send('MERGE_PORTFOLIO_DRAFTS', {
+          drafts: capture.drafts,
+          source: 'underdog'
+        });
+        if (response?.ok) {
+          ui.portfolio = response.portfolio;
+          ui.syncMessage = mergeResultMessage(response);
+          ui.syncing = false;
+          render();
+          return;
+        }
+      }
+
+      const scraped = window.FDSExposureSync?.scrapeVisibleExposure(board.players || []) || { entries: [] };
+      if (scraped.entries?.length) {
+        if (ui.portfolio?.drafts?.length) {
+          ui.syncMessage = `Kept ${ui.portfolio.drafts.length} saved lineups. Page drafted % is exposure-only and was not applied.`;
+          ui.syncing = false;
+          render();
+          return;
+        }
+        const portfolio = window.FDSPortfolio.fromExposureEntries(scraped.entries, {
+          totalDrafts: scraped.teamCount || 100,
+          source: 'page'
+        });
+        const response = await send('IMPORT_EXPOSURE_CSV', { portfolio });
+        if (response?.ok) {
+          ui.portfolio = response.portfolio;
+          ui.syncMessage = `Loaded drafted % for ${scraped.entries.length} players${scraped.teamCount ? ` across ${scraped.teamCount} teams` : ''}. Import lineups for combos.`;
+        } else {
+          ui.syncMessage = response?.error || 'Could not save exposure.';
+        }
+        ui.syncing = false;
+        render();
+        return;
+      }
+
+      ui.syncMessage = 'Nothing to load. Open your filtered player list, or import a lineup CSV from the popup.';
+    } catch (err) {
+      ui.syncMessage = err.message || 'Update failed.';
+    }
+    ui.syncing = false;
+    render();
+  }
+
+  async function loadDemoPortfolio() {
+    const drafts = window.FDSExposureSync?.demoDrafts?.() || [];
+    if (!drafts.length) return;
+    const response = await send('MERGE_PORTFOLIO_DRAFTS', { drafts, source: 'demo' });
+    if (response?.ok) {
+      ui.portfolio = response.portfolio;
+      ui.syncMessage = mergeResultMessage(response);
+      render();
+    }
+  }
+
+  function maybeLoadDemoPortfolio() {
+    const flag = document.documentElement.getAttribute('data-fds-demo-portfolio');
+    if (!flag || flag === ui.demoFlag) return;
+    ui.demoFlag = flag;
+    loadDemoPortfolio();
+  }
+
   function render(options = {}) {
     const root = shadow()?.querySelector('.fds-root');
     if (!root) return;
@@ -470,6 +948,7 @@
 
     const ranked = window.FDSRankBoard.applyPicks(board.players || [], allPicks());
     maybeRecordPortfolio(ranked.myRoster);
+    maybeLoadDemoPortfolio();
     const context = buildContext(ranked);
     const remaining = window.FDSRankBoard.remainingPlayers(ranked, {
       position: ui.position,
@@ -481,7 +960,19 @@
       .filter((player) => context.settings.posBias?.[player.position] !== 'exclude');
     const recs = window.FDSRankBoard.recommend(recPool, context);
     const heat = window.FDSRankBoard.heatMap(recPool, context);
-    const capital = window.FDSRankBoard.draftCapital(ranked.myRoster, context.settings);
+    let capital = {
+      byPosition: null,
+      pickCount: ranked.myRoster.length,
+      allocated: 0,
+      totalPicks: window.FDSRankBoard.TOTAL_PICKS
+    };
+    try {
+      capital = window.FDSRankBoard.draftCapital(ranked.myRoster, context.settings, {
+        pickNo: context.pickNo
+      });
+    } catch (err) {
+      console.error('FDS draftCapital failed', err);
+    }
     const draftRoom = window.FDSRankBoard.draftRoomState(allPicks(), {
       mySlot: lastSnapshot.mySlot,
       teamSize: window.FDSRankBoard.DEFAULT_TEAM_SIZE
@@ -491,11 +982,20 @@
     maybeAlertOnClock(onClock);
     const rosterWarnings = window.FDSDuplicates?.rosterWarnings(ranked.myRoster, null) || [];
     const draftComplete = ranked.myRoster.length >= window.FDSRankBoard.TOTAL_PICKS;
-    const summary = draftComplete && window.FDSDuplicates
+    const draftSummary = draftComplete && window.FDSDuplicates
       ? window.FDSDuplicates.draftSummary(ranked.myRoster)
       : null;
+    const portSummary = portfolioSummary();
 
-    const statusClass = !boardReady || board.error || !board.players?.length ? 'err' : (lastSnapshot.isDraftRoom ? 'ok' : 'warn');
+    rememberPanelScroll(root);
+
+    if (!inDraftRoom()) {
+      renderExplorerShell(root, { onClock, rankLabel: null, portSummary });
+      restorePanelScroll(root);
+      return;
+    }
+
+    const statusClass = !boardReady || board.error || !board.players?.length ? 'err' : 'ok';
     const statusText = !boardReady
       ? 'Loading rankings…'
       : board.error
@@ -504,7 +1004,9 @@
           ? 'Open the extension popup → Load expert ranks'
           : lastSnapshot.isDraftRoom
             ? `${remaining.length} available · ${ranked.drafted.length} drafted`
-            : 'Open an Underdog draft room or the test room';
+            : lastSnapshot.isExplorer
+              ? 'Player page · click a team to save it'
+              : 'Open an Underdog draft room or the test room';
 
     const rankLabel = board.rankSource === 'csv'
       ? 'CSV ranks'
@@ -514,9 +1016,11 @@
 
     let panelHtml = '';
     if (ui.activeTab === 'recs') {
-      panelHtml = renderRecsTab(recs, capital, rosterWarnings, summary, draftRoom, ranked.myRoster);
+      panelHtml = renderRecsTab(recs, capital, rosterWarnings, draftSummary, draftRoom, ranked.myRoster);
     } else if (ui.activeTab === 'board') {
       panelHtml = renderBoardTab(remaining, recs, heat, ranked.myRoster);
+    } else if (ui.activeTab === 'port') {
+      panelHtml = renderPortfolioTab(recs, ranked.myRoster);
     } else {
       panelHtml = renderTeamTab(ranked, roster, capital, draftRoom);
     }
@@ -527,7 +1031,7 @@
         <div class="fds-logo">DA</div>
         <div class="fds-title">
           <strong>${onClock ? 'On the clock' : 'Draft Assistant'}</strong>
-          <span>${rankLabel} · ${ui.portfolio?.totalDrafts || 0} portfolio drafts</span>
+          <span>${rankLabel} · ${portSummary.lineupCount} lineups</span>
         </div>
         <div class="fds-header-actions">
           <button class="fds-icon-btn${ui.settingsOpen ? ' is-active' : ''}" data-action="settings" title="Settings">⚙</button>
@@ -548,6 +1052,7 @@
         ${ui.settingsOpen ? renderSettingsOverlay() : ''}
       </div>
     `;
+    restorePanelScroll(root);
 
     if (options.keepSearch) {
       const input = root.querySelector('#fds-search');
@@ -556,8 +1061,22 @@
         input.setSelectionRange(input.value.length, input.value.length);
       }
     }
-    if (window.FDSHostHighlight) {
-      window.FDSHostHighlight.paint({ recs, heat, capital });
+    if (options.keepPaste) {
+      const paste = root.querySelector('#fds-lineup-paste');
+      if (paste) {
+        paste.focus();
+        paste.setSelectionRange(paste.value.length, paste.value.length);
+      }
+    }
+    if (window.FDSHostHighlight && inDraftRoom()) {
+      window.FDSHostHighlight.paint({
+        recs,
+        heat,
+        players: board.players || [],
+        myRoster: ranked.myRoster,
+        capital,
+        portfolio: ui.portfolio
+      });
     }
   }
 
@@ -575,7 +1094,7 @@
     `).join('');
     const maxes = ['QB', 'RB', 'WR', 'TE'].map((pos) => `
       <label class="fds-max">${pos} max
-        <input type="number" min="1" max="12" data-pos-max="${pos}" value="${ui.settings.posMax?.[pos] ?? 8}" />
+        <input type="number" min="1" max="12" data-pos-max="${pos}" value="${ui.settings.posMax?.[pos] ?? window.FDSRankBoard?.DEFAULT_MAX?.[pos] ?? 6}" />
       </label>
     `).join('');
     return `
@@ -587,7 +1106,7 @@
           </div>
           ${groups}
           <div class="fds-settings-group">
-            <h4>Position limits <span class="fds-hint">(adjust capital targets)</span></h4>
+            <h4>Position limits <span class="fds-hint">(hard cap · capital range is QB 2–3, RB 4–6, WR 6–9, TE 2–3)</span></h4>
             <div class="fds-max-row">${maxes}</div>
           </div>
           <div class="fds-settings-foot">
@@ -595,8 +1114,8 @@
               <input type="checkbox" data-toggle="clockAlert" ${ui.settings.clockAlert !== false ? 'checked' : ''} />
               Play sound when you're on the clock
             </label>
-            <span style="font-size:11px;color:#9ca3af">Portfolio saves completed 18-pick rosters locally for exposure tracking.</span>
-            <button class="secondary" data-action="clear-portfolio">Clear portfolio history</button>
+            <span style="font-size:11px;color:#9ca3af">Lineups save locally for exposure and combo tracking. Update from your Underdog player page or import a CSV in the popup.</span>
+            <button class="secondary" data-action="clear-portfolio">Clear saved lineups</button>
           </div>
         </div>
       </div>
@@ -627,32 +1146,29 @@
   }
 
   function renderCapital(capital, compact) {
-    if (!window.FDSCapitalChart) return '';
-    if (compact) {
-      return `
-        <div class="fds-section">
-          ${capital.pickCount
-            ? window.FDSCapitalChart.renderColumns(capital, { title: 'Draft capital' })
-            : '<h3>Draft capital</h3><div class="fds-cap-empty">Draft players to track capital.</div>'}
-        </div>
-      `;
+    if (!window.FDSCapitalChart?.renderColumns) {
+      return `<div class="fds-section"><h3>Draft capital</h3><div class="fds-cap-empty">Capital chart did not load. Reload the extension.</div></div>`;
     }
+    const chart = window.FDSCapitalChart.renderColumns(capital, {
+      title: compact ? 'Draft capital' : 'Draft capital allocation',
+      compact
+    });
+    if (compact) {
+      return `<div class="fds-section">${chart}</div>`;
+    }
+    const remain = capital?.byPosition ? `<div class="fds-cap-remain">
+          <span>${capital.allocated} capital spent · pick ${capital.pickCount}/${capital.totalPicks}</span>
+          <span>Ranges QB 2–3 · RB 4–6 · WR 6–9 · TE 2–3</span>
+        </div>` : '';
     return `
       <div class="fds-section">
-        ${capital.pickCount
-          ? window.FDSCapitalChart.renderColumns(capital, { title: 'Draft capital allocation' })
-          : '<h3>Draft capital allocation</h3><div class="fds-cap-empty">Draft players to track capital vs target.</div>'}
-        ${capital.pickCount ? `<div class="fds-cap-remain">
-          <span>${capital.allocated} capital spent · pick ${capital.pickCount}/${capital.totalPicks}</span>
-          <span>Pools QB ${capital.byPosition.QB.targetValue} · RB ${capital.byPosition.RB.targetValue} · WR ${capital.byPosition.WR.targetValue} · TE ${capital.byPosition.TE.targetValue}</span>
-        </div>` : ''}
+        ${chart}
+        ${remain}
       </div>
     `;
   }
 
   function renderRow(player, recs, heat, myRoster) {
-    const diff = window.FDSRankBoard.adpDiff(player);
-    const diffClass = diff == null ? '' : (diff < 0 ? 'is-value' : diff > 0 ? 'is-reach' : '');
     const rec = recs.findIndex((row) => row.player.name === player.name && row.player.position === player.position);
     const heatRow = heat.find((item) =>
       item.player.name === player.name && item.player.position === player.position
@@ -669,19 +1185,20 @@
       player.bringBack ? '<span class="fds-badge">BB</span>' : '',
       rec >= 0 ? `<span class="fds-badge">#${rec + 1}</span>` : '',
       heatRow ? `<span class="fds-badge" title="Model score">${heatRow.displayScore}</span>` : '',
-      exp >= 10 ? `<span class="fds-badge">${exp}%</span>` : '',
       comboExp >= 12 ? `<span class="fds-badge is-combo">C${comboExp}%</span>` : ''
     ].join('');
+    const expLabel = ui.portfolio?.totalDrafts ? `${exp}%` : '';
     return `
       <div class="fds-row${rec >= 0 ? ` is-rec-${player.position}` : ''}${heatRow ? ` is-heat-${heatRow.heat}` : ''}" data-player="${playerPayload(player)}">
-        <div class="fds-rank">${player.myRank || '—'}</div>
         <div class="fds-name">
-          <strong>${escapeHtml(player.name)}${badges}</strong>
-          <em>${escapeHtml(player.team || '')}${player.projectedPoints ? ` · ${Math.round(player.projectedPoints)} pts` : ''}</em>
+          <div class="fds-name-line">
+            <strong class="fds-player-name">${escapeHtml(player.name)}${badges}</strong>
+            <span class="fds-rank-inline">${player.myRank || '—'}</span>
+            ${expLabel ? `<span class="fds-exp-pill">${expLabel}</span>` : ''}
+          </div>
+          <em>${escapeHtml(player.position)}${player.team ? ` ${escapeHtml(player.team)}` : ''}${player.projectedPoints ? ` · ${Math.round(player.projectedPoints)} pts` : ''}</em>
         </div>
-        <div class="fds-pill ${player.position}">${player.position}</div>
         <div class="fds-adp">${player.adp || '—'}</div>
-        <div class="fds-diff ${diffClass}">${formatDiff(diff)}</div>
       </div>
     `;
   }
@@ -718,23 +1235,36 @@
   function pollDraft() {
     if (!window.FDSUnderdogAdapter) return;
     const snapshot = window.FDSUnderdogAdapter.read();
+    lastSnapshot.visibleRoster = snapshot.visibleRoster || null;
+    lastSnapshot.portfolioCapture = snapshot.portfolioCapture || lastSnapshot.portfolioCapture;
     const signature = JSON.stringify({
       count: snapshot.picks?.length || 0,
       clock: snapshot.onTheClock,
       source: snapshot.source,
-      last: snapshot.picks?.[snapshot.picks.length - 1]?.name
+      last: snapshot.picks?.[snapshot.picks.length - 1]?.name,
+      explorer: snapshot.isExplorer,
+      room: snapshot.isDraftRoom,
+      portDrafts: snapshot.portfolioCapture?.drafts?.length || 0,
+      visible: snapshot.visibleRoster?.picks?.[0]?.name || '',
+      visibleN: snapshot.visibleRoster?.picks?.length || 0
     });
     const changed = signature !== pollDraft.lastSignature;
-    if (changed) {
-      pollDraft.lastSignature = signature;
-      lastSnapshot = { ...snapshot, draftId: snapshot.draftId || lastSnapshot.draftId };
-      if (snapshot.onTheClock) {
-        maybeAlertOnClock(true);
-      }
+    if (!changed) {
+      return;
     }
-    if (changed || boardReady) {
-      render();
+    pollDraft.lastSignature = signature;
+    lastSnapshot = { ...snapshot, draftId: snapshot.draftId || lastSnapshot.draftId };
+    if (snapshot.onTheClock) {
+      maybeAlertOnClock(true);
     }
+    const active = shadow()?.activeElement;
+    const keepSearch = active?.id === 'fds-search';
+    const keepPaste = active?.id === 'fds-lineup-paste';
+    render({
+      keepSearch,
+      keepPaste,
+      keepSettings: ui.settingsOpen
+    });
   }
 
   async function start() {
@@ -751,6 +1281,11 @@
         loadBoard(true, boardLoadAttempts);
       }
     }, 5000);
+    window.addEventListener('wheel', onOverlayWheel, { capture: true, passive: false });
+    document.addEventListener('click', (event) => {
+      if (event.target?.closest?.(`#${HOST_ID}`)) return;
+      scheduleVisibleCapture();
+    }, true);
   }
 
   start();

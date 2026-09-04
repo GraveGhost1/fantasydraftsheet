@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Underdog Fantasy – Players (Test)</title>
+    <style>
+      :root {
+        --bg: #050505;
+        --card: #121212;
+        --border: #2a2a2a;
+        --text: #f4f4f5;
+        --muted: #8b8b8b;
+        --blue: #3b82f6;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font: 14px/1.4 "Segoe UI", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 240px 1fr 280px;
+        min-height: 100vh;
+      }
+      .side, .main, .card-pane {
+        padding: 20px;
+        border-right: 1px solid var(--border);
+      }
+      .card-pane { border-right: 0; }
+      h1 { font-size: 16px; margin: 0 0 6px; }
+      .muted { color: var(--muted); font-size: 12px; }
+      .filters { margin-top: 18px; }
+      .filters label { display: block; margin: 8px 0; font-size: 13px; }
+      .apply {
+        margin-top: 16px;
+        width: 100%;
+        border: 0;
+        border-radius: 8px;
+        padding: 10px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .stats {
+        display: flex;
+        gap: 14px;
+        margin: 12px 0 16px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .player {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px 14px;
+        margin-bottom: 8px;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+        align-items: center;
+      }
+      .player strong { display: block; }
+      .pct { color: var(--blue); font-weight: 800; }
+      .empty {
+        margin-top: 80px;
+        text-align: center;
+        color: var(--muted);
+      }
+      .team-btn {
+        display: block;
+        width: 100%;
+        margin: 0 0 8px;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--card);
+        color: var(--text);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+      .team-btn:hover, .team-btn.is-on { border-color: var(--blue); }
+      .completed-roster {
+        margin-top: 16px;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--card);
+        font-size: 13px;
+        line-height: 1.55;
+        white-space: pre-line;
+      }
+    </style>
+  </head>
+  <body data-fds-test-explorer="1">
+    <div class="layout">
+      <aside class="side">
+        <h1>NFL 2026 Season</h1>
+        <div class="muted">Filters</div>
+        <div class="filters">
+          <label><input type="checkbox" checked /> All drafts</label>
+          <label><input type="checkbox" checked /> Tournaments only</label>
+          <label><input type="checkbox" checked /> Best Ball Mania VII</label>
+        </div>
+        <button class="apply" type="button">Apply</button>
+      </aside>
+      <main class="main">
+        <h1>Players</h1>
+        <div class="muted">Showing: All drafts</div>
+        <div class="stats">
+          <span>130 Teams</span>
+          <span>32 QB</span>
+          <span>77 RB</span>
+          <span>104 WR</span>
+          <span>39 TE</span>
+        </div>
+        <div class="player" data-fds-exposure-player="Jahmyr Gibbs" data-pos="RB" data-team="DET" data-pct="18.5">
+          <div>
+            <strong>Jahmyr Gibbs</strong>
+            <span class="muted">RB1 DET · $175 Entry fees</span>
+          </div>
+          <div class="pct">18.5% Drafted</div>
+        </div>
+        <div class="player" data-fds-exposure-player="Bijan Robinson" data-pos="RB" data-team="ATL" data-pct="22.3">
+          <div>
+            <strong>Bijan Robinson</strong>
+            <span class="muted">RB1 ATL</span>
+          </div>
+          <div class="pct">22.3% Drafted</div>
+        </div>
+        <div class="player" data-fds-exposure-player="Ja'Marr Chase" data-pos="WR" data-team="CIN" data-pct="16.2">
+          <div>
+            <strong>Ja'Marr Chase</strong>
+            <span class="muted">WR1 CIN</span>
+          </div>
+          <div class="pct">16.2% Drafted</div>
+        </div>
+        <div class="player" data-fds-exposure-player="Amon-Ra St. Brown" data-pos="WR" data-team="DET" data-pct="20.0">
+          <div>
+            <strong>Amon-Ra St. Brown</strong>
+            <span class="muted">WR1 DET</span>
+          </div>
+          <div class="pct">20.0% Drafted</div>
+        </div>
+        <div class="player" data-fds-exposure-player="Josh Allen" data-pos="QB" data-team="BUF" data-pct="14.6">
+          <div>
+            <strong>Josh Allen</strong>
+            <span class="muted">QB1 BUF</span>
+          </div>
+          <div class="pct">14.6% Drafted</div>
+        </div>
+      </main>
+      <aside class="card-pane">
+        <h1>My teams</h1>
+        <div class="muted">Click a completed entry. The overlay should read it without paste.</div>
+        <button class="team-btn" type="button" data-team="1">BBM VII · Team 1</button>
+        <button class="team-btn" type="button" data-team="2">BBM VII · Team 2</button>
+        <div id="completed-roster" class="completed-roster" data-fds-completed-team hidden></div>
+      </aside>
+    </div>
+    <script>
+      const teams = {
+        1: [
+          'Josh Allen QB BUF',
+          'Jahmyr Gibbs RB DET',
+          'James Cook III RB BUF',
+          'Amon-Ra St. Brown WR DET',
+          'Jaxon Smith-Njigba WR SEA',
+          'Nico Collins WR HOU',
+          'Drake London WR ATL',
+          'Brock Bowers TE LV',
+          'Brock Purdy QB SF',
+          'Jonathan Taylor RB IND',
+          'Calvin Ridley WR TEN',
+          'Sam LaPorta TE DET'
+        ],
+        2: [
+          'Lamar Jackson QB BAL',
+          'Bijan Robinson RB ATL',
+          'Derrick Henry RB BAL',
+          'Ja\'Marr Chase WR CIN',
+          'Justin Jefferson WR MIN',
+          'Puka Nacua WR LAR',
+          'Brian Thomas Jr. WR JAX',
+          'George Kittle TE SF',
+          'Brock Purdy QB SF',
+          'Kyren Williams RB LAR',
+          'Marvin Harrison Jr. WR ARI',
+          'Brock Bowers TE LV'
+        ]
+      };
+      const roster = document.getElementById('completed-roster');
+      document.querySelectorAll('.team-btn').forEach((button) => {
+        button.addEventListener('click', () => {
+          document.querySelectorAll('.team-btn').forEach((other) => other.classList.toggle('is-on', other === button));
+          const lines = teams[button.getAttribute('data-team')] || [];
+          roster.hidden = false;
+          roster.textContent = lines.join('\n');
+        });
+      });
+    </script>
+  </body>
+</html>

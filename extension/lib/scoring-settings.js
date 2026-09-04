@@ -13,8 +13,8 @@
     portfolioWeight: 40,
     duplicateWeight: 35,
     clockAlert: true,
-    posMax: { QB: 3, RB: 8, WR: 10, TE: 3 },
-    posTarget: { QB: 2, RB: 6, WR: 8, TE: 2 },
+    posMax: { QB: 3, RB: 6, WR: 9, TE: 3 },
+    posTarget: { QB: 2, RB: 4, WR: 6, TE: 2 },
     posBias: { QB: 'default', RB: 'default', WR: 'default', TE: 'default' }
   };
 

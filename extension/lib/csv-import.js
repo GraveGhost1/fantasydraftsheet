@@ -123,29 +123,84 @@
     return { entries, error: null };
   }
 
-  function exposureToPortfolio(entries, { totalDrafts = 100 } = {}) {
-    const portfolio = global.FDSPortfolio?.emptyStats?.() || {
+  function exposureToPortfolio(entries, { totalDrafts = 100, source = 'csv' } = {}) {
+    if (global.FDSPortfolio?.fromExposureEntries) {
+      return global.FDSPortfolio.fromExposureEntries(entries, { totalDrafts, source });
+    }
+    const portfolio = {
       drafts: [],
       playerCounts: {},
       comboCounts: {},
-      totalDrafts: 0
+      totalDrafts,
+      importedExposure: true,
+      source,
+      updatedAt: Date.now()
     };
-    portfolio.playerCounts = {};
-    portfolio.comboCounts = {};
-    portfolio.drafts = [];
-    portfolio.totalDrafts = totalDrafts;
     entries.forEach((entry) => {
-      const key = global.FDSPortfolio?.playerKey?.(entry) || `${entry.name}|${entry.position}|${entry.team}`.toLowerCase();
+      const key = `${entry.name}|${entry.position}|${entry.team}`.toLowerCase();
       portfolio.playerCounts[key] = Math.round((entry.exposurePct / 100) * totalDrafts);
     });
-    portfolio.importedExposure = true;
-    portfolio.importedAt = Date.now();
     return portfolio;
+  }
+
+  function parseLineupCsv(text) {
+    const rows = parseCsv(text);
+    if (!rows.length) return { drafts: [], error: 'Empty CSV' };
+
+    const headers = rows[0].map((h) => h.replace(/^\uFEFF/, '').trim());
+    const draftIdx = headerIndex(headers, ['draft_id', 'draftid', 'draft', 'entry', 'entry_id', 'lineup', 'team_id']);
+    const nameIdx = headerIndex(headers, ['player', 'name']);
+    if (draftIdx < 0 || nameIdx < 0) {
+      return { drafts: [], error: 'Need Draft ID and Player columns for lineup import.' };
+    }
+
+    const posIdx = headerIndex(headers, ['pos', 'position']);
+    const teamIdx = headerIndex(headers, ['team', 'tm']);
+    const byId = new Map();
+    rows.slice(1).forEach((cells) => {
+      const draftId = String(cells[draftIdx] || '').trim();
+      const name = String(cells[nameIdx] || '').trim();
+      const position = String(cells[posIdx >= 0 ? posIdx : 2] || '').toUpperCase().trim();
+      const team = String(cells[teamIdx >= 0 ? teamIdx : 3] || '').toUpperCase().trim().slice(0, 3);
+      if (!draftId || !name || !SKILL.has(position)) return;
+      if (!byId.has(draftId)) byId.set(draftId, []);
+      byId.get(draftId).push({
+        name,
+        position,
+        team: team === 'WSH' ? 'WAS' : team
+      });
+    });
+
+    const drafts = [...byId.entries()]
+      .filter(([, picks]) => picks.length >= 8)
+      .map(([id, picks]) => ({ id, savedAt: Date.now(), picks }));
+
+    if (!drafts.length) {
+      return { drafts: [], error: 'No complete lineups found. Need 8+ skill players per Draft ID.' };
+    }
+    return { drafts, error: null };
+  }
+
+  function parsePortfolioCsv(text) {
+    const rows = parseCsv(text);
+    if (!rows.length) return { kind: null, error: 'Empty CSV' };
+    const headers = rows[0].map((h) => h.replace(/^\uFEFF/, '').trim());
+    const hasDraft = headerIndex(headers, ['draft_id', 'draftid', 'draft', 'entry', 'entry_id', 'lineup', 'team_id']) >= 0;
+    if (hasDraft) {
+      const parsed = parseLineupCsv(text);
+      if (parsed.error) return { kind: 'lineups', error: parsed.error };
+      return { kind: 'lineups', drafts: parsed.drafts, error: null };
+    }
+    const parsed = parseExposureCsv(text);
+    if (parsed.error) return { kind: 'exposure', error: parsed.error };
+    return { kind: 'exposure', entries: parsed.entries, error: null };
   }
 
   global.FDSCsvImport = {
     parseRankCsv,
     parseExposureCsv,
+    parseLineupCsv,
+    parsePortfolioCsv,
     exposureToPortfolio
   };
 })(typeof window !== 'undefined' ? window : globalThis);

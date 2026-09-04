@@ -1,5 +1,7 @@
 (function (global) {
-  const SCHEDULE = global.FDSNflSchedule2026 || null;
+  function getSchedule() {
+    return global.FDSNflSchedule2026 || null;
+  }
 
   function normalizeTeam(team) {
     const code = String(team || '').toUpperCase().slice(0, 3);
@@ -9,8 +11,9 @@
   }
 
   function getTeamInfo(team) {
+    const schedule = getSchedule();
     const code = normalizeTeam(team);
-    return SCHEDULE?.teams?.[code] || SCHEDULE?.teams?.[team?.toUpperCase()] || null;
+    return schedule?.teams?.[code] || schedule?.teams?.[team?.toUpperCase()] || null;
   }
 
   function weekScore(gameTier, weekWeight) {
@@ -38,6 +41,65 @@
       w15Opp: info.playoff?.['15']?.opponent || '',
       dome: Boolean(info.dome)
     };
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function shortName(name) {
+    const parts = String(name || '').trim().split(/\s+/);
+    if (parts.length <= 1) return parts[0] || '';
+    return `${parts[0][0]}. ${parts[parts.length - 1]}`;
+  }
+
+  function weekOppLabel(team, week) {
+    const game = getTeamInfo(team)?.playoff?.[String(week)];
+    if (!game) return '';
+    if (game.raw) return game.raw;
+    if (!game.opponent) return '';
+    return game.home ? game.opponent : `@${game.opponent}`;
+  }
+
+  function rosterPlayoffRows(myRoster) {
+    const groups = new Map();
+    (myRoster || []).forEach((player) => {
+      const team = normalizeTeam(player.team);
+      if (!team) return;
+      if (!groups.has(team)) groups.set(team, []);
+      groups.get(team).push(player);
+    });
+    return [...groups.entries()]
+      .map(([team, players]) => ({
+        team,
+        players,
+        names: players.map((player) => shortName(player.name)).join(', '),
+        w15: weekOppLabel(team, 15) || '—',
+        w16: weekOppLabel(team, 16) || '—',
+        w17: weekOppLabel(team, 17) || '—'
+      }))
+      .sort((a, b) => a.team.localeCompare(b.team));
+  }
+
+  function renderMatchupTable(myRoster) {
+    const rows = rosterPlayoffRows(myRoster);
+    if (!rows.length) {
+      return `<div class="fds-playoff-table">
+        <h3>Playoff matchups</h3>
+        <p class="fds-cap-empty">Draft players to see W15–W17 opponents.</p>
+      </div>`;
+    }
+    return `<div class="fds-playoff-table">
+      <h3>Playoff matchups</h3>
+      <div class="fds-po-table-head"><span>Team</span><span>Players</span><span>W15</span><span>W16</span><span>W17</span></div>
+      ${rows.map((row) => `<div class="fds-po-table-row">
+        <strong>${escapeHtml(row.team)}</strong>
+        <span>${escapeHtml(row.names)}</span>
+        <span>${escapeHtml(row.w15)}</span>
+        <span>${escapeHtml(row.w16)}</span>
+        <span>${escapeHtml(row.w17)}</span>
+      </div>`).join('')}
+    </div>`;
   }
 
   function playoffBonusForPlayer(player, myRoster, weights) {
@@ -73,7 +135,10 @@
   global.FDSPlayoffSchedule = {
     getTeamPlayoffProfile,
     playoffBonusForPlayer,
-    scheduleSource: SCHEDULE?.source || 'static',
-    scheduleSeason: SCHEDULE?.season || null
+    weekOppLabel,
+    rosterPlayoffRows,
+    renderMatchupTable,
+    scheduleSource: getSchedule()?.source || 'static',
+    scheduleSeason: getSchedule()?.season || null
   };
 })(typeof window !== 'undefined' ? window : globalThis);

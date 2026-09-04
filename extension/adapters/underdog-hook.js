@@ -177,8 +177,125 @@
     return null;
   }
 
+  const SKILL = new Set(['QB', 'RB', 'WR', 'TE']);
+
+  function readExposurePct(value) {
+    if (!value || typeof value !== 'object') return null;
+    for (const key of Object.keys(value)) {
+      const compact = key.replace(/[^a-z]/gi, '').toLowerCase();
+      if (!/(exposure|ownership|draftedpct|percentdrafted|ownedpct|entryexposure|draftedpercent)/.test(compact)) continue;
+      const n = Number(String(value[key]).replace('%', ''));
+      if (Number.isFinite(n) && n >= 0 && n <= 100) return n;
+    }
+    return null;
+  }
+
+  function collectPortfolio(value, found, depth) {
+    if (!value || depth > 7) return;
+    if (Array.isArray(value)) {
+      const exposureLike = [];
+      value.forEach((item) => {
+        const player = extractPlayer(item, found);
+        const pct = readExposurePct(item) ?? readExposurePct(item?.player) ?? readExposurePct(item?.stats);
+        if (player && SKILL.has(player.position) && pct != null) {
+          exposureLike.push({
+            name: player.name,
+            position: player.position,
+            team: player.team,
+            exposurePct: pct
+          });
+        }
+      });
+      if (exposureLike.length >= 8 && exposureLike.length >= value.length * 0.35) {
+        found.exposure.push(...exposureLike);
+        return;
+      }
+
+      const rosterPicks = value
+        .map((item) => extractPlayer(item, found))
+        .filter((player) => player && SKILL.has(player.position));
+      if (rosterPicks.length >= 12 && rosterPicks.length <= 20 && rosterPicks.length >= value.length * 0.55) {
+        const mine = rosterPicks.some((player) => player.mine) || found.isUserRosterContext;
+        found.rosters.push({ picks: rosterPicks, mine });
+        return;
+      }
+
+      value.slice(0, 180).forEach((item) => collectPortfolio(item, found, depth + 1));
+      return;
+    }
+    if (typeof value !== 'object') return;
+    Object.keys(value).slice(0, 80).forEach((key) => {
+      const lower = key.toLowerCase();
+      if (lower.includes('password') || lower.includes('token') || lower.includes('cookie') || lower.includes('card')) {
+        return;
+      }
+      if (/(mydraft|userdraft|myteam|myentrie|userentrie|completeddraft|userroster)/.test(lower)) {
+        found.isUserRosterContext = true;
+      }
+      collectPortfolio(value[key], found, depth + 1);
+    });
+  }
+
+  function inspectPortfolio(data) {
+    if (!data || typeof data !== 'object') return;
+    const found = {
+      exposure: [],
+      rosters: [],
+      isUserRosterContext: false,
+      myUserId: cachedMyUserId
+    };
+    collectPortfolio(data, found, 0);
+    if (!found.exposure.length && !found.rosters.length) return;
+
+    let rosters = found.rosters;
+    const openTeam = (found.rosters || []).find((row) =>
+      row.picks.length >= 8 && row.picks.length <= 20
+    );
+    if (rosters.length === 1 && rosters[0].picks.length >= 8 && rosters[0].picks.length <= 20) {
+      // One open completed team — keep it even if Underdog did not mark it as "mine".
+    } else if (rosters.length >= 8 && rosters.length <= 14 && !found.isUserRosterContext) {
+      rosters = rosters.filter((row) => row.mine);
+    } else if (!found.isUserRosterContext) {
+      rosters = rosters.filter((row) => row.mine);
+    }
+
+    const drafts = rosters.map((row, index) => ({
+      id: `ud-${cachedDraftId || 'entry'}-${index}-${row.picks[0]?.name || index}`,
+      savedAt: Date.now(),
+      picks: row.picks.map((pick) => ({
+        name: pick.name,
+        position: pick.position,
+        team: pick.team
+      }))
+    }));
+
+    const seenExp = new Set();
+    const exposure = [];
+    found.exposure.forEach((entry) => {
+      const key = `${entry.name}|${entry.position}|${entry.team}`.toLowerCase();
+      if (seenExp.has(key)) return;
+      seenExp.add(key);
+      exposure.push(entry);
+    });
+
+    if (!drafts.length && !exposure.length && !openTeam) return;
+    const visibleDraft = openTeam
+      ? {
+        id: `ud-visible-${cachedDraftId || 'entry'}-${openTeam.picks[0]?.name || 'team'}`,
+        savedAt: Date.now(),
+        picks: openTeam.picks.map((pick) => ({
+          name: pick.name,
+          position: pick.position,
+          team: pick.team
+        }))
+      }
+      : null;
+    emit('portfolio', { drafts, exposure, visibleDraft });
+  }
+
   function inspect(data, url) {
     if (!data || typeof data !== 'object') return;
+    inspectPortfolio(data);
     const found = {
       picks: [],
       onTheClock: null,

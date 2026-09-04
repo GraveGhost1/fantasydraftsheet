@@ -6,6 +6,8 @@ from server import (
     save_adp_profile,
     save_user_state,
     load_user_state,
+    save_assistant_portfolio,
+    load_assistant_portfolio,
     ensure_user_account,
     request_password_reset,
     reset_password,
@@ -97,6 +99,36 @@ def assistant_board():
         if not board.get('ok'):
             return _assistant_cors(jsonify({'error': board.get('error', 'Unable to load board')})), board.get('status', 400)
         return _assistant_cors(jsonify(board))
+    except Exception as exc:
+        return _assistant_cors(jsonify({'error': str(exc)})), 500
+
+
+@app.route('/api/assistant/portfolio', methods=['GET', 'POST', 'OPTIONS'])
+def assistant_portfolio():
+    if request.method == 'OPTIONS':
+        return _assistant_options()
+    try:
+        if request.method == 'GET':
+            username = (request.args.get('username') or '').strip()
+            password = request.args.get('password') or ''
+            result = load_assistant_portfolio(username, password)
+        else:
+            data = request.get_json(silent=True) or {}
+            username = (data.get('username') or '').strip()
+            password = data.get('password') or ''
+            if 'portfolio' in data:
+                status = save_assistant_portfolio(username, password, data.get('portfolio'))
+                if status == 'INVALID_PASSWORD':
+                    return _assistant_cors(jsonify({'error': 'Invalid username or password'})), 401
+                if status == 'MISSING_USER':
+                    return _assistant_cors(jsonify({'error': 'Log in to a Draft Sheet account to save lineups in the cloud'})), 401
+                return _assistant_cors(jsonify({'ok': True}))
+            result = load_assistant_portfolio(username, password)
+        if result == 'INVALID_PASSWORD':
+            return _assistant_cors(jsonify({'error': 'Invalid username or password'})), 401
+        if result == 'MISSING_USER':
+            return _assistant_cors(jsonify({'error': 'Log in to a Draft Sheet account to save lineups in the cloud'})), 401
+        return _assistant_cors(jsonify({'ok': True, 'portfolio': result or {'drafts': []}}))
     except Exception as exc:
         return _assistant_cors(jsonify({'error': str(exc)})), 500
 

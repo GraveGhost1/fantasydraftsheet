@@ -1,9 +1,11 @@
+importScripts('lib/portfolio.js');
+
 const DEFAULT_API_BASE = 'http://127.0.0.1:8000';
 const BOARD_TTL_MS = 5 * 60 * 1000;
 const DEFAULT_ASSISTANT_SETTINGS = {
   format: 'bestball',
   rankSource: 'expert',
-  settingsVersion: 2,
+  settingsVersion: 3,
   rankWeight: 85,
   projectionWeight: 35,
   adpWeight: 45,
@@ -16,13 +18,18 @@ const DEFAULT_ASSISTANT_SETTINGS = {
   portfolioWeight: 40,
   duplicateWeight: 35,
   clockAlert: true,
-  posMax: { QB: 3, RB: 8, WR: 10, TE: 3 },
-  posTarget: { QB: 2, RB: 6, WR: 8, TE: 2 },
+  posMax: { QB: 3, RB: 6, WR: 9, TE: 3 },
+  posTarget: { QB: 2, RB: 4, WR: 6, TE: 2 },
   posBias: { QB: 'default', RB: 'default', WR: 'default', TE: 'default' }
 };
 
 let cachedBoard = null;
 let cachedAt = 0;
+
+function samePosMap(a, b) {
+  if (!a || !b) return false;
+  return ['QB', 'RB', 'WR', 'TE'].every((pos) => Number(a[pos]) === Number(b[pos]));
+}
 
 function mergeAssistantSettings(partial) {
   const merged = { ...DEFAULT_ASSISTANT_SETTINGS, ...(partial || {}) };
@@ -31,12 +38,24 @@ function mergeAssistantSettings(partial) {
   merged.posBias = { ...DEFAULT_ASSISTANT_SETTINGS.posBias, ...(partial?.posBias || {}) };
 
   const storedVersion = Number(partial?.settingsVersion) || 0;
-  if (storedVersion < DEFAULT_ASSISTANT_SETTINGS.settingsVersion) {
+  if (storedVersion < 2) {
     merged.rankWeight = DEFAULT_ASSISTANT_SETTINGS.rankWeight;
     merged.projectionWeight = DEFAULT_ASSISTANT_SETTINGS.projectionWeight;
     merged.adpWeight = DEFAULT_ASSISTANT_SETTINGS.adpWeight;
     merged.contrarianWeight = DEFAULT_ASSISTANT_SETTINGS.contrarianWeight;
     merged.rankSource = partial?.rankSource || DEFAULT_ASSISTANT_SETTINGS.rankSource;
+  }
+  if (storedVersion < 3) {
+    const oldMax = { QB: 3, RB: 8, WR: 10, TE: 3 };
+    const oldTarget = { QB: 2, RB: 6, WR: 8, TE: 2 };
+    if (!partial?.posMax || samePosMap(partial.posMax, oldMax)) {
+      merged.posMax = { ...DEFAULT_ASSISTANT_SETTINGS.posMax };
+    }
+    if (!partial?.posTarget || samePosMap(partial.posTarget, oldTarget)) {
+      merged.posTarget = { ...DEFAULT_ASSISTANT_SETTINGS.posTarget };
+    }
+  }
+  if (storedVersion < DEFAULT_ASSISTANT_SETTINGS.settingsVersion) {
     merged.settingsVersion = DEFAULT_ASSISTANT_SETTINGS.settingsVersion;
   }
 
@@ -54,14 +73,106 @@ async function saveAssistantSettings(settings) {
   return merged;
 }
 
-async function getPortfolio() {
-  const stored = await chrome.storage.local.get(['assistantPortfolio']);
-  return stored.assistantPortfolio || { drafts: [], playerCounts: {}, comboCounts: {}, totalDrafts: 0 };
+async function stashPortfolio(username, portfolio) {
+  if (!username || !self.FDSPortfolio?.serializeForCloud) return;
+  const stored = await chrome.storage.local.get(['assistantPortfolioCache']);
+  const cache = stored.assistantPortfolioCache || {};
+  cache[username] = self.FDSPortfolio.serializeForCloud(portfolio);
+  await chrome.storage.local.set({ assistantPortfolioCache: cache });
 }
 
-async function savePortfolio(portfolio) {
-  await chrome.storage.local.set({ assistantPortfolio: portfolio });
-  return portfolio;
+async function cachedPortfolioFor(username) {
+  if (!username) return self.FDSPortfolio.emptyStats();
+  const stored = await chrome.storage.local.get(['assistantPortfolioCache']);
+  return self.FDSPortfolio.fromCloud(stored.assistantPortfolioCache?.[username]);
+}
+
+async function pushPortfolioToCloud(portfolio) {
+  const settings = await getSettings();
+  if (!settings.username || !settings.password) return;
+  await apiFetch('/api/assistant/portfolio', {
+    method: 'POST',
+    body: {
+      username: settings.username,
+      password: settings.password,
+      portfolio: self.FDSPortfolio.serializeForCloud(portfolio)
+    },
+    settings
+  });
+}
+
+async function pullPortfolioFromCloud() {
+  const settings = await getSettings();
+  if (!settings.username || !settings.password) return null;
+  const data = await apiFetch(
+    `/api/assistant/portfolio?username=${encodeURIComponent(settings.username)}&password=${encodeURIComponent(settings.password)}`,
+    { settings }
+  );
+  return self.FDSPortfolio.fromCloud(data.portfolio);
+}
+
+async function getPortfolio() {
+  const stored = await chrome.storage.local.get(['assistantPortfolio']);
+  const raw = self.FDSPortfolio?.loadFromStorage(stored.assistantPortfolio) || stored.assistantPortfolio || {
+    drafts: [],
+    playerCounts: {},
+    comboCounts: {},
+    totalDrafts: 0
+  };
+  const compacted = self.FDSPortfolio?.compactDuplicateDrafts
+    ? self.FDSPortfolio.compactDuplicateDrafts(raw)
+    : { stats: raw, removed: 0 };
+  if (compacted.removed) {
+    return savePortfolio(compacted.stats, { syncCloud: true });
+  }
+  return compacted.stats;
+}
+
+async function savePortfolio(portfolio, { syncCloud = true } = {}) {
+  const settings = await getSettings();
+  const compacted = self.FDSPortfolio?.compactDuplicateDrafts
+    ? self.FDSPortfolio.compactDuplicateDrafts(portfolio)
+    : { stats: portfolio, removed: 0 };
+  const next = compacted.stats;
+  await chrome.storage.local.set({
+    assistantPortfolio: next,
+    assistantPortfolioOwner: settings.username || ''
+  });
+  if (settings.username) {
+    await stashPortfolio(settings.username, next);
+  }
+  if (syncCloud && settings.username && settings.password) {
+    clearTimeout(savePortfolio.timer);
+    savePortfolio.timer = setTimeout(() => {
+      pushPortfolioToCloud(next).catch(() => {});
+    }, 500);
+  }
+  return next;
+}
+
+async function syncPortfolioWithAccount() {
+  const settings = await getSettings();
+  const stored = await chrome.storage.local.get(['assistantPortfolio', 'assistantPortfolioOwner']);
+  const prevOwner = stored.assistantPortfolioOwner || '';
+  const current = self.FDSPortfolio.loadFromStorage(stored.assistantPortfolio);
+  if (prevOwner && settings.username && prevOwner !== settings.username) {
+    await stashPortfolio(prevOwner, current);
+  }
+
+  let seed = current;
+  if (prevOwner && settings.username && prevOwner !== settings.username) {
+    seed = await cachedPortfolioFor(settings.username);
+  }
+
+  let remote = self.FDSPortfolio.emptyStats();
+  try {
+    remote = (await pullPortfolioFromCloud()) || remote;
+  } catch (_err) {
+    // Keep local teams if the account server is unreachable.
+  }
+
+  const merged = self.FDSPortfolio.mergeDrafts(remote, seed.drafts || [], { source: settings.username ? 'account' : 'local' });
+  return savePortfolio(merged.stats, { syncCloud: Boolean(settings.username && settings.password) });
 }
 
 async function getSettings() {
@@ -221,7 +332,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           settings
         });
         const board = await fetchBoard({ force: true });
-        sendResponse({ ok: true, login, board });
+        const portfolio = await syncPortfolioWithAccount();
+        sendResponse({ ok: true, login, board, portfolio });
       } catch (err) {
         sendResponse({ ok: false, error: err.message });
       }
@@ -262,47 +374,55 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
   if (type === 'GET_PORTFOLIO') {
-    getPortfolio().then((portfolio) => sendResponse({ ok: true, portfolio }));
+    getPortfolio().then(async (local) => {
+      const settings = await getSettings();
+      if (!settings.username || !settings.password) {
+        sendResponse({ ok: true, portfolio: local, cloud: false });
+        return;
+      }
+      try {
+        const portfolio = await syncPortfolioWithAccount();
+        sendResponse({ ok: true, portfolio, cloud: true });
+      } catch (_err) {
+        sendResponse({ ok: true, portfolio: local, cloud: false });
+      }
+    });
     return true;
   }
   if (type === 'RECORD_PORTFOLIO_DRAFT') {
     getPortfolio().then(async (portfolio) => {
       const picks = message.payload?.picks || [];
-      const draftId = message.payload?.draftId || `draft-${Date.now()}`;
-      const exists = (portfolio.drafts || []).some((d) => d.id === draftId);
-      if (exists) {
-        sendResponse({ ok: true, portfolio });
-        return;
-      }
-      const next = {
-        drafts: [{ id: draftId, savedAt: Date.now(), picks }, ...(portfolio.drafts || [])].slice(0, 120),
-        playerCounts: {},
-        comboCounts: {},
-        totalDrafts: 0
-      };
-      const keyFor = (p) => `${p.name}|${p.position}|${p.team}`.toLowerCase();
-      const comboFor = (a, b) => [keyFor(a), keyFor(b)].sort().join('::');
-      next.drafts.forEach((draft) => {
-        (draft.picks || []).forEach((player) => {
-          const key = keyFor(player);
-          next.playerCounts[key] = (next.playerCounts[key] || 0) + 1;
-        });
-        const draftPicks = draft.picks || [];
-        for (let i = 0; i < draftPicks.length; i += 1) {
-          for (let j = i + 1; j < draftPicks.length; j += 1) {
-            const ckey = comboFor(draftPicks[i], draftPicks[j]);
-            next.comboCounts[ckey] = (next.comboCounts[ckey] || 0) + 1;
-          }
-        }
+      const next = self.FDSPortfolio.recordDraft(portfolio, picks, {
+        draftId: message.payload?.draftId || `draft-${Date.now()}`,
+        source: 'live'
       });
-      next.totalDrafts = next.drafts.length;
       await savePortfolio(next);
       sendResponse({ ok: true, portfolio: next });
     });
     return true;
   }
+  if (type === 'MERGE_PORTFOLIO_DRAFTS') {
+    getPortfolio().then(async (portfolio) => {
+      const incoming = message.payload?.drafts || [];
+      if (!incoming.length) {
+        sendResponse({ ok: false, error: 'No lineups to merge' });
+        return;
+      }
+      const merged = self.FDSPortfolio.mergeDrafts(portfolio, incoming, {
+        source: message.payload?.source || 'sync'
+      });
+      await savePortfolio(merged.stats);
+      sendResponse({
+        ok: true,
+        portfolio: merged.stats,
+        added: merged.added,
+        skipped: merged.skipped
+      });
+    });
+    return true;
+  }
   if (type === 'CLEAR_PORTFOLIO') {
-    savePortfolio({ drafts: [], playerCounts: {}, comboCounts: {}, totalDrafts: 0 })
+    savePortfolio(self.FDSPortfolio.emptyStats())
       .then((portfolio) => sendResponse({ ok: true, portfolio }));
     return true;
   }

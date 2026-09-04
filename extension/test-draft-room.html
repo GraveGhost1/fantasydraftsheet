@@ -30,6 +30,7 @@
         background: var(--ud-bg);
         color: var(--ud-text);
         padding-right: var(--ext-panel);
+        padding-bottom: 72px;
         min-height: 100vh;
       }
 
@@ -151,15 +152,17 @@
 
       .layout {
         display: grid;
-        grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.75fr) minmax(260px, 0.65fr);
+        grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr) minmax(240px, 0.6fr);
         gap: 0;
         min-height: calc(100vh - 170px);
+        align-items: start;
       }
 
       .col {
         border-right: 1px solid var(--ud-border);
         background: var(--ud-surface);
         min-height: 100%;
+        min-width: 0;
       }
       .col:last-child { border-right: 0; }
 
@@ -198,7 +201,7 @@
 
       .table-head {
         display: grid;
-        grid-template-columns: 52px 52px 1fr 72px;
+        grid-template-columns: 1fr 52px 72px;
         gap: 8px;
         padding: 8px 16px;
         font-size: 11px;
@@ -207,6 +210,9 @@
         text-transform: uppercase;
         letter-spacing: 0.04em;
         border-bottom: 1px solid var(--ud-border);
+      }
+      .table-head span:nth-child(n+2) {
+        text-align: right;
       }
 
       #available {
@@ -217,7 +223,7 @@
       .ud-player-row,
       .player-row {
         display: grid;
-        grid-template-columns: 52px 52px 1fr 72px;
+        grid-template-columns: 1fr 52px 72px;
         gap: 8px;
         align-items: center;
         padding: 10px 16px;
@@ -238,19 +244,49 @@
         font-size: 13px;
         text-align: center;
       }
+      .adp-num {
+        justify-self: end;
+        text-align: right;
+      }
       .player-main {
         display: flex;
         align-items: center;
         gap: 10px;
         min-width: 0;
       }
-      .player-main .info { min-width: 0; }
+      .player-main .info { min-width: 0; flex: 1; }
+      .name-line {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+      }
       .player-main strong {
         display: block;
         font-size: 14px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        min-width: 0;
+      }
+      .fds-rank-inline {
+        color: #2563eb;
+        font-weight: 800;
+        font-size: 13px;
+        flex-shrink: 0;
+        font-variant-numeric: tabular-nums;
+      }
+      .fds-exp-pill {
+        margin-left: auto;
+        flex-shrink: 0;
+        font-size: 10px;
+        font-weight: 700;
+        color: #1e3a5f;
+        background: #e2e8f0;
+        border: 1px solid #cbd5e1;
+        border-radius: 999px;
+        padding: 2px 7px;
+        font-variant-numeric: tabular-nums;
       }
       .pos-rank {
         font-size: 12px;
@@ -274,10 +310,10 @@
 
       .queue-box {
         margin: 16px;
-        min-height: 180px;
+        min-height: 72px;
         border: 2px dashed #d4d4d8;
         border-radius: 12px;
-        padding: 20px;
+        padding: 16px;
         color: var(--ud-muted);
         text-align: center;
       }
@@ -301,6 +337,11 @@
         border: 1px solid var(--ud-border);
         border-radius: 12px;
         background: #fafafa;
+        min-width: 0;
+        overflow: visible;
+      }
+      .playoff-block {
+        margin-bottom: 24px;
       }
       .capital-block h3 {
         margin: 0 0 12px;
@@ -486,9 +527,8 @@
             <button type="button" data-pos="TE">TE</button>
           </div>
           <div class="table-head">
-            <span>My rank</span>
-            <span>ADP</span>
             <span>Player</span>
+            <span>ADP</span>
             <span style="text-align:right">Proj</span>
           </div>
           <div id="available"><div class="loading">Loading expert board…</div></div>
@@ -500,6 +540,7 @@
             Use the ☆ button in the player list to add a player to your queue.
           </div>
           <div class="capital-block" id="capital-block"></div>
+          <div class="capital-block playoff-block" id="playoff-block"></div>
         </section>
 
         <section class="col team-panel">
@@ -526,9 +567,14 @@
       <button type="button" id="toggle-clock">Toggle on clock</button>
       <button type="button" id="auto-pick" class="ghost">Auto-pick (CPU)</button>
       <button type="button" id="load-demo" class="ghost">Load demo (pick 16)</button>
+      <button type="button" id="load-portfolio" class="ghost">Load demo portfolio</button>
       <button type="button" id="reset" class="ghost">Reset draft</button>
     </div>
 
+    <script src="data/nfl-schedule-2026.js"></script>
+    <script src="lib/playoff-schedule.js"></script>
+    <script src="lib/scoring-settings.js"></script>
+    <script src="lib/rank-board.js"></script>
     <script src="lib/capital-chart.js"></script>
     <script>
       const TEAMS = 12;
@@ -640,82 +686,20 @@
         }
       }
 
-      const POS_TARGET = { QB: 2, RB: 6, WR: 8, TE: 2 };
-      const POS_MAX = { QB: 3, RB: 8, WR: 10, TE: 3 };
-      const FULL_BUDGET = 850;
       const USER_PICKS = 18;
-
-      function pickCapital(player) {
-        const rank = player.myRank || player.adp || 120;
-        const pickNo = player.pickNo || rank;
-        const combined = rank * 0.7 + pickNo * 0.3;
-        return Math.max(6, Math.round(128 - combined * 0.82));
-      }
-
-      function computeCapitalTargets() {
-        const positions = ['QB', 'RB', 'WR', 'TE'];
-        let totalWeight = 0;
-        const weights = {};
-        positions.forEach((pos) => {
-          const target = POS_TARGET[pos];
-          const max = POS_MAX[pos];
-          weights[pos] = Math.max(1, target) * 0.65 + Math.max(1, max) * 0.35;
-          totalWeight += weights[pos];
-        });
-        const targets = {};
-        positions.forEach((pos) => {
-          const share = totalWeight ? weights[pos] / totalWeight : 0.25;
-          targets[pos] = {
-            targetValue: Math.round(FULL_BUDGET * share),
-            targetPct: Math.round(share * 100)
-          };
-        });
-        return { fullBudget: FULL_BUDGET, targets };
-      }
 
       function computeCapital() {
         const mine = state.picks.filter((p) => p.mine);
-        const { fullBudget, targets } = computeCapitalTargets();
-        const byPosition = {};
-        let allocated = 0;
-        let maxTargetValue = 1;
-        const pickCount = mine.length;
-
-        ['QB', 'RB', 'WR', 'TE'].forEach((pos) => {
-          maxTargetValue = Math.max(maxTargetValue, targets[pos].targetValue);
-        });
-
-        ['QB', 'RB', 'WR', 'TE'].forEach((pos) => {
-          const grouped = mine.filter((p) => p.position === pos);
-          const value = grouped.reduce((sum, p) => sum + pickCapital(p), 0);
-          const roundedValue = Math.round(value);
-          const targetValue = targets[pos].targetValue;
-          const spentPct = targetValue ? Math.round((roundedValue / targetValue) * 100) : 0;
-          const chartScale = targetValue / maxTargetValue;
-
-          byPosition[pos] = {
-            value: roundedValue,
-            count: grouped.length,
-            targetPct: targets[pos].targetPct,
-            targetValue,
-            spentPct,
-            chartScale,
-            barPct: Math.min(100, spentPct),
-            pct: spentPct
-          };
-          allocated += value;
-        });
-
-        return {
-          byPosition,
-          allocated: Math.round(allocated),
-          pickCount,
-          remainingPicks: Math.max(0, USER_PICKS - pickCount),
-          totalPicks: USER_PICKS,
-          fullBudget,
-          remaining: Math.max(0, fullBudget - allocated),
-          maxTargetValue
-        };
+        try {
+          if (window.FDSRankBoard?.draftCapital) {
+            return window.FDSRankBoard.draftCapital(mine, window.FDSScoringSettings?.DEFAULT_SETTINGS, {
+              pickNo: currentPickNo()
+            });
+          }
+        } catch (err) {
+          console.error('Draft capital failed', err);
+        }
+        return { byPosition: null, pickCount: mine.length, totalPicks: USER_PICKS, allocated: 0 };
       }
 
       function renderCapital() {
@@ -723,9 +707,14 @@
         const block = document.getElementById('capital-block');
         if (window.FDSCapitalChart) {
           block.innerHTML = window.FDSCapitalChart.renderColumns(capital, { title: 'Draft capital allocation' });
-          return;
+        } else {
+          block.innerHTML = '<h3>Draft capital allocation</h3><p class="loading">Capital chart loading…</p>';
         }
-        block.innerHTML = '<h3>Draft capital allocation</h3><p class="loading">Capital chart loading…</p>';
+        const playoff = document.getElementById('playoff-block');
+        if (playoff && window.FDSPlayoffSchedule?.renderMatchupTable) {
+          const mine = state.picks.filter((p) => p.mine);
+          playoff.innerHTML = window.FDSPlayoffSchedule.renderMatchupTable(mine);
+        }
       }
 
       function renderQueue() {
@@ -821,15 +810,18 @@
             data-fds-player="${attr(player.name)}"
             data-pos="${player.position}"
             data-name="${attr(player.name)}">
-            <div class="rank-num">${player.myRank ?? '—'}</div>
-            <div class="adp-num">${player.adp ?? '—'}</div>
             <div class="player-main">
               <button type="button" class="star${queued ? ' on' : ''}" data-star="${attr(player.name)}" title="Queue">☆</button>
               <div class="info">
-                <strong>${player.name}</strong>
+                <div class="name-line">
+                  <strong>${player.name}</strong>
+                  <span class="fds-rank-inline">${player.myRank ?? '—'}</span>
+                  <span class="fds-exp-pill" data-fds-exp-slot hidden></span>
+                </div>
                 <div class="pos-rank">${posRank} · ${player.team || '—'}${player.bye ? ` · Bye ${player.bye}` : ''}</div>
               </div>
             </div>
+            <div class="adp-num">${player.adp ?? '—'}</div>
             <div class="proj-badge">${formatProj(player)}</div>
           </div>`;
         }).join('') || '<div class="loading">No players match this filter.</div>';
@@ -868,7 +860,7 @@
           'Ja\'Marr Chase', 'Bijan Robinson', 'Jahmyr Gibbs', 'Puka Nacua',
           'Christian McCaffrey', 'Jaxon Smith-Njigba', 'Jonathan Taylor', 'CeeDee Lamb',
           'Amon-Ra St. Brown', 'James Cook III', 'Justin Jefferson', 'Josh Allen',
-          'Derrick Henry', 'Saquon Barkley', 'Drake London'
+          'Derrick Henry', 'Saquon Barkley', 'Drake London', 'Nico Collins'
         ];
         state.picks = [];
         demoNames.forEach((name, i) => {
@@ -942,6 +934,10 @@
 
       document.getElementById('auto-pick').addEventListener('click', autoPickOne);
       document.getElementById('load-demo').addEventListener('click', loadDemo);
+      document.getElementById('load-portfolio').addEventListener('click', () => {
+        document.documentElement.setAttribute('data-fds-demo-portfolio', String(Date.now()));
+        document.getElementById('dev-status').textContent = 'Demo portfolio requested — overlay should show exposure & combos';
+      });
       document.getElementById('reset').addEventListener('click', () => {
         state.picks = [];
         state.onTheClock = true;

@@ -2,17 +2,36 @@
   const SOURCE = 'fds-underdog-hook';
   const PICK_LINE_WITH_NO = /^(\d{1,3}(?:\.\d{2})?)[\s.:-]+([A-Za-z][A-Za-z.'\-\s]+?)\s+(QB|RB|WR|TE)\s+([A-Z]{2,3})\b/;
   let latestNetworkSnapshot = null;
+  let latestPortfolioSnapshot = null;
+  let latestVisibleRoster = null;
 
   window.addEventListener('message', (event) => {
     if (event.source !== window) return;
     const payload = event.data;
-    if (!payload || payload.source !== SOURCE || payload.kind !== 'snapshot') return;
-    if (payload.data?.picks?.length) {
+    if (!payload || payload.source !== SOURCE) return;
+    if (payload.kind === 'snapshot' && payload.data?.picks?.length) {
       latestNetworkSnapshot = {
         ...payload.data,
         source: 'network',
         capturedAt: Date.now()
       };
+    }
+    if (payload.kind === 'portfolio') {
+      const drafts = payload.data?.drafts || [];
+      const exposure = payload.data?.exposure || [];
+      if (drafts.length || exposure.length) {
+        latestPortfolioSnapshot = {
+          drafts,
+          exposure,
+          capturedAt: Date.now()
+        };
+      }
+      if (payload.data?.visibleDraft?.picks?.length) {
+        latestVisibleRoster = {
+          ...payload.data.visibleDraft,
+          capturedAt: Date.now()
+        };
+      }
     }
   });
 
@@ -129,13 +148,22 @@
     const networkPicks = (network?.picks || []).filter((pick) => Number(pick.pickNo) > 0);
     const picks = networkPicks.length ? networkPicks : domPicks;
     const isDraftRoom = pageLooksLikeDraft() || picks.length > 0;
+    const explorer = Boolean(
+      document.querySelector('[data-fds-test-explorer]') ||
+      window.FDSExposureSync?.pageLooksLikeExplorer?.()
+    );
     return {
       isDraftRoom,
+      isExplorer: explorer && !isDraftRoom,
       source: networkPicks.length ? 'network' : (domPicks.length ? 'dom' : 'none'),
       picks,
       onTheClock: network?.onTheClock ?? onTheClockFromDom(),
       mySlot: network?.mySlot || null,
-      draftId: network?.draftId || draftIdFromLocation()
+      draftId: network?.draftId || draftIdFromLocation(),
+      portfolioCapture: latestPortfolioSnapshot,
+      visibleRoster: latestVisibleRoster && (Date.now() - (latestVisibleRoster.capturedAt || 0) < 15000)
+        ? latestVisibleRoster
+        : null
     };
   }
 

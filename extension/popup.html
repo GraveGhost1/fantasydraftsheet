@@ -53,15 +53,18 @@
           <input id="rank-csv" type="file" accept=".csv,text/csv" />
         </label>
         <label class="file-label">
-          Import exposure CSV
+          Import lineups or exposure CSV
           <input id="exposure-csv" type="file" accept=".csv,text/csv" />
         </label>
+        <p class="hint">Lineups: <code>draft_id,player,pos,team</code> (8+ players per draft for combos). Exposure-only: Player, Pos, Team, Exposure%. Log in to keep lineups on your Draft Sheet account across browsers.</p>
+        <p id="portfolio-status" class="hint"></p>
         <button id="clear-csv" type="button" class="secondary full">Clear imported CSV ranks</button>
       </div>
     </details>
 
     <footer class="popup-footer">
       <button id="open-test" type="button" class="link-btn">Open test draft room ↗</button>
+      <button id="open-explorer" type="button" class="link-btn">Open test player page ↗</button>
     </footer>
 
     <script src="lib/portfolio.js"></script>

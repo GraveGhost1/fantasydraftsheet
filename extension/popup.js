@@ -101,22 +101,38 @@ rankCsvInput.addEventListener('change', async () => {
 exposureCsvInput.addEventListener('change', async () => {
   const file = exposureCsvInput.files?.[0];
   if (!file) return;
-  setStatus('Importing exposure CSV…');
+  setStatus('Importing portfolio CSV…');
   const text = await file.text();
-  const parsed = window.FDSCsvImport.parseExposureCsv(text);
+  const parsed = window.FDSCsvImport.parsePortfolioCsv(text);
   if (parsed.error) {
     setStatus(parsed.error, 'err');
     exposureCsvInput.value = '';
     return;
   }
-  const portfolio = window.FDSCsvImport.exposureToPortfolio(parsed.entries);
+  if (parsed.kind === 'lineups') {
+    const response = await send('MERGE_PORTFOLIO_DRAFTS', { drafts: parsed.drafts, source: 'csv' });
+    exposureCsvInput.value = '';
+    if (!response.ok) {
+      setStatus(response.error || 'Lineup import failed', 'err');
+      return;
+    }
+    setStatus(
+      `Imported ${response.added || 0} new lineups${response.skipped ? `, skipped ${response.skipped} duplicate${response.skipped === 1 ? '' : 's'}` : ''} from ${file.name}`,
+      'ok'
+    );
+    await refreshPortfolioStatus();
+    return;
+  }
+  const teamGuess = Math.max(...parsed.entries.map((e) => e.exposurePct), 1) > 0 ? 100 : 100;
+  const portfolio = window.FDSCsvImport.exposureToPortfolio(parsed.entries, { totalDrafts: teamGuess, source: 'csv' });
   const response = await send('IMPORT_EXPOSURE_CSV', { portfolio });
   exposureCsvInput.value = '';
   if (!response.ok) {
     setStatus(response.error || 'Exposure import failed', 'err');
     return;
   }
-  setStatus(`Imported exposure for ${parsed.entries.length} players`, 'ok');
+  setStatus(`Imported exposure for ${parsed.entries.length} players (no combos without lineups)`, 'ok');
+  await refreshPortfolioStatus();
 });
 
 document.getElementById('clear-csv').addEventListener('click', async () => {
@@ -152,7 +168,8 @@ document.getElementById('login').addEventListener('click', async () => {
     setStatus(response.error || 'Login failed', 'err');
     return;
   }
-  setStatus(`Logged in. ${boardSummary(response.board)}`, 'ok');
+  setStatus(`Logged in. ${boardSummary(response.board)}${response.portfolio?.drafts?.length ? ` · ${response.portfolio.drafts.length} saved lineups` : ''}`, 'ok');
+  await refreshPortfolioStatus();
 });
 
 document.getElementById('public').addEventListener('click', async () => {
@@ -195,19 +212,41 @@ document.getElementById('logout').addEventListener('click', async () => {
   setStatus('Logged out. Using public best-ball ranks.', 'ok');
 });
 
-document.getElementById('open-test').addEventListener('click', async () => {
+async function refreshPortfolioStatus() {
+  const el = document.getElementById('portfolio-status');
+  if (!el) return;
+  const response = await send('GET_PORTFOLIO');
+  const summary = window.FDSPortfolio?.summarize(response?.portfolio);
+  if (!summary?.playerCount && !summary?.lineupCount) {
+    el.textContent = response?.cloud
+      ? 'Logged in. No lineups saved to this account yet.'
+      : 'No portfolio loaded. Log in to sync lineups across devices.';
+    return;
+  }
+  el.textContent = `${summary.lineupCount} lineups${response?.cloud ? ' · saved to your account' : ' · this browser'}`;
+}
+
+async function openLocalPage(path) {
   const base = (apiBaseInput.value.trim() || 'http://127.0.0.1:8000').replace(/\/$/, '');
   try {
     const allowed = await requestApiAccess(base);
     if (!allowed) {
-      setStatus('Allow site access to open the test room.', 'err');
+      setStatus('Allow site access to open the test page.', 'err');
       return;
     }
   } catch (err) {
     setStatus(err.message || 'Invalid Draft Sheet URL', 'err');
     return;
   }
-  chrome.tabs.create({ url: `${base}/extension/test-draft-room.html` });
+  chrome.tabs.create({ url: `${base}${path}` });
+}
+
+document.getElementById('open-test').addEventListener('click', () => {
+  openLocalPage('/extension/test-draft-room.html');
+});
+
+document.getElementById('open-explorer').addEventListener('click', () => {
+  openLocalPage('/extension/test-explorer.html');
 });
 
 hydrate().then(async () => {
@@ -215,4 +254,5 @@ hydrate().then(async () => {
   if (boardResponse?.ok && boardResponse.board?.playerCount) {
     setStatus(`Ready · ${boardSummary(boardResponse.board)}`, 'ok');
   }
+  await refreshPortfolioStatus();
 });

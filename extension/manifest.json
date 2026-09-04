@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Draft Sheet Assistant",
-  "version": "1.5.6",
+  "version": "1.8.3",
   "description": "Live Underdog Best Ball overlay using your Fantasy Draft Sheet rankings.",
   "action": {
     "default_title": "Draft Sheet Assistant",
@@ -43,7 +43,9 @@
         "https://*.underdogsports.com/*",
         "https://underdogsports.com/*",
         "http://127.0.0.1:8000/extension/test-draft-room.html",
-        "http://localhost:8000/extension/test-draft-room.html"
+        "http://localhost:8000/extension/test-draft-room.html",
+        "http://127.0.0.1:8000/extension/test-explorer.html",
+        "http://localhost:8000/extension/test-explorer.html"
       ],
       "js": [
         "lib/player-match.js",
@@ -51,6 +53,8 @@
         "lib/scoring-settings.js",
         "lib/playoff-schedule.js",
         "lib/portfolio.js",
+        "lib/csv-import.js",
+        "lib/exposure-sync.js",
         "lib/duplicates.js",
         "lib/rank-board.js",
         "lib/capital-chart.js",

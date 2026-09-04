@@ -424,7 +424,8 @@ def init_db():
         for column, definition in (
             ('email', 'TEXT'),
             ('reset_token_hash', 'TEXT'),
-            ('reset_expires_at', 'INTEGER')
+            ('reset_expires_at', 'INTEGER'),
+            ('assistant_portfolio_json', 'TEXT')
         ):
             try:
                 conn.execute(f'ALTER TABLE user_states ADD COLUMN {column} {definition}')
@@ -626,6 +627,134 @@ def load_user_state(username, password):
         if row and row['password_hash'] != password_hash:
             return 'INVALID_PASSWORD'
         return None
+
+
+def _normalize_portfolio_payload(portfolio):
+    if portfolio is None:
+        return {'drafts': []}
+    if isinstance(portfolio, str):
+        try:
+            portfolio = json.loads(portfolio)
+        except json.JSONDecodeError:
+            return {'drafts': []}
+    if not isinstance(portfolio, dict):
+        return {'drafts': []}
+    drafts = portfolio.get('drafts') or []
+    if not isinstance(drafts, list):
+        drafts = []
+    slim = []
+    for draft in drafts[:2000]:
+        if not isinstance(draft, dict):
+            continue
+        picks = []
+        for pick in draft.get('picks') or []:
+            if not isinstance(pick, dict):
+                continue
+            name = str(pick.get('name') or '').strip()
+            position = str(pick.get('position') or '').strip().upper()
+            team = str(pick.get('team') or '').strip().upper()[:4]
+            if not name or position not in ('QB', 'RB', 'WR', 'TE'):
+                continue
+            picks.append({'name': name, 'position': position, 'team': team})
+        if len(picks) < 8:
+            continue
+        slim.append({
+            'id': str(draft.get('id') or f'cloud-{len(slim)}'),
+            'savedAt': draft.get('savedAt'),
+            'picks': picks
+        })
+    return {
+        'drafts': slim,
+        'source': portfolio.get('source') or 'cloud',
+        'updatedAt': portfolio.get('updatedAt')
+    }
+
+
+def save_assistant_portfolio(username, password, portfolio):
+    password_hash = hash_password(password)
+    payload = json.dumps(_normalize_portfolio_payload(portfolio))
+    mongo_db = get_mongo_db()
+    if mongo_db is not None:
+        document = mongo_db.user_states.find_one({'_id': username})
+        if not document:
+            return 'MISSING_USER'
+        if document.get('password_hash') != password_hash:
+            return 'INVALID_PASSWORD'
+        mongo_db.user_states.update_one(
+            {'_id': username},
+            {'$set': {
+                'assistant_portfolio_json': payload,
+                'portfolio_updated_at': int(time.time())
+            }}
+        )
+        return 'OK'
+
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            'SELECT password_hash FROM user_states WHERE username = ?',
+            (username,)
+        ).fetchone()
+        if not row:
+            return 'MISSING_USER'
+        if row['password_hash'] != password_hash:
+            return 'INVALID_PASSWORD'
+        try:
+            conn.execute(
+                '''
+                UPDATE user_states
+                SET assistant_portfolio_json = ?, updated_at = ?
+                WHERE username = ?
+                ''',
+                (payload, int(time.time()), username)
+            )
+        except sqlite3.OperationalError:
+            conn.execute('ALTER TABLE user_states ADD COLUMN assistant_portfolio_json TEXT')
+            conn.execute(
+                '''
+                UPDATE user_states
+                SET assistant_portfolio_json = ?, updated_at = ?
+                WHERE username = ?
+                ''',
+                (payload, int(time.time()), username)
+            )
+        conn.commit()
+    return 'OK'
+
+
+def load_assistant_portfolio(username, password):
+    password_hash = hash_password(password)
+    mongo_db = get_mongo_db()
+    if mongo_db is not None:
+        document = mongo_db.user_states.find_one({'_id': username})
+        if not document:
+            return 'MISSING_USER'
+        if document.get('password_hash') != password_hash:
+            return 'INVALID_PASSWORD'
+        return _normalize_portfolio_payload(document.get('assistant_portfolio_json'))
+
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        try:
+            row = conn.execute(
+                'SELECT password_hash, assistant_portfolio_json FROM user_states WHERE username = ?',
+                (username,)
+            ).fetchone()
+        except sqlite3.OperationalError:
+            row = conn.execute(
+                'SELECT password_hash FROM user_states WHERE username = ?',
+                (username,)
+            ).fetchone()
+            if not row:
+                return 'MISSING_USER'
+            if row['password_hash'] != password_hash:
+                return 'INVALID_PASSWORD'
+            return _normalize_portfolio_payload(None)
+        if not row:
+            return 'MISSING_USER'
+        if row['password_hash'] != password_hash:
+            return 'INVALID_PASSWORD'
+        return _normalize_portfolio_payload(row['assistant_portfolio_json'] if 'assistant_portfolio_json' in row.keys() else None)
 
 
 def send_password_reset_email(email, token):

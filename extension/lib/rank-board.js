@@ -2,8 +2,15 @@
   const SKILL = new Set(['QB', 'RB', 'WR', 'TE']);
   const TOTAL_PICKS = 18;
   const DEFAULT_TEAM_SIZE = 12;
-  const DEFAULT_TARGETS = { QB: 2, RB: 6, WR: 8, TE: 2 };
-  const DEFAULT_MAX = { QB: 3, RB: 8, WR: 10, TE: 3 };
+  const DEFAULT_TARGETS = { QB: 2, RB: 4, WR: 6, TE: 2 };
+  const DEFAULT_MAX = { QB: 3, RB: 6, WR: 9, TE: 3 };
+  const COUNT_BANDS = {
+    QB: { min: 2, max: 3, earlyPick: 72 },
+    RB: { min: 4, max: 6, earlyPick: 48 },
+    WR: { min: 6, max: 9, earlyPick: 60 },
+    TE: { min: 2, max: 3, earlyPick: 60 }
+  };
+  const POSITIONS = ['QB', 'RB', 'WR', 'TE'];
   const EARLY_PICK_MAX = 24;
   const POSITIONAL_NEED_MIN_PICK = 13;
   const TOP_RANK_CONTRARIAN_CUTOFF = 36;
@@ -167,46 +174,162 @@
     return grouped;
   }
 
-  function pickCapital(player) {
-    const rank = Number(player?.myRank) || Number(player?.adp) || 120;
-    const pickNo = Number(player?.pickNo) || rank;
-    const combined = rank * 0.7 + pickNo * 0.3;
-    return Math.max(6, Math.round(128 - combined * 0.82));
+  function playerPickNo(player) {
+    const pickNo = Number(player?.pickNo);
+    if (Number.isFinite(pickNo) && pickNo > 0) return pickNo;
+    const adp = Number(player?.adp);
+    if (Number.isFinite(adp) && adp > 0) return adp;
+    const rank = Number(player?.myRank);
+    if (Number.isFinite(rank) && rank > 0) return rank;
+    return 120;
   }
 
-  const FULL_DRAFT_BUDGET = 850;
+  function pickCapitalFromPickNo(pickNo) {
+    return Math.max(6, Math.round(128 - Math.max(1, Number(pickNo) || 120) * 0.82));
+  }
+
+  function pickCapital(player) {
+    return pickCapitalFromPickNo(playerPickNo(player));
+  }
+
+  function teamCode(team) {
+    return String(team || '').toUpperCase().slice(0, 3);
+  }
+
+  function qbTeamCodes(myRoster) {
+    return new Set(
+      (myRoster || [])
+        .filter((player) => player.position === 'QB' && player.team)
+        .map((player) => teamCode(player.team))
+    );
+  }
+
+  function stackedCount(players, qbTeams) {
+    return (players || []).filter((player) => qbTeams.has(teamCode(player.team))).length;
+  }
+
+  function countBandFor(pos, settings) {
+    const band = COUNT_BANDS[pos] || { min: 2, max: 3, earlyPick: 72 };
+    const maxSetting = settings?.posMax?.[pos] ?? DEFAULT_MAX[pos] ?? band.max;
+    return {
+      min: band.min,
+      max: Math.max(band.min, Math.min(band.max, Number(maxSetting) || band.max)),
+      earlyPick: band.earlyPick
+    };
+  }
+
+  function suggestedCountFor(pos, players, myRoster, currentPickNo, band) {
+    const earlyCount = (players || []).filter((player) => playerPickNo(player) <= band.earlyPick).length;
+    const qbTeams = qbTeamCodes(myRoster);
+    const stacked = (pos === 'WR' || pos === 'TE') ? stackedCount(players, qbTeams) : 0;
+    let suggested;
+
+    if (!players?.length) {
+      suggested = currentPickNo > band.earlyPick ? band.max : band.min;
+    } else if (earlyCount === 0) {
+      suggested = band.max;
+    } else {
+      suggested = band.max - earlyCount;
+    }
+
+    if (pos === 'WR' && stacked >= 2) suggested -= 1;
+    if (pos === 'TE' && stacked >= 1) suggested -= 1;
+
+    return Math.max(band.min, Math.min(band.max, suggested));
+  }
+
+  function capitalWindow(suggestedCount, earlyCount, band) {
+    const earlyCost = pickCapitalFromPickNo(Math.round(band.earlyPick * 0.55));
+    const midCost = pickCapitalFromPickNo(band.earlyPick + 24);
+    const lateCost = pickCapitalFromPickNo(140);
+    const earlySlots = Math.min(earlyCount, suggestedCount);
+    const cheapSlots = Math.max(0, suggestedCount - earlySlots);
+    const low = earlySlots * midCost + cheapSlots * lateCost;
+    const high = Math.max(low + 18, earlySlots * earlyCost + cheapSlots * midCost);
+    return {
+      capitalLow: Math.max(12, Math.round(low * 0.85)),
+      capitalHigh: Math.max(Math.round(low * 0.85) + 20, Math.round(high * 1.15))
+    };
+  }
+
+  function positionCapitalState(count, suggested, min, max, spent, capitalLow, capitalHigh) {
+    if (count > max) return 'over';
+    if (count >= suggested && count >= min) {
+      if (spent > capitalHigh * 1.4 && spent > capitalHigh + 36) return 'over';
+      return 'inRange';
+    }
+    if (count >= min && spent >= capitalHigh) return 'inRange';
+    return 'need';
+  }
+
+  function capitalReason(pos, item) {
+    if (item.state === 'over') return 'Over — look elsewhere';
+    if (item.state === 'inRange') {
+      if (item.stacked) return 'Stacked — fill others';
+      if (item.earlyCount > 0) return 'Early — look elsewhere';
+      return 'In range';
+    }
+    if (item.count < item.countMin) return 'Still need bodies';
+    return 'Late — still want another';
+  }
+
+  function joinEnglish(parts) {
+    if (!parts.length) return '';
+    if (parts.length === 1) return parts[0];
+    if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
+    return `${parts.slice(0, -1).join(', ')}, and ${parts[parts.length - 1]}`;
+  }
+
+  function capitalMessage(byPosition) {
+    const inRange = POSITIONS.filter((pos) => byPosition[pos]?.state === 'inRange');
+    const over = POSITIONS.filter((pos) => byPosition[pos]?.state === 'over');
+    const need = POSITIONS.filter((pos) => byPosition[pos]?.state === 'need');
+    const done = inRange.concat(over);
+    if (need.length && done.length) {
+      const verb = done.length === 1 ? 'is' : 'are';
+      const needBits = need.map((pos) => {
+        const item = byPosition[pos];
+        return `${pos} (${item.count} of ${item.countMin}–${item.countMax})`;
+      });
+      return `${joinEnglish(done)} ${verb} in range. Next picks should fill ${joinEnglish(needBits)}.`;
+    }
+    if (need.length) {
+      const needBits = need.map((pos) => {
+        const item = byPosition[pos];
+        return `${pos} (${item.count} of ${item.countMin}–${item.countMax})`;
+      });
+      return `Still need ${joinEnglish(needBits)}.`;
+    }
+    if (over.length) {
+      return `All positions are in range. ${joinEnglish(over)} ran hot — look elsewhere if you pick again.`;
+    }
+    return 'All positions are in range.';
+  }
 
   function computeFullDraftBudget() {
-    return FULL_DRAFT_BUDGET;
+    let sum = 0;
+    for (let round = 1; round <= TOTAL_PICKS; round += 1) {
+      sum += pickCapitalFromPickNo(round * 12 - 6);
+    }
+    return sum;
   }
 
-  function computeCapitalTargets(settings) {
-    const merged = getSettings({ settings });
-    const positions = ['QB', 'RB', 'WR', 'TE'];
-    const fullBudget = computeFullDraftBudget();
-    let totalWeight = 0;
-    const weights = {};
-
-    positions.forEach((pos) => {
-      const target = merged.posTarget?.[pos] ?? DEFAULT_TARGETS[pos] ?? 2;
-      const max = merged.posMax?.[pos] ?? DEFAULT_MAX[pos] ?? 8;
-      weights[pos] = Math.max(1, target) * 0.65 + Math.max(1, max) * 0.35;
-      totalWeight += weights[pos];
-    });
-
+  function computeCapitalTargets(settings, options) {
+    const capital = draftCapital([], settings, options);
     const targets = {};
-    positions.forEach((pos) => {
-      const share = totalWeight ? weights[pos] / totalWeight : 0.25;
-      const targetValue = Math.round(fullBudget * share);
+    POSITIONS.forEach((pos) => {
+      const item = capital.byPosition[pos];
       targets[pos] = {
-        targetValue,
-        targetPct: Math.round(share * 100),
-        targetCount: merged.posTarget?.[pos] ?? DEFAULT_TARGETS[pos],
-        maxCount: merged.posMax?.[pos] ?? DEFAULT_MAX[pos]
+        targetValue: item.targetValue,
+        targetPct: item.targetPct,
+        targetCount: item.suggestedCount,
+        maxCount: item.countMax,
+        countMin: item.countMin,
+        capitalLow: item.capitalLow,
+        capitalHigh: item.capitalHigh
       };
     });
-
-    return { fullBudget, targets };
+    return { fullBudget: capital.fullBudget, targets };
   }
 
   function getSettings(context) {
@@ -234,15 +357,21 @@
     return (rankPart * rankW + projPart * projW) / totalW;
   }
 
-  function capitalPressure(player, myRoster, settings) {
+  function capitalAdjustment(item, settings) {
     const scale = (settings.capitalWeight ?? 45) / 100;
-    if (!scale || !myRoster?.length) return 0;
-    const capital = draftCapital(myRoster, settings);
-    const item = capital.byPosition[player.position];
-    if (!item) return 0;
-    if (item.spentPct > 100) return -(item.spentPct - 100) * 1.3 * scale;
-    if (item.spentPct > 85) return -(item.spentPct - 85) * 0.6 * scale;
+    if (!scale || !item) return 0;
+    if (item.state === 'over') {
+      const extra = Math.max(0, item.value - item.capitalHigh);
+      return -(24 + extra * 0.4) * scale;
+    }
+    if (item.state === 'inRange') return -18 * scale;
     return 0;
+  }
+
+  function capitalPressure(player, myRoster, settings, pickNo) {
+    if (!myRoster?.length) return 0;
+    const capital = draftCapital(myRoster, settings, { pickNo });
+    return capitalAdjustment(capital.byPosition[player.position], settings);
   }
 
   function applyPositionAndMaxRules(player, context, settings) {
@@ -279,7 +408,7 @@
       if (player.position === 'TE' && rank > 36) score -= 40;
     }
 
-    score += capitalPressure(player, rules.myRoster, settings);
+    score += capitalPressure(player, rules.myRoster, settings, pickNo);
 
     if (global.FDSPortfolio && context.portfolio) {
       score -= global.FDSPortfolio.portfolioPenalty(player, rules.myRoster, context.portfolio, settings.portfolioWeight);
@@ -300,7 +429,9 @@
     const myRoster = rules.myRoster;
     const pickNo = context.pickNo || 1;
     const have = rules.have;
-    const target = settings.posTarget?.[player.position] ?? DEFAULT_TARGETS[player.position] ?? 2;
+    const capital = draftCapital(myRoster, settings, { pickNo });
+    const capItem = capital.byPosition[player.position];
+    const target = capItem?.suggestedCount ?? settings.posTarget?.[player.position] ?? DEFAULT_TARGETS[player.position] ?? 2;
     const rank = Number(player.myRank || 999);
 
     let score = talentScore(player, settings);
@@ -329,7 +460,7 @@
       }
     }
 
-    score += capitalPressure(player, myRoster, settings);
+    score += capitalAdjustment(capItem, settings);
 
     if (global.FDSPortfolio && context.portfolio) {
       score -= global.FDSPortfolio.portfolioPenalty(player, myRoster, context.portfolio, settings.portfolioWeight);
@@ -410,8 +541,7 @@
 
   function heatBand(index, total) {
     if (index <= 2) return 'best';
-    if (index <= 7) return 'good';
-    if (index <= Math.max(12, Math.floor(total * 0.22))) return 'ok';
+    if (index <= Math.max(8, Math.floor(total * 0.2))) return 'good';
     return 'fade';
   }
 
@@ -504,41 +634,70 @@
     };
   }
 
-  function draftCapital(myRoster, settings) {
+  function draftCapital(myRoster, settings, options = {}) {
+    const merged = getSettings({ settings });
     const grouped = rosterByPosition(myRoster);
-    const { fullBudget, targets } = computeCapitalTargets(settings);
     const pickCount = (myRoster || []).length;
     const remainingPicks = Math.max(0, TOTAL_PICKS - pickCount);
+    const currentPickNo = Number(options.pickNo) > 0
+      ? Number(options.pickNo)
+      : (myRoster || []).reduce((max, player) => Math.max(max, playerPickNo(player)), 0) + 1;
     const byPosition = {};
     let allocated = 0;
-    let maxTargetValue = 1;
 
-    ['QB', 'RB', 'WR', 'TE'].forEach((pos) => {
-      maxTargetValue = Math.max(maxTargetValue, targets[pos].targetValue);
-    });
+    POSITIONS.forEach((pos) => {
+      const players = grouped[pos] || [];
+      const band = countBandFor(pos, merged);
+      const earlyCount = players.filter((player) => playerPickNo(player) <= band.earlyPick).length;
+      const qbTeams = qbTeamCodes(myRoster);
+      const stacked = (pos === 'WR' || pos === 'TE') ? stackedCount(players, qbTeams) : 0;
+      const suggestedCount = suggestedCountFor(pos, players, myRoster, currentPickNo, band);
+      const { capitalLow, capitalHigh } = capitalWindow(suggestedCount, earlyCount, band);
+      const value = Math.round(players.reduce((sum, player) => sum + pickCapital(player), 0));
+      const targetValue = Math.round((capitalLow + capitalHigh) / 2);
+      const spentPct = capitalHigh ? Math.round((value / capitalHigh) * 100) : 0;
+      const state = positionCapitalState(
+        players.length, suggestedCount, band.min, band.max, value, capitalLow, capitalHigh
+      );
 
-    ['QB', 'RB', 'WR', 'TE'].forEach((pos) => {
-      const value = (grouped[pos] || []).reduce((sum, player) => sum + pickCapital(player), 0);
-      const roundedValue = Math.round(value);
-      const targetValue = targets[pos].targetValue;
-      const spentPct = targetValue ? Math.round((roundedValue / targetValue) * 100) : 0;
-      const chartScale = targetValue / maxTargetValue;
-
-      byPosition[pos] = {
+      const item = {
         position: pos,
-        value: roundedValue,
-        count: (grouped[pos] || []).length,
-        targetPct: targets[pos].targetPct,
+        value,
+        count: players.length,
+        earlyCount,
+        stacked: stacked > 0 && ((pos === 'WR' && stacked >= 2) || (pos === 'TE' && stacked >= 1)),
+        countMin: band.min,
+        countMax: band.max,
+        suggestedCount,
+        capitalLow,
+        capitalHigh,
         targetValue,
-        targetCount: targets[pos].targetCount,
-        maxCount: targets[pos].maxCount,
+        targetCount: suggestedCount,
+        maxCount: band.max,
+        targetPct: suggestedCount ? Math.round((players.length / suggestedCount) * 100) : 0,
         spentPct,
-        chartScale,
         barPct: Math.min(100, spentPct),
-        pct: spentPct
+        pct: spentPct,
+        state,
+        reason: ''
       };
+      item.reason = capitalReason(pos, item);
+      byPosition[pos] = item;
       allocated += value;
     });
+
+    const anyPicked = pickCount > 0;
+    let chartMax = 1;
+    POSITIONS.forEach((pos) => {
+      const item = byPosition[pos];
+      if (!anyPicked) {
+        chartMax = Math.max(chartMax, item.capitalHigh);
+      } else {
+        chartMax = Math.max(chartMax, item.value, item.count > 0 ? item.capitalHigh : item.capitalLow);
+      }
+    });
+
+    const fullBudget = POSITIONS.reduce((sum, pos) => sum + byPosition[pos].capitalHigh, 0);
 
     return {
       byPosition,
@@ -549,7 +708,9 @@
       remainingPicks,
       pickCount,
       totalPicks: TOTAL_PICKS,
-      maxTargetValue
+      chartMax,
+      maxTargetValue: chartMax,
+      message: capitalMessage(byPosition)
     };
   }
 
@@ -565,7 +726,9 @@
     draftCapital,
     computeCapitalTargets,
     pickCapital,
+    pickCapitalFromPickNo,
     computeFullDraftBudget,
+    COUNT_BANDS,
     realisticForPick,
     slotForPick,
     enrichPickSlot,

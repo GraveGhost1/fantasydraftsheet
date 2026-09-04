@@ -198,6 +198,9 @@ button.full {
 .popup-footer {
   padding: 14px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .link-btn {
