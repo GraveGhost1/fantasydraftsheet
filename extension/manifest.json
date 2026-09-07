@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Draft Sheet Assistant",
-  "version": "1.8.3",
-  "description": "Live Underdog Best Ball overlay using your Fantasy Draft Sheet rankings.",
+  "version": "1.8.6",
+  "description": "Live Underdog and DraftKings Best Ball overlay using your Fantasy Draft Sheet rankings.",
   "action": {
     "default_title": "Draft Sheet Assistant",
     "default_popup": "popup.html"
@@ -16,6 +16,9 @@
     "https://underdogfantasy.com/*",
     "https://*.underdogsports.com/*",
     "https://underdogsports.com/*",
+    "https://www.draftkings.com/*",
+    "https://draftkings.com/*",
+    "https://*.draftkings.com/*",
     "http://127.0.0.1:8000/*",
     "http://localhost:8000/*"
   ],
@@ -64,6 +67,43 @@
       ],
       "run_at": "document_idle",
       "all_frames": false
+    },
+    {
+      "matches": [
+        "https://www.draftkings.com/*",
+        "https://draftkings.com/*",
+        "https://*.draftkings.com/*"
+      ],
+      "js": ["adapters/draftkings-hook.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://www.draftkings.com/*",
+        "https://draftkings.com/*",
+        "https://*.draftkings.com/*",
+        "http://127.0.0.1:8000/extension/test-dk-draft-room.html*",
+        "http://localhost:8000/extension/test-dk-draft-room.html*"
+      ],
+      "js": [
+        "lib/player-match.js",
+        "data/nfl-schedule-2026.js",
+        "lib/scoring-settings.js",
+        "lib/playoff-schedule.js",
+        "lib/portfolio.js",
+        "lib/csv-import.js",
+        "lib/exposure-sync.js",
+        "lib/duplicates.js",
+        "lib/rank-board.js",
+        "lib/capital-chart.js",
+        "adapters/draftkings.js",
+        "overlay/highlight.js",
+        "overlay/inject.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
     }
   ],
   "web_accessible_resources": [
@@ -74,6 +114,9 @@
         "https://underdogfantasy.com/*",
         "https://*.underdogsports.com/*",
         "https://underdogsports.com/*",
+        "https://www.draftkings.com/*",
+        "https://draftkings.com/*",
+        "https://*.draftkings.com/*",
         "http://127.0.0.1:8000/*",
         "http://localhost:8000/*"
       ]

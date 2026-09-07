@@ -147,7 +147,8 @@
   function candidateNodes() {
     const selected = [
       ...document.querySelectorAll('[data-fds-player]'),
-      ...document.querySelectorAll('.ud-player-row, [class*="player-row" i], [class*="PlayerRow"]'),
+      ...document.querySelectorAll('.ud-player-row, .dk-player-row, [class*="player-row" i], [class*="PlayerRow"]'),
+      ...document.querySelectorAll('[class*="Player"], [class*="player-name" i], [class*="PlayerName"], [class*="draftable" i]'),
       ...document.querySelectorAll('[data-testid*="player" i], [data-testid*="draft" i]'),
       ...document.querySelectorAll('[class*="DraftPlayer"], [class*="draft-player"], [class*="PlayerCard"]'),
       ...document.querySelectorAll('[class*="available" i] [class*="player" i]'),
@@ -182,7 +183,7 @@
   }
 
   function paintTarget(node) {
-    return node.closest?.('[data-fds-player], .ud-player-row, .player-row, li, tr, [role="row"], [role="option"], button') || node;
+    return node.closest?.('[data-fds-player], .ud-player-row, .dk-player-row, .player-row, li, tr, [role="row"], [role="option"], button') || node;
   }
 
   function matchPlayer(node, players) {
@@ -258,7 +259,7 @@
   function isMetaRow(node) {
     if (!node || isOurUi(node)) return false;
     if (node.closest?.('#ticker, .ticker, .pick-card, .queue-box, .roster-list, .fds-playoff-table')) return false;
-    if (node.matches?.('.ud-player-row, .player-row, [data-fds-player]')) return true;
+    if (node.matches?.('.ud-player-row, .dk-player-row, .player-row, [data-fds-player]')) return true;
     if (node.querySelector?.('.name-line, .info, [class*="player-name" i]')) return true;
     const text = `${node.textContent || ''}`.replace(/\s+/g, ' ').trim();
     return text.length >= 8 && text.length <= 160 && /\b(QB|RB|WR|TE)\b/.test(text);

@@ -638,7 +638,8 @@
     const merged = getSettings({ settings });
     const grouped = rosterByPosition(myRoster);
     const pickCount = (myRoster || []).length;
-    const remainingPicks = Math.max(0, TOTAL_PICKS - pickCount);
+    const totalPicks = Number(options.totalPicks) > 0 ? Number(options.totalPicks) : TOTAL_PICKS;
+    const remainingPicks = Math.max(0, totalPicks - pickCount);
     const currentPickNo = Number(options.pickNo) > 0
       ? Number(options.pickNo)
       : (myRoster || []).reduce((max, player) => Math.max(max, playerPickNo(player)), 0) + 1;
@@ -707,7 +708,7 @@
       budget: fullBudget,
       remainingPicks,
       pickCount,
-      totalPicks: TOTAL_PICKS,
+      totalPicks,
       chartMax,
       maxTargetValue: chartMax,
       message: capitalMessage(byPosition)

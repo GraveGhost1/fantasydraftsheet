@@ -2,6 +2,9 @@
   if (window !== window.top || window.__FDS_OVERLAY__) {
     return;
   }
+  if (typeof chrome === 'undefined' || !chrome.runtime?.sendMessage) {
+    return;
+  }
   window.__FDS_OVERLAY__ = true;
 
   const HOST_ID = 'fds-draft-assistant-root';
@@ -227,7 +230,7 @@
   }
 
   async function maybeRecordPortfolio(myRoster) {
-    if (myRoster.length < window.FDSRankBoard.TOTAL_PICKS) return;
+    if (myRoster.length < rosterPickCount()) return;
     const draftId = lastSnapshot.draftId || `local-${location.pathname}-${myRoster.map((p) => p.name).join('|')}`;
     if (ui.recordedDraftId === draftId) return;
     const response = await send('RECORD_PORTFOLIO_DRAFT', {
@@ -412,7 +415,7 @@
               </div>
             `).join('')}
           </div>
-          <p class="fds-rec-hint">Blue = draft · Purple = next tier · Pink = fade · same colors on the Underdog list.</p>
+          <p class="fds-rec-hint">Blue = draft · Purple = next tier · Pink = fade · same colors on the site player list.</p>
         </div>
       `);
     } else {
@@ -606,7 +609,7 @@
       <div class="fds-stat-row">
         <div class="fds-stat">
           <div class="label">Your picks</div>
-          <div class="value">${ranked.myRoster.length}/${window.FDSRankBoard.TOTAL_PICKS}</div>
+          <div class="value">${ranked.myRoster.length}/${rosterPickCount()}</div>
         </div>
         <div class="fds-stat">
           <div class="label">Pick #</div>
@@ -644,7 +647,31 @@
   }
 
   function inDraftRoom() {
-    return Boolean(lastSnapshot.isDraftRoom || document.querySelector('[data-fds-test-room]'));
+    return Boolean(lastSnapshot.isDraftRoom || document.querySelector('[data-fds-test-room], [data-fds-test-dk-room]'));
+  }
+
+  function hostAdapter() {
+    const host = String(location.hostname || '').toLowerCase();
+    if (document.querySelector('[data-fds-test-dk-room]') && window.FDSDraftKingsAdapter) {
+      return window.FDSDraftKingsAdapter;
+    }
+    if (host.includes('draftkings') && window.FDSDraftKingsAdapter) {
+      return window.FDSDraftKingsAdapter;
+    }
+    if (host.includes('underdog') && window.FDSUnderdogAdapter) {
+      return window.FDSUnderdogAdapter;
+    }
+    return window.FDSUnderdogAdapter || window.FDSDraftKingsAdapter || null;
+  }
+
+  function hostName() {
+    return hostAdapter() === window.FDSDraftKingsAdapter ? 'draftkings' : 'underdog';
+  }
+
+  function rosterPickCount() {
+    const fromSnapshot = Number(lastSnapshot.totalPicks);
+    if (Number.isFinite(fromSnapshot) && fromSnapshot > 0) return fromSnapshot;
+    return window.FDSRankBoard?.TOTAL_PICKS || 18;
   }
 
   function mergeResultMessage(response) {
@@ -785,7 +812,7 @@
           <summary>More</summary>
           <div class="fds-actions fds-lineup-actions">
             <button class="secondary" data-action="update-portfolio"${ui.syncing ? ' disabled' : ''}>${ui.syncing ? 'Updating…' : 'Update from page'}</button>
-            ${document.querySelector('[data-fds-test-explorer], [data-fds-test-room]')
+            ${document.querySelector('[data-fds-test-explorer], [data-fds-test-room], [data-fds-test-dk-room]')
               ? '<button class="secondary" data-action="load-demo-portfolio">Load demo lineups</button>'
               : ''}
           </div>
@@ -880,7 +907,7 @@
       if (capture?.drafts?.length) {
         const response = await send('MERGE_PORTFOLIO_DRAFTS', {
           drafts: capture.drafts,
-          source: 'underdog'
+          source: hostName()
         });
         if (response?.ok) {
           ui.portfolio = response.portfolio;
@@ -964,11 +991,12 @@
       byPosition: null,
       pickCount: ranked.myRoster.length,
       allocated: 0,
-      totalPicks: window.FDSRankBoard.TOTAL_PICKS
+      totalPicks: rosterPickCount()
     };
     try {
       capital = window.FDSRankBoard.draftCapital(ranked.myRoster, context.settings, {
-        pickNo: context.pickNo
+        pickNo: context.pickNo,
+        totalPicks: rosterPickCount()
       });
     } catch (err) {
       console.error('FDS draftCapital failed', err);
@@ -981,7 +1009,7 @@
     const onClock = Boolean(lastSnapshot.onTheClock);
     maybeAlertOnClock(onClock);
     const rosterWarnings = window.FDSDuplicates?.rosterWarnings(ranked.myRoster, null) || [];
-    const draftComplete = ranked.myRoster.length >= window.FDSRankBoard.TOTAL_PICKS;
+    const draftComplete = ranked.myRoster.length >= rosterPickCount();
     const draftSummary = draftComplete && window.FDSDuplicates
       ? window.FDSDuplicates.draftSummary(ranked.myRoster)
       : null;
@@ -1006,7 +1034,9 @@
             ? `${remaining.length} available · ${ranked.drafted.length} drafted`
             : lastSnapshot.isExplorer
               ? 'Player page · click a team to save it'
-              : 'Open an Underdog draft room or the test room';
+              : hostName() === 'draftkings'
+                ? 'Open a DraftKings Best Ball draft room or the DK test room'
+                : 'Open an Underdog draft room or the test room';
 
     const rankLabel = board.rankSource === 'csv'
       ? 'CSV ranks'
@@ -1233,8 +1263,13 @@
   }
 
   function pollDraft() {
-    if (!window.FDSUnderdogAdapter) return;
-    const snapshot = window.FDSUnderdogAdapter.read();
+    const adapter = hostAdapter();
+    if (!adapter?.read) return;
+    const snapshot = adapter.read();
+    if (snapshot?.inactive) {
+      hostEl()?.remove();
+      return;
+    }
     lastSnapshot.visibleRoster = snapshot.visibleRoster || null;
     lastSnapshot.portfolioCapture = snapshot.portfolioCapture || lastSnapshot.portfolioCapture;
     const signature = JSON.stringify({
@@ -1244,6 +1279,7 @@
       last: snapshot.picks?.[snapshot.picks.length - 1]?.name,
       explorer: snapshot.isExplorer,
       room: snapshot.isDraftRoom,
+      totalPicks: snapshot.totalPicks || 0,
       portDrafts: snapshot.portfolioCapture?.drafts?.length || 0,
       visible: snapshot.visibleRoster?.picks?.[0]?.name || '',
       visibleN: snapshot.visibleRoster?.picks?.length || 0

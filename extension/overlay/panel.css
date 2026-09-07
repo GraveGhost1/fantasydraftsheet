@@ -37,8 +37,37 @@
 
 .fds-root.is-collapsed {
   width: auto;
+  min-width: 0;
   height: auto;
+  min-height: 0;
   max-height: none;
+  border-radius: 999px;
+}
+
+.fds-root.is-collapsed .fds-header {
+  padding: 3px 5px 3px 3px;
+  gap: 2px;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.fds-root.is-collapsed .fds-title,
+.fds-root.is-collapsed .fds-header-actions [data-action="settings"] {
+  display: none;
+}
+
+.fds-root.is-collapsed .fds-logo {
+  width: 22px;
+  height: 22px;
+  font-size: 8px;
+  border-radius: 999px;
+}
+
+.fds-root.is-collapsed .fds-icon-btn {
+  min-width: 22px;
+  height: 22px;
+  font-size: 11px;
+  border-radius: 999px;
 }
 
 .fds-header {
@@ -232,6 +261,8 @@
 .fds-root.is-explorer.is-collapsed {
   width: auto;
   height: auto;
+  min-height: 0;
+  border-top: 0;
 }
 
 .fds-recs-block {
@@ -1486,7 +1517,7 @@
 }
 
 @media (max-width: 720px) {
-  .fds-root {
+  .fds-root:not(.is-collapsed) {
     right: 6px;
     top: 6px;
     width: min(380px, calc(100vw - 12px));
@@ -1495,7 +1526,7 @@
     border-radius: 12px;
   }
 
-  .fds-root.is-explorer {
+  .fds-root.is-explorer:not(.is-collapsed) {
     left: 6px;
     right: auto;
     bottom: 6px;
@@ -1505,7 +1536,7 @@
 }
 
 @media (max-height: 640px) {
-  .fds-root {
+  .fds-root:not(.is-collapsed) {
     height: calc(100vh - 12px);
     top: 6px;
   }

@@ -245,6 +245,10 @@ document.getElementById('open-test').addEventListener('click', () => {
   openLocalPage('/extension/test-draft-room.html');
 });
 
+document.getElementById('open-dk-test').addEventListener('click', () => {
+  chrome.tabs.create({ url: chrome.runtime.getURL('test-dk-draft-room.html') });
+});
+
 document.getElementById('open-explorer').addEventListener('click', () => {
   openLocalPage('/extension/test-explorer.html');
 });

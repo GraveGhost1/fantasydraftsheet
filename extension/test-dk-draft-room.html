@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DraftKings – Best Ball Draft (Test)</title>
+    <link rel="stylesheet" href="overlay/capital-chart.css" />
+    <style>
+      :root {
+        --dk-green: #53d337;
+        --dk-green-dark: #3aaa24;
+        --dk-black: #111827;
+        --dk-bg: #eef1f4;
+        --dk-surface: #ffffff;
+        --dk-border: #e2e8f0;
+        --dk-text: #0f172a;
+        --dk-muted: #64748b;
+        --pos-qb: #fef3c7;
+        --pos-rb: #dcfce7;
+        --pos-wr: #dbeafe;
+        --pos-te: #f3e8ff;
+        --ext-panel: 420px;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        font: 14px/1.35 "Segoe UI", system-ui, sans-serif;
+        background: var(--dk-bg);
+        color: var(--dk-text);
+        padding-right: var(--ext-panel);
+        padding-bottom: 64px;
+        min-height: 100vh;
+      }
+
+      button {
+        font: inherit;
+        cursor: pointer;
+        border: 0;
+        border-radius: 8px;
+        background: var(--dk-black);
+        color: #fff;
+        padding: 6px 12px;
+      }
+      button.ghost {
+        background: #fff;
+        color: var(--dk-text);
+        border: 1px solid var(--dk-border);
+      }
+
+      .top-nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 20px;
+        background: var(--dk-black);
+        color: #fff;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+      }
+      .brand-mark {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        background: var(--dk-green);
+        color: #052e16;
+        display: grid;
+        place-items: center;
+        font-size: 13px;
+      }
+      .nav-meta { color: #94a3b8; font-size: 12px; font-weight: 600; }
+
+      .ticker-wrap {
+        background: var(--dk-surface);
+        border-bottom: 1px solid var(--dk-border);
+        padding: 12px 0 10px;
+      }
+      .ticker-label {
+        padding: 0 20px 8px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--dk-muted);
+      }
+      .ticker {
+        display: flex;
+        gap: 10px;
+        overflow-x: auto;
+        padding: 0 20px 4px;
+      }
+      .pick-card {
+        flex: 0 0 148px;
+        border: 1px solid var(--dk-border);
+        border-radius: 10px;
+        padding: 10px;
+        background: #f8fafc;
+      }
+      .pick-card.current {
+        border-color: var(--dk-green);
+        box-shadow: 0 0 0 2px rgba(83, 211, 55, 0.25);
+        background: #fff;
+      }
+      .pick-card.mine { background: #f0fdf4; }
+      .pick-card .meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        color: var(--dk-muted);
+        margin-bottom: 6px;
+      }
+      .pick-card .name {
+        font-weight: 700;
+        font-size: 13px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .pick-card .sub { font-size: 11px; color: var(--dk-muted); margin-top: 2px; }
+      .pick-card.empty .name { color: #94a3b8; font-weight: 500; }
+
+      .clock-banner {
+        display: none;
+        margin: 0;
+        padding: 8px 20px;
+        background: #dcfce7;
+        color: #166534;
+        font-weight: 700;
+        font-size: 13px;
+        border-bottom: 1px solid #bbf7d0;
+      }
+      body.on-clock .clock-banner { display: block; }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.75fr) minmax(240px, 0.65fr);
+        gap: 0;
+        min-height: calc(100vh - 220px);
+      }
+      .col {
+        background: var(--dk-surface);
+        border-right: 1px solid var(--dk-border);
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .col:last-child { border-right: 0; }
+      .col-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 16px 10px;
+        border-bottom: 1px solid var(--dk-border);
+        flex-shrink: 0;
+      }
+      .col-head h2 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .pos-tabs {
+        display: flex;
+        gap: 6px;
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--dk-border);
+        flex-shrink: 0;
+      }
+      .pos-tabs button {
+        background: #f1f5f9;
+        color: #475569;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 6px 12px;
+        border-radius: 999px;
+      }
+      .pos-tabs button.active {
+        background: var(--dk-black);
+        color: #fff;
+      }
+
+      .table-head {
+        display: grid;
+        grid-template-columns: 1fr 56px;
+        gap: 8px;
+        padding: 8px 16px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--dk-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        border-bottom: 1px solid var(--dk-border);
+        flex-shrink: 0;
+      }
+      .table-head span:last-child { text-align: right; }
+
+      #available, #feed, #roster-list {
+        overflow: auto;
+        min-height: 0;
+        flex: 1;
+        max-height: calc(100vh - 340px);
+      }
+
+      .dk-player-row,
+      .player-row {
+        display: grid;
+        grid-template-columns: 1fr 56px;
+        gap: 8px;
+        align-items: center;
+        padding: 10px 16px;
+        border-bottom: 1px solid #f1f5f9;
+        cursor: pointer;
+      }
+      .dk-player-row:hover { filter: brightness(0.97); }
+      .dk-player-row.pos-QB { background: var(--pos-qb); }
+      .dk-player-row.pos-RB { background: var(--pos-rb); }
+      .dk-player-row.pos-WR { background: var(--pos-wr); }
+      .dk-player-row.pos-TE { background: var(--pos-te); }
+
+      .name-line {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+      .name-line strong {
+        font-size: 14px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .fds-rank-inline {
+        color: #2563eb;
+        font-weight: 800;
+        font-size: 12px;
+        flex-shrink: 0;
+        font-variant-numeric: tabular-nums;
+      }
+      .pos-line {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 3px;
+        font-size: 12px;
+        color: var(--dk-muted);
+      }
+      .pos-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
+        padding: 1px 6px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 800;
+        color: #fff;
+      }
+      .pos-chip.QB { background: #ca8a04; }
+      .pos-chip.RB { background: #16a34a; }
+      .pos-chip.WR { background: #2563eb; }
+      .pos-chip.TE { background: #7c3aed; }
+      .adp-num {
+        justify-self: end;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        color: #334155;
+      }
+
+      .pick {
+        display: grid;
+        grid-template-columns: 52px 1fr auto;
+        gap: 8px;
+        align-items: center;
+        padding: 9px 16px;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 13px;
+      }
+      .pick.is-mine { background: #f0fdf4; }
+      .pick .slot {
+        font-weight: 800;
+        color: var(--dk-muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .pick strong { display: block; }
+      .pick .you {
+        font-size: 10px;
+        font-weight: 800;
+        color: #166534;
+        background: #dcfce7;
+        border-radius: 999px;
+        padding: 2px 7px;
+      }
+
+      .roster-counts {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--dk-border);
+        flex-shrink: 0;
+      }
+      .roster-counts span {
+        background: #f1f5f9;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 800;
+        color: #334155;
+      }
+      .roster-group { padding: 10px 16px 4px; }
+      .roster-group h3 {
+        margin: 0 0 6px;
+        font-size: 11px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--dk-muted);
+      }
+      .roster-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 7px 0;
+        border-bottom: 1px solid #f1f5f9;
+      }
+      .roster-empty {
+        padding: 28px 16px;
+        color: var(--dk-muted);
+        text-align: center;
+      }
+
+      .dev-bar {
+        position: fixed;
+        left: 0;
+        right: var(--ext-panel);
+        bottom: 0;
+        z-index: 5;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+        padding: 10px 16px;
+        background: rgba(15, 23, 42, 0.94);
+        color: #e2e8f0;
+        font-size: 12px;
+      }
+      .status { margin-right: auto; color: #94a3b8; }
+      .dev-bar button { font-size: 12px; padding: 5px 10px; }
+      .empty { padding: 24px 16px; color: var(--dk-muted); }
+    </style>
+  </head>
+  <body>
+    <div id="room" data-fds-test-dk-room='{"picks":[],"onTheClock":true,"mySlot":9,"draftId":"dk-test-room","totalPicks":20}'>
+      <nav class="top-nav">
+        <div class="brand">
+          <span class="brand-mark">DK</span>
+          Best Ball Draft
+        </div>
+        <div class="nav-meta">Test room · 20 rounds · 12 teams</div>
+      </nav>
+      <div class="ticker-wrap">
+        <div class="ticker-label">Draft board</div>
+        <div class="ticker" id="ticker"></div>
+      </div>
+      <p class="clock-banner" id="clock-banner">You're on the clock — make your pick</p>
+      <div class="layout">
+        <section class="col">
+          <div class="col-head">
+            <h2>Available players</h2>
+            <span id="avail-count" class="nav-meta" style="color:#64748b"></span>
+          </div>
+          <div class="pos-tabs" id="pos-tabs">
+            <button type="button" data-pos="ALL" class="active">ALL</button>
+            <button type="button" data-pos="QB">QB</button>
+            <button type="button" data-pos="RB">RB</button>
+            <button type="button" data-pos="WR">WR</button>
+            <button type="button" data-pos="TE">TE</button>
+          </div>
+          <div class="table-head"><span>Player</span><span>ADP</span></div>
+          <div id="available"><div class="empty">Loading expert board…</div></div>
+        </section>
+        <section class="col">
+          <div class="col-head"><h2>Pick feed</h2></div>
+          <div id="feed"><div class="empty">Picks will show here.</div></div>
+        </section>
+        <section class="col">
+          <div class="col-head"><h2>Your team</h2></div>
+          <div class="roster-counts" id="roster-counts"></div>
+          <div id="roster-list"><div class="roster-empty">No picks yet — draft when you're on the clock.</div></div>
+        </section>
+      </div>
+    </div>
+    <div class="dev-bar">
+      <span class="status" id="dev-status">DK test room · load extension + expert ranks</span>
+      <button type="button" id="toggle-clock">Toggle on clock</button>
+      <button type="button" id="auto-pick" class="ghost">Auto-pick</button>
+      <button type="button" id="load-demo" class="ghost">Load demo</button>
+      <button type="button" id="reset" class="ghost">Reset</button>
+    </div>
+    <script src="lib/player-match.js"></script>
+    <script src="data/nfl-schedule-2026.js"></script>
+    <script src="lib/scoring-settings.js"></script>
+    <script src="lib/playoff-schedule.js"></script>
+    <script src="lib/portfolio.js"></script>
+    <script src="lib/csv-import.js"></script>
+    <script src="lib/exposure-sync.js"></script>
+    <script src="lib/duplicates.js"></script>
+    <script src="lib/rank-board.js"></script>
+    <script src="lib/capital-chart.js"></script>
+    <script src="adapters/draftkings.js"></script>
+    <script src="overlay/highlight.js"></script>
+    <script src="overlay/inject.js"></script>
+    <script src="test-dk-draft-room.js"></script>
+  </body>
+</html>
