@@ -629,6 +629,58 @@ def load_user_state(username, password):
         return None
 
 
+def _portfolio_draft_mode(draft, picks):
+    count = len(picks or [])
+    if count >= 12:
+        return 'season'
+    mode = str((draft or {}).get('mode') or '').strip().lower()
+    if mode in ('daily', 'season'):
+        return mode
+    if 4 <= count <= 10:
+        return 'daily'
+    return 'season'
+
+
+def _normalize_imported_counts(entry):
+    if not isinstance(entry, dict):
+        return None
+    raw_counts = entry.get('playerCounts')
+    if not isinstance(raw_counts, dict) or not raw_counts:
+        return None
+    player_counts = {}
+    for key, value in list(raw_counts.items())[:4000]:
+        try:
+            count = int(value)
+        except (TypeError, ValueError):
+            continue
+        name = str(key or '').strip()[:120]
+        if not name or count < 0:
+            continue
+        player_counts[name] = count
+    if not player_counts:
+        return None
+    try:
+        total = int(entry.get('totalDrafts') or 0)
+    except (TypeError, ValueError):
+        total = 0
+    return {
+        'playerCounts': player_counts,
+        'totalDrafts': max(0, total),
+        'source': str(entry.get('source') or '')[:40] or None,
+        'updatedAt': entry.get('updatedAt')
+    }
+
+
+def _normalize_imported_by_mode(portfolio):
+    raw = portfolio.get('importedByMode') if isinstance(portfolio, dict) else None
+    if not isinstance(raw, dict):
+        raw = {}
+    return {
+        'season': _normalize_imported_counts(raw.get('season')),
+        'daily': _normalize_imported_counts(raw.get('daily'))
+    }
+
+
 def _normalize_portfolio_payload(portfolio):
     if portfolio is None:
         return {'drafts': []}
@@ -656,15 +708,20 @@ def _normalize_portfolio_payload(portfolio):
             if not name or position not in ('QB', 'RB', 'WR', 'TE'):
                 continue
             picks.append({'name': name, 'position': position, 'team': team})
-        if len(picks) < 8:
+        if len(picks) < 4:
+            continue
+        mode = _portfolio_draft_mode(draft, picks)
+        if mode == 'season' and len(picks) < 8:
             continue
         slim.append({
             'id': str(draft.get('id') or f'cloud-{len(slim)}'),
             'savedAt': draft.get('savedAt'),
-            'picks': picks
+            'picks': picks,
+            'mode': mode
         })
     return {
         'drafts': slim,
+        'importedByMode': _normalize_imported_by_mode(portfolio),
         'source': portfolio.get('source') or 'cloud',
         'updatedAt': portfolio.get('updatedAt')
     }

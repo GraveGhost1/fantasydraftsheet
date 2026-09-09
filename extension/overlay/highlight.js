@@ -147,12 +147,12 @@
   function candidateNodes() {
     const selected = [
       ...document.querySelectorAll('[data-fds-player]'),
-      ...document.querySelectorAll('.ud-player-row, .dk-player-row, [class*="player-row" i], [class*="PlayerRow"]'),
-      ...document.querySelectorAll('[class*="Player"], [class*="player-name" i], [class*="PlayerName"], [class*="draftable" i]'),
-      ...document.querySelectorAll('[data-testid*="player" i], [data-testid*="draft" i]'),
+      ...document.querySelectorAll('.ud-player-row, .dk-player-row, .player-row, [class*="player-row" i], [class*="PlayerRow"]'),
+      ...document.querySelectorAll('[class*="player-name" i], [class*="PlayerName"], [class*="draftable" i]'),
+      ...document.querySelectorAll('[data-testid*="player" i]'),
       ...document.querySelectorAll('[class*="DraftPlayer"], [class*="draft-player"], [class*="PlayerCard"]'),
       ...document.querySelectorAll('[class*="available" i] [class*="player" i]'),
-      ...document.querySelectorAll('[role="row"], [role="option"], li, tr, button')
+      ...document.querySelectorAll('[role="row"], [role="option"]')
     ];
     const uniq = [];
     const seen = new Set();
@@ -173,7 +173,10 @@
       return false;
     }
     const text = `${node.textContent || ''}`.replace(/\s+/g, ' ').trim();
-    if (text.length < 4 || text.length > 280) {
+    if (text.length < 4 || text.length > 220) {
+      return false;
+    }
+    if ((text.match(/\b(QB|RB|WR|TE)\b/g) || []).length > 2) {
       return false;
     }
     const compact = global.FDSPlayerMatch.normalizeName(text);
@@ -182,8 +185,24 @@
     });
   }
 
+  function isPaintableRow(target) {
+    if (!target || target === document.body || target === document.documentElement) return false;
+    if (isOurUi(target)) return false;
+    if (target.querySelectorAll('.ud-player-row, .dk-player-row, .player-row, [data-fds-player], [role="row"]').length > 1) {
+      return false;
+    }
+    const text = `${target.textContent || ''}`.replace(/\s+/g, ' ').trim();
+    if (text.length < 4 || text.length > 220) return false;
+    if ((text.match(/\b(QB|RB|WR|TE)\b/g) || []).length > 2) return false;
+    return true;
+  }
+
   function paintTarget(node) {
-    return node.closest?.('[data-fds-player], .ud-player-row, .dk-player-row, .player-row, li, tr, [role="row"], [role="option"], button') || node;
+    const row = node.closest?.(
+      '[data-fds-player], .ud-player-row, .dk-player-row, .player-row, [class*="PlayerRow"], [class*="player-row" i], [role="row"], [role="option"]'
+    );
+    const target = row || node;
+    return isPaintableRow(target) ? target : null;
   }
 
   function matchPlayer(node, players) {
@@ -270,7 +289,7 @@
     const painted = new Set();
     candidateNodes().forEach((node) => {
       const target = paintTarget(node);
-      if (painted.has(target) || isOurUi(target) || !isMetaRow(target)) return;
+      if (!target || painted.has(target) || isOurUi(target) || !isMetaRow(target)) return;
       const player = matchPlayer(node, players) || matchPlayer(target, players);
       if (!player) return;
       painted.add(target);
@@ -329,12 +348,12 @@
       recLabel.set(`${rec.player.name}|${rec.player.position}`, `REC ${index + 1} · ${rec.displayScore}`);
     });
 
-    heat.slice(0, 160).forEach((item) => {
+    heat.slice(0, 12).forEach((item) => {
       const painted = new Set();
       nodes.forEach((node) => {
         if (!nodeMatches(node, item.player)) return;
         const target = paintTarget(node);
-        if (painted.has(target) || isOurUi(target)) return;
+        if (!target || painted.has(target) || isOurUi(target)) return;
         painted.add(target);
         target.classList.add(MARK, `${MARK}-${item.heat}`);
         target.setAttribute('data-fds-heat', item.heat);

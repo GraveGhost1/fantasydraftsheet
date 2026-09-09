@@ -70,11 +70,14 @@ Click **⚙ Settings** for scoring weights (ranks, ADP, stacks, playoff weeks, p
 
 ### Refresh NFL schedule data
 
-Playoff-week stack scoring uses `extension/data/nfl-schedule-2026.json`. Regenerate before the season:
+Playoff-week stack scoring uses `extension/data/nfl-schedule-2026.json`. Daily slate detection uses kickoff-dated games in `extension/data/nfl-games-2026.json`. Regenerate before the season, and refresh games after flex-schedule changes:
 
 ```bash
 python build_nfl_schedule.py
+python build_nfl_games.py
 ```
+
+In the overlay, leave **Season** selected for Best Ball Mania. Switch to **Daily**, then pick Primetime (Wed/Thu) or Sunday, to filter the board to that window.
 
 ## MongoDB Atlas user storage
 

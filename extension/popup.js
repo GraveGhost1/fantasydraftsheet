@@ -11,14 +11,24 @@ function setStatus(message, kind) {
   statusEl.className = `status-banner ${kind || ''}`;
 }
 
-function send(type, payload) {
+function send(type, payload, timeoutMs) {
   return new Promise((resolve) => {
+    let settled = false;
+    const finish = (response) => {
+      if (settled) return;
+      settled = true;
+      resolve(response);
+    };
+    const timer = Number(timeoutMs) > 0
+      ? setTimeout(() => finish({ ok: false, error: 'Sync timed out. Reload the extension and try again.' }), timeoutMs)
+      : null;
     chrome.runtime.sendMessage({ type, payload }, (response) => {
+      if (timer) clearTimeout(timer);
       if (chrome.runtime.lastError) {
-        resolve({ ok: false, error: chrome.runtime.lastError.message });
+        finish({ ok: false, error: chrome.runtime.lastError.message });
         return;
       }
-      resolve(response || { ok: false, error: 'No response' });
+      finish(response || { ok: false, error: 'No response' });
     });
   });
 }
@@ -212,9 +222,24 @@ document.getElementById('logout').addEventListener('click', async () => {
   setStatus('Logged out. Using public best-ball ranks.', 'ok');
 });
 
+function dictLabel(count) {
+  const n = Number(count) || 0;
+  if (n >= 40) return `Player IDs learned: ${n}. Ready to Sync teams on slates you have opened.`;
+  if (n > 0) return `Player IDs learned: ${n}. Open more completed teams or a live room on that slate.`;
+  return 'Player IDs learned: 0. Open a completed Underdog team or a live draft room to start the ID sheet.';
+}
+
+async function refreshDictStatus() {
+  const el = document.getElementById('ud-dict-status');
+  if (!el) return;
+  const response = await send('GET_UD_PLAYER_DICT');
+  el.textContent = dictLabel(response?.count);
+}
+
 async function refreshPortfolioStatus() {
   const el = document.getElementById('portfolio-status');
   if (!el) return;
+  await refreshDictStatus();
   const response = await send('GET_PORTFOLIO');
   const summary = window.FDSPortfolio?.summarize(response?.portfolio);
   if (!summary?.playerCount && !summary?.lineupCount) {
@@ -223,8 +248,60 @@ async function refreshPortfolioStatus() {
       : 'No portfolio loaded. Log in to sync lineups across devices.';
     return;
   }
-  el.textContent = `${summary.lineupCount} lineups${response?.cloud ? ' · saved to your account' : ' · this browser'}`;
+  const season = Number(summary.seasonLineups) || 0;
+  const daily = Number(summary.dailyLineups) || 0;
+  const parts = [];
+  if (season) parts.push(`${season} season`);
+  if (daily) parts.push(`${daily} daily`);
+  const lineupText = parts.length
+    ? `${parts.join(' · ')} lineup${summary.lineupCount === 1 ? '' : 's'}`
+    : `${summary.lineupCount} lineups`;
+  el.textContent = `${lineupText}${response?.cloud ? ' · saved to your account' : ' · this browser'}`;
 }
+
+document.getElementById('sync-underdog')?.addEventListener('click', async () => {
+  const button = document.getElementById('sync-underdog');
+  if (button) button.disabled = true;
+  setStatus('Connecting to Underdog…', '');
+  const poll = setInterval(async () => {
+    const status = await send('GET_UNDERDOG_SYNC_STATUS');
+    if (status?.status) setStatus(status.status, '');
+    if (status?.dictCount != null) {
+      const dictEl = document.getElementById('ud-dict-status');
+      if (dictEl) dictEl.textContent = dictLabel(status.dictCount);
+    }
+  }, 800);
+  try {
+    const response = await send('SYNC_UNDERDOG_PORTFOLIO', null, 90000);
+    if (response?.ok) {
+      const added = Number(response.added) || 0;
+      const skippedKnown = Number(response.skippedKnown) || 0;
+      const skippedParse = Number(response.skippedParse) || 0;
+      const skipped = Number(response.skipped) || 0;
+      const listed = Number(response.listed) || 0;
+      if (response.parseHint && /dictionary|learned IDs|appearance_ids/i.test(response.parseHint)) {
+        setStatus(response.parseHint, 'err');
+      } else if (added) {
+        setStatus(`Imported ${added} Underdog lineup${added === 1 ? '' : 's'}${skippedKnown ? ` · ${skippedKnown} already saved` : ''}.`, 'ok');
+      } else if (skippedParse || (listed && !skippedKnown)) {
+        const found = listed || skippedParse || skipped;
+        const hint = response.parseHint ? ` (${response.parseHint})` : '';
+        setStatus(`Found ${found} Underdog draft${found === 1 ? '' : 's'} but could not read your players.${hint}`, 'err');
+      } else if (skippedKnown || skipped) {
+        setStatus('Underdog lineups already up to date.', 'ok');
+      } else {
+        setStatus('No completed Underdog lineups found.', 'ok');
+      }
+    } else {
+      setStatus(response?.error || 'Underdog sync failed.', 'err');
+    }
+    await refreshPortfolioStatus();
+  } catch (err) {
+    setStatus(err.message || 'Underdog sync failed.', 'err');
+  }
+  clearInterval(poll);
+  if (button) button.disabled = false;
+});
 
 async function openLocalPage(path) {
   const base = (apiBaseInput.value.trim() || 'http://127.0.0.1:8000').replace(/\/$/, '');

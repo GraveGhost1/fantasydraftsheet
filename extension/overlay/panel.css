@@ -416,15 +416,86 @@
   color: #fff;
 }
 
-.fds-format {
-  border: 1px solid rgba(59, 130, 246, 0.4);
-  background: rgba(59, 130, 246, 0.15);
-  color: #bfdbfe;
+.fds-format.is-active {
+  background: rgba(59, 130, 246, 0.28);
+  border-color: rgba(59, 130, 246, 0.65);
+  color: #fff;
+}
+
+.fds-format.is-daily {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #fcd34d;
+}
+
+.fds-format.is-daily.is-active {
+  background: rgba(245, 158, 11, 0.28);
+  border-color: rgba(245, 158, 11, 0.65);
+  color: #fde68a;
+}
+
+.fds-mode-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.fds-section > .fds-mode-pills + .fds-hint,
+.fds-section > .fds-hint + .fds-hint {
+  display: block;
+  margin-top: 6px;
+}
+
+.fds-mode-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.fds-slate-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.fds-slate-pill {
+  border: 1px solid var(--fds-border);
+  background: transparent;
+  color: #d1d5db;
   border-radius: 999px;
   padding: 5px 10px;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.fds-slate-pill.is-active {
+  background: rgba(245, 158, 11, 0.22);
+  border-color: rgba(245, 158, 11, 0.55);
+  color: #fde68a;
+}
+
+.fds-slider select {
+  width: 100%;
+  margin-top: 4px;
+  border: 1px solid var(--fds-border);
+  background: #111827;
+  color: #e5e7eb;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 12px;
+}
+
+.fds-slate-table .fds-slate-head,
+.fds-slate-table .fds-slate-row {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) max-content;
+}
+
+.fds-slate-row.is-mine strong {
+  color: #93c5fd;
 }
 
 .fds-bias {
@@ -1311,6 +1382,48 @@
 .fds-port-sub {
   margin: 4px 0 0;
   font-size: 11px;
+  color: var(--fds-muted);
+}
+
+.fds-team-list {
+  margin: 8px 14px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--fds-border, rgba(255,255,255,0.08));
+  border-radius: 8px;
+  background: rgba(0,0,0,0.15);
+}
+
+.fds-team-list summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--fds-muted);
+}
+
+.fds-team-row {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 8px;
+  align-items: start;
+  margin-top: 8px;
+}
+
+.fds-team-idx {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--fds-muted);
+  padding-top: 1px;
+}
+
+.fds-team-meta strong {
+  display: block;
+  font-size: 12px;
+}
+
+.fds-team-meta em {
+  display: block;
+  font-size: 11px;
+  font-style: normal;
   color: var(--fds-muted);
 }
 

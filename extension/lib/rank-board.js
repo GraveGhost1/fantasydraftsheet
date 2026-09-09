@@ -21,6 +21,7 @@
 
   function findPlayer(players, pick) {
     const match = global.FDSPlayerMatch;
+    if (!match?.namesMatch) return null;
     const pickName = pick?.name || pick?.playerName || '';
     const pickPos = match.normalizePosition(pick?.position);
     const pickTeam = match.normalizeName(pick?.team);
@@ -43,16 +44,51 @@
   }
 
   function pickIsDrafted(pick) {
-    if (Number(pick?.pickNo) > 0) return true;
-    if (pick?.trusted) return true;
-    return false;
+    const name = `${pick?.name || pick?.playerName || ''}`.trim();
+    return name.length >= 3;
   }
 
-  function applyPicks(players, picks) {
+  function pickNameKey(pick) {
+    const match = global.FDSPlayerMatch;
+    const name = pick?.name || pick?.playerName || '';
+    const pos = match?.normalizePosition(pick?.position) || String(pick?.position || '').toUpperCase();
+    const normalized = match?.normalizeName(name) || String(name).toLowerCase();
+    return `${normalized}|${pos}`;
+  }
+
+  function mergePicks(...lists) {
+    const byName = new Map();
+    const byPickNo = new Map();
+    lists.flat().forEach((pick) => {
+      const name = `${pick?.name || pick?.playerName || ''}`.trim();
+      if (name.length < 3) return;
+      const nameKey = pickNameKey(pick);
+      const pickNo = Number(pick?.pickNo);
+      const hasPickNo = Number.isFinite(pickNo) && pickNo > 0;
+      const prev = (hasPickNo && byPickNo.get(pickNo)) || byName.get(nameKey) || {};
+      const next = {
+        ...prev,
+        ...pick,
+        name,
+        position: pick.position || prev.position || '',
+        team: pick.team || prev.team || '',
+        pickNo: hasPickNo ? pickNo : (Number(prev.pickNo) > 0 ? Number(prev.pickNo) : null),
+        mine: Boolean(prev.mine || pick.mine),
+        trusted: true
+      };
+      byName.set(nameKey, next);
+      if (Number(next.pickNo) > 0) byPickNo.set(Number(next.pickNo), next);
+    });
+    const uniq = new Set();
+    byName.forEach((pick) => uniq.add(pick));
+    return [...uniq].sort((a, b) => (Number(a.pickNo) || 999) - (Number(b.pickNo) || 999));
+  }
+
+  function applyPicks(players, picks, options = {}) {
     const remaining = clonePlayers(players);
     const unmatched = [];
     const drafted = [];
-    (picks || []).forEach((pick, index) => {
+    mergePicks(picks).forEach((pick, index) => {
       if (!pickIsDrafted(pick)) return;
       const player = findPlayer(remaining, pick);
       if (!player) {
@@ -64,6 +100,10 @@
         });
         return;
       }
+      if (player.drafted) {
+        player.draftedByMe = player.draftedByMe || Boolean(pick?.mine);
+        return;
+      }
       player.drafted = true;
       player.draftedByMe = Boolean(pick?.mine);
       player.pickNo = pick?.pickNo || index + 1;
@@ -73,6 +113,7 @@
     const myRoster = remaining.filter((player) => player.draftedByMe);
     const myTeams = new Set(myRoster.map((player) => (player.team || '').toUpperCase()).filter(Boolean));
     const playoff = global.FDSPlayoffSchedule;
+    const slate = options.slate || null;
 
     remaining.forEach((player) => {
       if (player.drafted || !player.team) return;
@@ -82,7 +123,9 @@
         const hasSkillStack = player.position === 'QB' && myRoster.some((owned) => owned.position !== 'QB' && owned.team === team);
         player.stack = hasQbStack || hasSkillStack;
       }
-      if (playoff && myRoster.length) {
+      if (slate && myRoster.length && global.FDSSlate?.sameGame) {
+        player.bringBack = [...myTeams].some((owned) => global.FDSSlate.sameGame(team, owned, slate));
+      } else if (playoff && myRoster.length) {
         const profile = playoff.getTeamPlayoffProfile(team);
         player.bringBack = Boolean(profile.w17Opp && myTeams.has(profile.w17Opp));
       }
@@ -156,11 +199,12 @@
     return (a.myRank || 999) - (b.myRank || 999) || (a.adp || 999) - (b.adp || 999);
   }
 
-  function remainingPlayers(board, { position = 'ALL', query = '', sortKey = 'rank' } = {}) {
+  function remainingPlayers(board, { position = 'ALL', query = '', sortKey = 'rank', slate = null } = {}) {
     const q = `${query || ''}`.trim().toLowerCase();
     return board.players
       .filter((player) => !player.drafted)
       .filter((player) => SKILL.has(player.position))
+      .filter((player) => !slate || global.FDSSlate?.playerOnSlate(player, slate))
       .filter((player) => position === 'ALL' || player.position === position)
       .filter((player) => !q || `${player.name} ${player.team} ${player.position}`.toLowerCase().includes(q))
       .sort((a, b) => comparePlayers(a, b, sortKey));
@@ -206,6 +250,10 @@
 
   function stackedCount(players, qbTeams) {
     return (players || []).filter((player) => qbTeams.has(teamCode(player.team))).length;
+  }
+
+  function isDailyMode(settings) {
+    return settings?.mode === 'daily';
   }
 
   function countBandFor(pos, settings) {
@@ -411,7 +459,13 @@
     score += capitalPressure(player, rules.myRoster, settings, pickNo);
 
     if (global.FDSPortfolio && context.portfolio) {
-      score -= global.FDSPortfolio.portfolioPenalty(player, rules.myRoster, context.portfolio, settings.portfolioWeight);
+      score -= global.FDSPortfolio.portfolioPenalty(
+        player,
+        rules.myRoster,
+        context.portfolio,
+        settings.portfolioWeight,
+        { mode: settings.mode }
+      );
     }
 
     if (global.FDSDuplicates) {
@@ -431,7 +485,10 @@
     const have = rules.have;
     const capital = draftCapital(myRoster, settings, { pickNo });
     const capItem = capital.byPosition[player.position];
-    const target = capItem?.suggestedCount ?? settings.posTarget?.[player.position] ?? DEFAULT_TARGETS[player.position] ?? 2;
+    const defaultTargets = isDailyMode(settings)
+      ? (global.FDSSlate?.DAILY_FORMAT?.posTarget || DEFAULT_TARGETS)
+      : DEFAULT_TARGETS;
+    const target = capItem?.suggestedCount ?? settings.posTarget?.[player.position] ?? defaultTargets[player.position] ?? 2;
     const rank = Number(player.myRank || 999);
 
     let score = talentScore(player, settings);
@@ -448,11 +505,14 @@
     if (player.stack) score += 32 * stackScale;
     if (player.bringBack) score += 22 * stackScale;
 
-    if (global.FDSPlayoffSchedule) {
+    if (isDailyMode(settings) && global.FDSSlate && context.slate) {
+      score += global.FDSSlate.slateBonusForPlayer(player, myRoster, context.slate, settings);
+    } else if (global.FDSPlayoffSchedule) {
       score += global.FDSPlayoffSchedule.playoffBonusForPlayer(player, myRoster, settings);
     }
 
-    if (pickNo >= POSITIONAL_NEED_MIN_PICK) {
+    const needMin = isDailyMode(settings) ? 1 : POSITIONAL_NEED_MIN_PICK;
+    if (pickNo >= needMin) {
       if (have < target) {
         score += positionalNeedBonus(have, target, pickNo);
       } else {
@@ -463,7 +523,13 @@
     score += capitalAdjustment(capItem, settings);
 
     if (global.FDSPortfolio && context.portfolio) {
-      score -= global.FDSPortfolio.portfolioPenalty(player, myRoster, context.portfolio, settings.portfolioWeight);
+      score -= global.FDSPortfolio.portfolioPenalty(
+        player,
+        myRoster,
+        context.portfolio,
+        settings.portfolioWeight,
+        { mode: settings.mode }
+      );
     }
 
     if (global.FDSDuplicates) {
@@ -496,10 +562,10 @@
   function recScore(player, context = {}) {
     const settings = getSettings(context);
     const pickNo = context.pickNo || 1;
-    if (isEarlyPick(pickNo)) {
-      return earlyRecScore(player, context, settings);
+    if (isDailyMode(settings) || !isEarlyPick(pickNo)) {
+      return fullRecScore(player, context, settings);
     }
-    return fullRecScore(player, context, settings);
+    return earlyRecScore(player, context, settings);
   }
 
   function scorePlayers(remaining, context) {
@@ -539,34 +605,37 @@
     return scored.sort((a, b) => b.score - a.score || compareByExpertRank(a.player, b.player));
   }
 
-  function heatBand(index, total) {
+  function heatBand(index) {
     if (index <= 2) return 'best';
-    if (index <= Math.max(8, Math.floor(total * 0.2))) return 'good';
-    return 'fade';
+    if (index <= 7) return 'good';
+    return null;
   }
 
   function heatMap(remaining, context) {
     const pickNo = context.pickNo || 1;
+    const settings = getSettings(context);
+    const daily = isDailyMode(settings);
     const scored = sortScoredCandidates(
-      scorePlayers(remaining, context).filter((item) => realisticForPick(item.player, pickNo))
+      scorePlayers(remaining, context).filter((item) => daily || realisticForPick(item.player, pickNo))
     );
-    return scored.map((item, index) => ({
-      ...item,
-      heat: heatBand(index, scored.length),
-      rank: index + 1,
-      rawScore: Math.round(item.score),
-      displayScore: toDisplayScore(item.score, pickNo)
-    }));
+    return scored
+      .map((item, index) => ({
+        ...item,
+        heat: heatBand(index),
+        rank: index + 1,
+        rawScore: Math.round(item.score),
+        displayScore: toDisplayScore(item.score, pickNo)
+      }))
+      .filter((item) => item.heat);
   }
 
   function recommend(remaining, context, limit = 3) {
     const pickNo = context.pickNo || 1;
-    const scored = sortScoredCandidates(
-      scorePlayers(
-        (remaining || []).filter((player) => realisticForPick(player, pickNo)),
-        context
-      )
-    );
+    const settings = getSettings(context);
+    const pool = isDailyMode(settings)
+      ? (remaining || [])
+      : (remaining || []).filter((player) => realisticForPick(player, pickNo));
+    const scored = sortScoredCandidates(scorePlayers(pool, context));
 
     if (!scored.length) {
       return formatRecommendations(
@@ -587,6 +656,56 @@
     return round % 2 === 1 ? posInRound : size - posInRound + 1;
   }
 
+  function liftZeroIndexedSlots(picks, mySlot) {
+    const list = picks || [];
+    const slots = list.map((pick) => Number(pick?.slot)).filter((slot) => Number.isFinite(slot));
+    if (!slots.includes(0)) {
+      const hinted = Number(mySlot);
+      return {
+        picks: list,
+        mySlot: Number.isFinite(hinted) && hinted > 0 ? hinted : null
+      };
+    }
+    const hinted = Number(mySlot);
+    return {
+      picks: list.map((pick) => {
+        if (!Number.isFinite(Number(pick?.slot))) return pick;
+        return { ...pick, slot: Number(pick.slot) + 1 };
+      }),
+      mySlot: Number.isFinite(hinted) ? hinted + 1 : null
+    };
+  }
+
+  function inferTeamSize(picks, hinted) {
+    const hint = Number(hinted);
+    if (hint >= 6 && hint <= 14) return hint;
+    const slots = (picks || []).map((pick) => Number(pick?.slot)).filter((slot) => slot >= 1 && slot <= 14);
+    if (slots.length) {
+      const max = Math.max(...slots);
+      const unique = new Set(slots).size;
+      if (unique >= 6) return Math.max(max, unique);
+      if (max >= 8 && max <= 14) return max;
+    }
+    return DEFAULT_TEAM_SIZE;
+  }
+
+  function inferMySlot(picks, { mySlot = null, teamSize = DEFAULT_TEAM_SIZE } = {}) {
+    const hinted = Number(mySlot);
+    if (Number.isFinite(hinted) && hinted >= 1 && hinted <= 14) return hinted;
+    const mine = (picks || []).filter((pick) => pick?.mine);
+    const fromSlot = mine.map((pick) => Number(pick.slot)).filter((slot) => slot >= 1 && slot <= 14);
+    if (fromSlot.length) {
+      const counts = new Map();
+      fromSlot.forEach((slot) => counts.set(slot, (counts.get(slot) || 0) + 1));
+      return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
+    }
+    const fromPickNo = mine
+      .map((pick) => slotForPick(pick.pickNo, teamSize))
+      .filter((slot) => slot >= 1);
+    if (fromPickNo.length) return fromPickNo[0];
+    return null;
+  }
+
   function enrichPickSlot(pick, teamSize = DEFAULT_TEAM_SIZE) {
     if (!pick) return pick;
     const pickNo = Number(pick.pickNo);
@@ -601,12 +720,14 @@
   }
 
   function draftRoomState(picks, { teamSize = DEFAULT_TEAM_SIZE, mySlot = null } = {}) {
-    const size = Number(teamSize) || DEFAULT_TEAM_SIZE;
+    const lifted = liftZeroIndexedSlots(picks, mySlot);
+    const size = inferTeamSize(lifted.picks, teamSize);
+    const me = inferMySlot(lifted.picks, { mySlot: lifted.mySlot, teamSize: size });
     const bySlot = {};
     for (let slot = 1; slot <= size; slot += 1) {
       bySlot[slot] = {
         slot,
-        isMe: mySlot != null && Number(mySlot) === slot,
+        isMe: me != null && Number(me) === slot,
         picks: [],
         counts: { QB: 0, RB: 0, WR: 0, TE: 0 },
         total: 0
@@ -614,10 +735,10 @@
     }
 
     const totals = { QB: 0, RB: 0, WR: 0, TE: 0 };
-    (picks || []).forEach((rawPick) => {
+    (lifted.picks || []).forEach((rawPick) => {
       const pick = enrichPickSlot(rawPick, size);
-      const slot = pick.slot;
-      if (!slot || !bySlot[slot]) return;
+      const slot = Number(pick.slot);
+      if (!Number.isFinite(slot) || !bySlot[slot]) return;
       const pos = pick.position;
       if (!SKILL.has(pos)) return;
       bySlot[slot].picks.push(pick);
@@ -628,7 +749,7 @@
 
     return {
       teamSize: size,
-      mySlot: mySlot != null ? Number(mySlot) : null,
+      mySlot: me,
       totals,
       teams: Object.values(bySlot).sort((a, b) => a.slot - b.slot)
     };
@@ -717,6 +838,7 @@
 
   global.FDSRankBoard = {
     applyPicks,
+    mergePicks,
     remainingPlayers,
     rosterByPosition,
     adpDiff,
@@ -734,6 +856,9 @@
     slotForPick,
     enrichPickSlot,
     draftRoomState,
+    inferMySlot,
+    inferTeamSize,
+    liftZeroIndexedSlots,
     toDisplayScore,
     DEFAULT_TARGETS,
     DEFAULT_MAX,

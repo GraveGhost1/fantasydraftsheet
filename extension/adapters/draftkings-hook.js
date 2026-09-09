@@ -14,8 +14,12 @@
   let cachedMyUserId = null;
   let cachedMySlot = null;
   let cachedMyEntryId = null;
+  let lastSnapshotData = null;
+  let lastPortfolioData = null;
 
   function emit(kind, data) {
+    if (kind === 'snapshot') lastSnapshotData = data;
+    if (kind === 'portfolio') lastPortfolioData = data;
     const message = { source: SOURCE, kind, data };
     try {
       window.postMessage(message, '*');
@@ -31,22 +35,26 @@
     }
   }
 
-  function asName(value) {
-    if (!value) return '';
-    if (typeof value === 'string') return value.trim();
-    if (typeof value === 'object') {
-      const combined = [value.firstName, value.lastName].filter(Boolean).join(' ');
-      return (
-        value.displayName ||
-        value.playerName ||
-        value.fullName ||
-        value.name ||
-        value.shortName ||
-        combined ||
-        ''
-      ).trim();
+  function asText(value, depth) {
+    if (value == null || depth > 3) return '';
+    if (typeof value === 'string' || typeof value === 'number') return String(value).trim();
+    if (typeof value !== 'object') return '';
+    const combined = [asText(value.firstName, depth + 1), asText(value.lastName, depth + 1)].filter(Boolean).join(' ');
+    const fields = [value.displayName, value.playerName, value.fullName, value.shortName];
+    for (let i = 0; i < fields.length; i += 1) {
+      const text = asText(fields[i], depth + 1);
+      if (text) return text;
     }
-    return '';
+    if (typeof value.name === 'string' || typeof value.name === 'number') return String(value.name).trim();
+    if (value.name && typeof value.name === 'object') {
+      const nested = asText(value.name, depth + 1);
+      if (nested) return nested;
+    }
+    return combined;
+  }
+
+  function asName(value) {
+    return asText(value, 0);
   }
 
   function pickNumber(value) {
@@ -177,35 +185,45 @@
   }
 
   function maybeUserIdentity(key, value, found) {
-    const lower = String(key || '').toLowerCase();
-    if (
-      (lower === 'currentuserid' ||
-        lower === 'myuserid' ||
-        lower === 'userid' ||
-        lower === 'userkey' ||
-        lower === 'entryid' ||
-        lower === 'myentryid') &&
-      value &&
-      !found.myUserId
-    ) {
+    const compact = String(key || '').toLowerCase().replace(/[^a-z]/g, '');
+    if (['currentuserid', 'myuserid', 'loggedinuserid', 'authenticateduserid', 'viewerid'].includes(compact)) {
       if (typeof value === 'string' || typeof value === 'number') {
         found.myUserId = String(value);
         cachedMyUserId = found.myUserId;
-        if (lower.includes('entry')) {
-          cachedMyEntryId = found.myUserId;
-          found.myEntryId = found.myUserId;
-        }
       }
     }
-    if (lower.includes('userslot') || lower === 'myslot' || lower === 'draftslot' || lower === 'draftposition') {
+    if (['myentryid', 'currententryid', 'currentuserentryid', 'loggedinentryid', 'myentrykey'].includes(compact)) {
+      if (typeof value === 'string' || typeof value === 'number') {
+        found.myEntryId = String(value);
+        cachedMyEntryId = found.myEntryId;
+      }
+    }
+    if (['myslot', 'mydraftslot', 'mydraftposition', 'mypickslot', 'currentuserslot', 'yourslot', 'yourdraftslot', 'yourdraftposition'].includes(compact)) {
       const slot = Number(value);
-      if (Number.isFinite(slot) && slot > 0) {
+      if (Number.isFinite(slot) && slot >= 0 && slot <= 14) {
         found.mySlot = slot;
         cachedMySlot = slot;
       }
     }
-    if (value === true && (lower.includes('iscurrentuser') || lower.includes('isme') || lower === 'isuser')) {
+    if (value === true && (compact === 'iscurrentuser' || compact === 'isme' || compact === 'isuser' || compact === 'isself')) {
       found.isCurrentUserContext = true;
+    }
+    if (['you', 'me', 'currentuser', 'currentuserentry', 'mydraftentry', 'self', 'viewer'].includes(compact) && value && typeof value === 'object' && !Array.isArray(value)) {
+      found.isCurrentUserContext = true;
+      const slot = Number(value.slot ?? value.draftSlot ?? value.draftPosition ?? value.pickOrder);
+      if (Number.isFinite(slot) && slot >= 0 && slot <= 14) {
+        found.mySlot = slot;
+        cachedMySlot = slot;
+      }
+      const id = value.userId ?? value.entryId ?? value.id;
+      if (id != null && typeof id !== 'object') {
+        found.myUserId = String(id);
+        cachedMyUserId = found.myUserId;
+        if (value.entryId || compact.includes('entry')) {
+          found.myEntryId = String(value.entryId || id);
+          cachedMyEntryId = found.myEntryId;
+        }
+      }
     }
   }
 
@@ -384,6 +402,12 @@
   function unwrapPayloads(data) {
     const payloads = [data];
     if (!data || typeof data !== 'object') return payloads;
+    if (Array.isArray(data)) {
+      data.forEach((item) => {
+        if (item && typeof item === 'object') payloads.push(item);
+      });
+      return payloads;
+    }
     if (Array.isArray(data.arguments)) payloads.push(...data.arguments);
     if (data.payload && typeof data.payload === 'object') payloads.push(data.payload);
     if (data.message && typeof data.message === 'object') payloads.push(data.message);
@@ -417,7 +441,6 @@
 
       if (found.myUserId) cachedMyUserId = found.myUserId;
       if (found.myEntryId) cachedMyEntryId = found.myEntryId;
-      if (found.mySlot) cachedMySlot = found.mySlot;
       if (found.draftId) cachedDraftId = found.draftId;
 
       const uniq = [];
@@ -437,16 +460,26 @@
         return;
       }
 
-      if (!found.mySlot && cachedMySlot) found.mySlot = cachedMySlot;
+      const slots = ready.map((pick) => Number(pick.slot)).filter((slot) => Number.isFinite(slot));
+      if (slots.includes(0)) {
+        ready.forEach((pick) => {
+          if (Number.isFinite(Number(pick.slot))) pick.slot = Number(pick.slot) + 1;
+        });
+        if (found.mySlot != null) found.mySlot = Number(found.mySlot) + 1;
+      }
+      if (found.mySlot == null && cachedMySlot != null) found.mySlot = cachedMySlot;
+      if (found.mySlot != null) cachedMySlot = found.mySlot;
       ready.forEach((pick) => {
         if (pick.mine) return;
-        if (found.mySlot && pick.slot === found.mySlot) pick.mine = true;
+        if (found.mySlot != null && Number(pick.slot) === Number(found.mySlot)) pick.mine = true;
       });
 
+      const maxSlot = slots.length ? Math.max(...slots.map((slot) => (slot === 0 ? 1 : slot))) : 12;
       emit('snapshot', {
         picks: ready,
         onTheClock: found.onTheClock,
         mySlot: found.mySlot,
+        teamSize: maxSlot >= 6 && maxSlot <= 14 ? Math.max(maxSlot, 12) : 12,
         draftId: found.draftId,
         myUserId: found.myUserId,
         totalPicks: 20
@@ -459,24 +492,57 @@
     if (/analytics|google-analytics|stripe|sentry|segment|optimizely|braze|snowplow|doubleclick/i.test(text)) {
       return false;
     }
-    return /draftkings|gateway|graphql|signalr|draft|contest|draftable|lineup|pick/i.test(text);
+    if (!text || text.startsWith('/') || text.startsWith('./') || text.startsWith('?')) return true;
+    return /draftkings|gateway|graphql|signalr|pusher|ably|socket|draft|contest|draftable|lineup|pick/i.test(text);
+  }
+
+  function decodeSocketText(raw) {
+    if (raw == null) return '';
+    if (typeof raw === 'string') return raw;
+    if (raw instanceof ArrayBuffer) {
+      try {
+        return new TextDecoder().decode(raw);
+      } catch (err) {
+        return '';
+      }
+    }
+    if (ArrayBuffer.isView(raw)) {
+      try {
+        return new TextDecoder().decode(raw);
+      } catch (err) {
+        return '';
+      }
+    }
+    return '';
+  }
+
+  function parseSocketJson(raw) {
+    if (raw && typeof raw === 'object' && !(raw instanceof ArrayBuffer) && !ArrayBuffer.isView(raw)) {
+      return raw;
+    }
+    const text = decodeSocketText(raw).trim();
+    if (!text) return null;
+    const startCandidates = [text.indexOf('{'), text.indexOf('[')].filter((index) => index >= 0);
+    if (!startCandidates.length) return null;
+    const slice = text.slice(Math.min(...startCandidates));
+    try {
+      return JSON.parse(slice);
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function safeInspect(data, url) {
+    try {
+      inspect(data, url);
+    } catch (err) {
+      /* ignore malformed live payloads */
+    }
   }
 
   function parseSocketData(raw, url) {
-    if (raw == null) return;
-    if (typeof raw === 'string') {
-      const trimmed = raw.trim();
-      if (!trimmed || (trimmed[0] !== '{' && trimmed[0] !== '[')) return;
-      try {
-        inspect(JSON.parse(trimmed), url);
-      } catch (err) {
-        /* ignore non-JSON socket frames */
-      }
-      return;
-    }
-    if (typeof raw === 'object') {
-      inspect(raw, url);
-    }
+    const parsed = parseSocketJson(raw);
+    if (parsed) safeInspect(parsed, url);
   }
 
   const originalFetch = window.fetch;
@@ -487,7 +553,7 @@
         const url = typeof args[0] === 'string' ? args[0] : args[0]?.url;
         if (shouldInspect(url)) {
           const clone = response.clone();
-          clone.json().then((data) => inspect(data, url)).catch(() => {});
+          clone.json().then((data) => safeInspect(data, url)).catch(() => {});
         }
       } catch (err) {
         // Ignore parse errors from non-JSON responses.
@@ -508,7 +574,7 @@
         if (!shouldInspect(this.__fdsDkUrl)) return;
         const contentType = this.getResponseHeader('content-type') || '';
         if (!contentType.includes('json')) return;
-        inspect(JSON.parse(this.responseText), this.__fdsDkUrl);
+        safeInspect(JSON.parse(this.responseText), this.__fdsDkUrl);
       } catch (err) {
         // Ignore non-JSON XHR payloads.
       }
@@ -523,7 +589,7 @@
         ? new OriginalWebSocket(url, protocols)
         : new OriginalWebSocket(url);
       ws.addEventListener('message', (event) => {
-        if (shouldInspect(url) || /draftkings/i.test(String(url || ''))) {
+        if (!/analytics|google-analytics|stripe|sentry|segment/i.test(String(url || ''))) {
           parseSocketData(event.data, url);
         }
       });
@@ -538,4 +604,11 @@
     WrappedWebSocket.__fdsDkWrapped = true;
     window.WebSocket = WrappedWebSocket;
   }
+
+  window.addEventListener('message', (event) => {
+    const payload = event.data;
+    if (!payload || payload.source !== SOURCE || payload.kind !== 'request') return;
+    if (lastSnapshotData) emit('snapshot', lastSnapshotData);
+    if (lastPortfolioData) emit('portfolio', lastPortfolioData);
+  });
 })();

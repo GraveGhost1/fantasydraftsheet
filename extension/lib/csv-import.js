@@ -123,9 +123,9 @@
     return { entries, error: null };
   }
 
-  function exposureToPortfolio(entries, { totalDrafts = 100, source = 'csv' } = {}) {
+  function exposureToPortfolio(entries, { totalDrafts = 100, source = 'csv', mode = 'season' } = {}) {
     if (global.FDSPortfolio?.fromExposureEntries) {
-      return global.FDSPortfolio.fromExposureEntries(entries, { totalDrafts, source });
+      return global.FDSPortfolio.fromExposureEntries(entries, { totalDrafts, source, mode });
     }
     const portfolio = {
       drafts: [],
@@ -172,11 +172,24 @@
     });
 
     const drafts = [...byId.entries()]
-      .filter(([, picks]) => picks.length >= 8)
-      .map(([id, picks]) => ({ id, savedAt: Date.now(), picks }));
+      .filter(([, picks]) => {
+        const mode = global.FDSPortfolio?.resolveDraftMode
+          ? global.FDSPortfolio.resolveDraftMode(picks)
+          : (picks.length >= 12 ? 'season' : 'daily');
+        const min = mode === 'daily' ? 4 : 8;
+        return picks.length >= min;
+      })
+      .map(([id, picks]) => ({
+        id,
+        savedAt: Date.now(),
+        picks,
+        mode: global.FDSPortfolio?.resolveDraftMode
+          ? global.FDSPortfolio.resolveDraftMode(picks)
+          : (picks.length >= 12 ? 'season' : 'daily')
+      }));
 
     if (!drafts.length) {
-      return { drafts: [], error: 'No complete lineups found. Need 8+ skill players per Draft ID.' };
+      return { drafts: [], error: 'No complete lineups found. Need 4+ skill players for daily or 8+ for season.' };
     }
     return { drafts, error: null };
   }

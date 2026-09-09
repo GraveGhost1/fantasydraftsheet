@@ -102,6 +102,90 @@
       .trim();
   }
 
+  function cleanPickText(value) {
+    return `${value || ''}`
+      .replace(/\b\d{1,2}:\d{2}\b/g, ' ')
+      .replace(/[·•|/]+/g, ' ')
+      .replace(/\s*[-–—]\s*/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function parsePickNumber(raw) {
+    const text = String(raw || '').trim();
+    if (!text) return null;
+    const dotted = text.match(/^(\d{1,2})\.(\d{1,2})$/);
+    if (dotted) {
+      const round = Number(dotted[1]);
+      const slot = Number(dotted[2]);
+      if (round > 0 && slot > 0) return (round - 1) * 12 + slot;
+    }
+    const number = Number(text.replace('.', ''));
+    return Number.isFinite(number) && number > 0 ? number : null;
+  }
+
+  function parsePickText(value, { requirePickNo } = {}) {
+    const cleaned = cleanPickText(value);
+    if (!cleaned || cleaned.length > 200) return null;
+    if (/^(upcoming|on the clock|waiting|your pick|make your pick)\b/i.test(cleaned)) return null;
+
+    const patterns = [
+      /^(\d{1,3}(?:\.\d{1,2})?)\s+([A-Za-z][A-Za-z.'\-]+),\s*([A-Za-z][A-Za-z.'\-]+(?:\s+[A-Za-z][A-Za-z.'\-]*)?)\s+(QB|RB|WR|TE)\s+([A-Z]{2,3})\b/i,
+      /^(\d{1,3}(?:\.\d{1,2})?)\s+([A-Za-z][A-Za-z.'\-\s]{1,40}?)\s+(QB|RB|WR|TE)\s+([A-Z]{2,3})\b/i,
+      /^(\d{1,3}(?:\.\d{1,2})?)\s+([A-Za-z][A-Za-z.'\-\s]{1,40}?)\s+([A-Z]{2,3})\s+(QB|RB|WR|TE)\b/i,
+      /^([A-Za-z][A-Za-z.'\-]+),\s*([A-Za-z][A-Za-z.'\-]+(?:\s+[A-Za-z][A-Za-z.'\-]*)?)\s+(QB|RB|WR|TE)\s+([A-Z]{2,3})\b/i,
+      /^([A-Za-z][A-Za-z.'\-\s]{2,40}?)\s+(QB|RB|WR|TE)\s+([A-Z]{2,3})\b/i,
+      /^([A-Za-z][A-Za-z.'\-\s]{2,40}?)\s+([A-Z]{2,3})\s+(QB|RB|WR|TE)\b/i
+    ];
+
+    for (let i = 0; i < patterns.length; i += 1) {
+      const match = cleaned.match(patterns[i]);
+      if (!match) continue;
+      let pickNo = null;
+      let name = '';
+      let position = '';
+      let team = '';
+      if (i === 0) {
+        pickNo = parsePickNumber(match[1]);
+        name = `${match[3]} ${match[2]}`;
+        position = match[4];
+        team = match[5];
+      } else if (i === 1) {
+        pickNo = parsePickNumber(match[1]);
+        name = match[2];
+        position = match[3];
+        team = match[4];
+      } else if (i === 2) {
+        pickNo = parsePickNumber(match[1]);
+        name = match[2];
+        team = match[3];
+        position = match[4];
+      } else if (i === 3) {
+        name = `${match[2]} ${match[1]}`;
+        position = match[3];
+        team = match[4];
+      } else if (i === 4) {
+        name = match[1];
+        position = match[2];
+        team = match[3];
+      } else {
+        name = match[1];
+        team = match[2];
+        position = match[3];
+      }
+      name = name.replace(/\s+/g, ' ').trim();
+      if (name.length < 3) continue;
+      if (requirePickNo && !(Number(pickNo) > 0)) continue;
+      return {
+        pickNo: Number(pickNo) > 0 ? pickNo : null,
+        name,
+        position: position.toUpperCase(),
+        team: team.toUpperCase()
+      };
+    }
+    return null;
+  }
+
   global.FDSPlayerMatch = {
     normalizeName,
     normalizeNameForMatch,
@@ -109,6 +193,9 @@
     getNameMatchKeys,
     namesMatch,
     rankKey,
-    extractNameFromText
+    extractNameFromText,
+    parsePickText,
+    parsePickNumber,
+    cleanPickText
   };
 })(typeof window !== 'undefined' ? window : globalThis);

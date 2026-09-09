@@ -56,7 +56,9 @@
           Import lineups or exposure CSV
           <input id="exposure-csv" type="file" accept=".csv,text/csv" />
         </label>
-        <p class="hint">Lineups: <code>draft_id,player,pos,team</code> (8+ players per draft for combos). Exposure-only: Player, Pos, Team, Exposure%. Log in to keep lineups on your Draft Sheet account across browsers.</p>
+        <p class="hint">Lineups: <code>draft_id,player,pos,team</code>. Daily teams can be 4–8 players; season-long needs 8+. Exposure-only CSV applies to the overlay's current mode (Season or Daily). Log in to keep lineups on your Draft Sheet account across browsers.</p>
+        <p id="ud-dict-status" class="hint">Player IDs learned: 0. Open a completed Underdog team or a live draft room to start the ID sheet.</p>
+        <button id="sync-underdog" type="button" class="full">Sync Underdog lineups</button>
         <p id="portfolio-status" class="hint"></p>
         <button id="clear-csv" type="button" class="secondary full">Clear imported CSV ranks</button>
       </div>

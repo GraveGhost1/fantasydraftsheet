@@ -1,9 +1,12 @@
-importScripts('lib/portfolio.js');
+importScripts('lib/portfolio.js', 'lib/underdog-account-sync.js');
 
 const DEFAULT_API_BASE = 'http://127.0.0.1:8000';
 const BOARD_TTL_MS = 5 * 60 * 1000;
 const DEFAULT_ASSISTANT_SETTINGS = {
   format: 'bestball',
+  mode: 'season',
+  slatePreset: 'primetime',
+  slateWeek: 0,
   rankSource: 'expert',
   settingsVersion: 3,
   rankWeight: 85,
@@ -13,6 +16,7 @@ const DEFAULT_ASSISTANT_SETTINGS = {
   week17Importance: 65,
   week16Importance: 25,
   week15Importance: 10,
+  slateImportance: 70,
   capitalWeight: 45,
   contrarianWeight: 10,
   portfolioWeight: 40,
@@ -23,8 +27,168 @@ const DEFAULT_ASSISTANT_SETTINGS = {
   posBias: { QB: 'default', RB: 'default', WR: 'default', TE: 'default' }
 };
 
+const UD_APPEARANCE_SCHEMA = 2;
+
+function isAppearanceUuid(id) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id || ''));
+}
+
+async function loadAppearanceStore() {
+  const stored = await chrome.storage.local.get(['fdsUdAppearanceMap', 'fdsUdAppearanceMeta']);
+  if (Number(stored.fdsUdAppearanceMeta?.schema) >= UD_APPEARANCE_SCHEMA) {
+    return {
+      map: stored.fdsUdAppearanceMap || {},
+      meta: stored.fdsUdAppearanceMeta
+    };
+  }
+  await chrome.storage.local.set({
+    fdsUdAppearanceMap: {},
+    fdsUdAppearanceMeta: { count: 0, updatedAt: Date.now(), schema: UD_APPEARANCE_SCHEMA }
+  });
+  return { map: {}, meta: { count: 0, updatedAt: Date.now(), schema: UD_APPEARANCE_SCHEMA } };
+}
+
+async function rememberUnderdogDrafts(entries) {
+  const sync = self.FDSUnderdogAccountSync;
+  if (sync?.rememberDrafts) return sync.rememberDrafts(entries);
+  return [];
+}
+
+function draftsToRemember(drafts, fallbackMode) {
+  return (drafts || []).map((draft) => {
+    const draftId = self.FDSUnderdogAccountSync?.rawUdDraftId
+      ? self.FDSUnderdogAccountSync.rawUdDraftId(draft.id)
+      : String(draft.id || '').replace(/^ud-(daily-)?/i, '');
+    const mode = draft.mode || fallbackMode;
+    const picks = (draft.picks || []).filter((pick) => pick?.name).map((pick) => ({
+      name: pick.name,
+      position: pick.position || '',
+      team: pick.team || '',
+      appearanceId: pick.appearanceId || pick.appearance_id || ''
+    }));
+    if ((mode !== 'daily' && mode !== 'season') || (!draftId && picks.length < 4)) return null;
+    return {
+      draftId,
+      mode,
+      slateId: draft.slateId || '',
+      slateTitle: draft.slateTitle || '',
+      picks
+    };
+  }).filter(Boolean);
+}
+
 let cachedBoard = null;
 let cachedAt = 0;
+let underdogSyncRunning = false;
+let underdogScrapeTabId = null;
+let underdogScrapePattern = null;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function waitForTabLoad(tabId, timeoutMs = 20000) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+      resolve(true);
+    };
+    const onUpdated = (id, info) => {
+      if (id === tabId && info.status === 'complete') finish();
+    };
+    chrome.tabs.onUpdated.addListener(onUpdated);
+    chrome.tabs.get(tabId).then((tab) => {
+      if (tab?.status === 'complete') finish();
+    }).catch(() => {});
+    setTimeout(finish, timeoutMs);
+  });
+}
+
+function underdogDraftUrls(draftId, entryId) {
+  const id = encodeURIComponent(draftId);
+  const entry = entryId ? `?entry=${encodeURIComponent(entryId)}` : '';
+  return [
+    `https://app.underdogsports.com/draft/${id}${entry}`,
+    `https://app.underdogfantasy.com/draft/${id}${entry}`,
+    `https://app.underdogsports.com/drafts/${id}${entry}`,
+    `https://app.underdogfantasy.com/drafts/${id}${entry}`,
+    `https://app.underdogsports.com/draft/${id}`,
+    `https://app.underdogfantasy.com/draft/${id}`
+  ];
+}
+
+async function messageTab(tabId, message) {
+  return chrome.tabs.sendMessage(tabId, message);
+}
+
+async function scrapeRosterFromTab(tabId, boardPlayers) {
+  try {
+    await messageTab(tabId, { type: 'FDS_BUILD_UD_CATALOG' });
+  } catch (_err) {
+    /* catalog optional */
+  }
+  await sleep(400);
+  try {
+    return await messageTab(tabId, { type: 'FDS_SCRAPE_VISIBLE_ROSTER', boardPlayers });
+  } catch (err) {
+    return { picks: [], appearances: {}, error: err.message };
+  }
+}
+
+async function withTimeout(promise, ms, fallback) {
+  let timer = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve(fallback), ms);
+      })
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function scrapeUnderdogDraft({ draftId, entryId, boardPlayers }) {
+  return withTimeout((async () => {
+    const existing = await chrome.tabs.query({
+      url: ['https://*.underdogfantasy.com/*', 'https://*.underdogsports.com/*']
+    });
+    const alreadyOpen = (existing || []).find((tab) => String(tab.url || '').includes(String(draftId)));
+    if (alreadyOpen?.id) {
+      const scraped = await withTimeout(scrapeRosterFromTab(alreadyOpen.id, boardPlayers), 2500, { picks: [] });
+      if ((scraped?.picks || []).length >= 8) {
+        return { ...scraped, probe: `open-tab:${scraped.picks.length}` };
+      }
+    }
+
+    const url = underdogDraftUrls(draftId, entryId)[0];
+    if (!underdogScrapeTabId) {
+      const tab = await chrome.tabs.create({ url, active: false });
+      underdogScrapeTabId = tab.id;
+    } else {
+      await chrome.tabs.update(underdogScrapeTabId, { url });
+    }
+    await waitForTabLoad(underdogScrapeTabId, 8000);
+    await sleep(2000);
+    const scraped = await withTimeout(scrapeRosterFromTab(underdogScrapeTabId, boardPlayers), 2500, { picks: [] });
+    const count = (scraped?.picks || []).length;
+    return { ...(scraped || {}), picks: scraped?.picks || [], probe: `opened:${count}` };
+  })(), 12000, { picks: [], appearances: {}, probe: 'opened:timeout' });
+}
+
+async function closeUnderdogScrapeTab() {
+  if (!underdogScrapeTabId) return;
+  try {
+    await chrome.tabs.remove(underdogScrapeTabId);
+  } catch (_err) {
+    /* already closed */
+  }
+  underdogScrapeTabId = null;
+}
 
 function samePosMap(a, b) {
   if (!a || !b) return false;
@@ -58,6 +222,12 @@ function mergeAssistantSettings(partial) {
   if (storedVersion < DEFAULT_ASSISTANT_SETTINGS.settingsVersion) {
     merged.settingsVersion = DEFAULT_ASSISTANT_SETTINGS.settingsVersion;
   }
+
+  merged.mode = merged.mode === 'daily' ? 'daily' : 'season';
+  const week = Number(merged.slateWeek);
+  merged.slateWeek = Number.isFinite(week) && week >= 0 ? Math.round(week) : 0;
+  if (!merged.slatePreset) merged.slatePreset = DEFAULT_ASSISTANT_SETTINGS.slatePreset;
+  if (merged.slateImportance == null) merged.slateImportance = DEFAULT_ASSISTANT_SETTINGS.slateImportance;
 
   return merged;
 }
@@ -112,20 +282,25 @@ async function pullPortfolioFromCloud() {
 }
 
 async function getPortfolio() {
-  const stored = await chrome.storage.local.get(['assistantPortfolio']);
-  const raw = self.FDSPortfolio?.loadFromStorage(stored.assistantPortfolio) || stored.assistantPortfolio || {
-    drafts: [],
-    playerCounts: {},
-    comboCounts: {},
-    totalDrafts: 0
-  };
-  const compacted = self.FDSPortfolio?.compactDuplicateDrafts
-    ? self.FDSPortfolio.compactDuplicateDrafts(raw)
-    : { stats: raw, removed: 0 };
-  if (compacted.removed) {
-    return savePortfolio(compacted.stats, { syncCloud: true });
+  try {
+    const stored = await chrome.storage.local.get(['assistantPortfolio']);
+    const raw = self.FDSPortfolio?.loadFromStorage(stored.assistantPortfolio) || stored.assistantPortfolio || {
+      drafts: [],
+      playerCounts: {},
+      comboCounts: {},
+      totalDrafts: 0
+    };
+    const compacted = self.FDSPortfolio?.compactDuplicateDrafts
+      ? self.FDSPortfolio.compactDuplicateDrafts(raw)
+      : { stats: raw, removed: 0 };
+    if (compacted.removed) {
+      return savePortfolio(compacted.stats, { syncCloud: true });
+    }
+    return compacted.stats;
+  } catch (err) {
+    console.error('FDS getPortfolio failed', err);
+    return self.FDSPortfolio?.emptyStats?.() || { drafts: [], playerCounts: {}, comboCounts: {}, totalDrafts: 0 };
   }
-  return compacted.stats;
 }
 
 async function savePortfolio(portfolio, { syncCloud = true } = {}) {
@@ -172,7 +347,10 @@ async function syncPortfolioWithAccount() {
   }
 
   const merged = self.FDSPortfolio.mergeDrafts(remote, seed.drafts || [], { source: settings.username ? 'account' : 'local' });
-  return savePortfolio(merged.stats, { syncCloud: Boolean(settings.username && settings.password) });
+  const withImported = self.FDSPortfolio.mergeImportedByMode
+    ? self.FDSPortfolio.mergeImportedByMode(merged.stats, seed)
+    : merged.stats;
+  return savePortfolio(withImported, { syncCloud: Boolean(settings.username && settings.password) });
 }
 
 async function getSettings() {
@@ -350,7 +528,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
   if (type === 'GET_BOARD') {
-    Promise.all([fetchBoard({ force: Boolean(message.payload?.force) }), getAssistantSettings(), getPortfolio()])
+    Promise.all([
+      fetchBoard({ force: Boolean(message.payload?.force) }),
+      getAssistantSettings(),
+      getPortfolio().catch(() => null)
+    ])
       .then(([board, settings, portfolio]) => sendResponse({ ok: true, board, settings, portfolio }))
       .catch((err) => sendResponse({ ok: false, error: err.message }));
     return true;
@@ -375,6 +557,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
   if (type === 'GET_PORTFOLIO') {
     getPortfolio().then(async (local) => {
+      await rememberUnderdogDrafts(draftsToRemember(local?.drafts || []));
       const settings = await getSettings();
       if (!settings.username || !settings.password) {
         sendResponse({ ok: true, portfolio: local, cloud: false });
@@ -382,6 +565,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       }
       try {
         const portfolio = await syncPortfolioWithAccount();
+        await rememberUnderdogDrafts(draftsToRemember(portfolio?.drafts || []));
         sendResponse({ ok: true, portfolio, cloud: true });
       } catch (_err) {
         sendResponse({ ok: true, portfolio: local, cloud: false });
@@ -394,9 +578,15 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       const picks = message.payload?.picks || [];
       const next = self.FDSPortfolio.recordDraft(portfolio, picks, {
         draftId: message.payload?.draftId || `draft-${Date.now()}`,
-        source: 'live'
+        source: 'live',
+        mode: message.payload?.mode
       });
       await savePortfolio(next);
+      await rememberUnderdogDrafts(draftsToRemember([{
+        id: message.payload?.draftId,
+        mode: message.payload?.mode,
+        picks
+      }], message.payload?.mode));
       sendResponse({ ok: true, portfolio: next });
     });
     return true;
@@ -409,9 +599,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         return;
       }
       const merged = self.FDSPortfolio.mergeDrafts(portfolio, incoming, {
-        source: message.payload?.source || 'sync'
+        source: message.payload?.source || 'sync',
+        mode: message.payload?.mode
       });
       await savePortfolio(merged.stats);
+      await rememberUnderdogDrafts(draftsToRemember(incoming, message.payload?.mode));
       sendResponse({
         ok: true,
         portfolio: merged.stats,
@@ -422,6 +614,15 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
   if (type === 'CLEAR_PORTFOLIO') {
+    const mode = message.payload?.mode;
+    if ((mode === 'daily' || mode === 'season') && self.FDSPortfolio.clearMode) {
+      getPortfolio().then(async (portfolio) => {
+        const next = self.FDSPortfolio.clearMode(portfolio, mode);
+        await savePortfolio(next);
+        sendResponse({ ok: true, portfolio: next });
+      });
+      return true;
+    }
     savePortfolio(self.FDSPortfolio.emptyStats())
       .then((portfolio) => sendResponse({ ok: true, portfolio }));
     return true;
@@ -455,13 +656,196 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
   if (type === 'IMPORT_EXPOSURE_CSV') {
-    const portfolio = message.payload?.portfolio;
-    if (!portfolio) {
+    const incoming = message.payload?.portfolio;
+    if (!incoming) {
       sendResponse({ ok: false, error: 'Missing exposure data' });
       return true;
     }
-    savePortfolio(portfolio)
-      .then((saved) => sendResponse({ ok: true, portfolio: saved }));
+    Promise.all([getPortfolio(), getAssistantSettings()]).then(async ([existing, settings]) => {
+      const mode = message.payload?.mode === 'daily' || message.payload?.mode === 'season'
+        ? message.payload.mode
+        : settings.mode;
+      const next = self.FDSPortfolio.applyImportedExposure
+        ? self.FDSPortfolio.applyImportedExposure(existing, incoming, {
+          mode,
+          source: incoming.source || message.payload?.source || 'csv'
+        })
+        : incoming;
+      const saved = await savePortfolio(next);
+      sendResponse({ ok: true, portfolio: saved });
+    });
+    return true;
+  }
+  if (type === 'STORE_UD_APPEARANCES') {
+    const incoming = message.payload && typeof message.payload === 'object' ? message.payload : {};
+    loadAppearanceStore().then((stored) => {
+      const next = { ...stored.map };
+      Object.keys(incoming).forEach((id) => {
+        const player = incoming[id];
+        if (!isAppearanceUuid(id) || !player?.name) return;
+        next[id] = {
+          name: player.name,
+          position: player.position || '',
+          team: player.team || ''
+        };
+      });
+      return chrome.storage.local.set({
+        fdsUdAppearanceMap: next,
+        fdsUdAppearanceMeta: {
+          count: Object.keys(next).length,
+          updatedAt: Date.now(),
+          schema: UD_APPEARANCE_SCHEMA
+        }
+      }).then(() => ({ count: Object.keys(next).length }));
+    }).then((result) => sendResponse({ ok: true, count: result?.count || 0 }))
+      .catch((err) => sendResponse({ ok: false, error: err.message }));
+    return true;
+  }
+  if (type === 'GET_UD_PLAYER_DICT') {
+    loadAppearanceStore().then((stored) => {
+      sendResponse({
+        ok: true,
+        count: Object.keys(stored.map).length,
+        updatedAt: stored.meta?.updatedAt || 0
+      });
+    });
+    return true;
+  }
+  if (type === 'REMEMBER_UD_DRAFT') {
+    const row = message.payload || {};
+    rememberUnderdogDrafts(draftsToRemember([{
+      id: row.draftId || row.id,
+      mode: row.mode,
+      slateId: row.slateId,
+      slateTitle: row.slateTitle,
+      picks: row.picks
+    }], row.mode)).then(() => sendResponse({ ok: true }))
+      .catch((err) => sendResponse({ ok: false, error: err.message }));
+    return true;
+  }
+  if (type === 'GET_UNDERDOG_SYNC_STATUS') {
+    const sync = self.FDSUnderdogAccountSync;
+    if (!sync?.getProgress) {
+      sendResponse({ ok: true, running: underdogSyncRunning, status: '' });
+      return true;
+    }
+    Promise.all([
+      sync.getProgress(),
+      getPortfolio().catch(() => null),
+      loadAppearanceStore()
+    ]).then(([progress, portfolio, stored]) => {
+      sendResponse({
+        ok: true,
+        running: underdogSyncRunning,
+        status: progress?.status || '',
+        added: progress?.added || 0,
+        skipped: progress?.skipped || 0,
+        done: Boolean(progress?.done),
+        dictCount: Object.keys(stored.map || {}).length,
+        portfolio
+      });
+    });
+    return true;
+  }
+  if (type === 'SYNC_UNDERDOG_PORTFOLIO') {
+    if (underdogSyncRunning) {
+      sendResponse({ ok: false, error: 'An Underdog sync is already running.' });
+      return true;
+    }
+    const sync = self.FDSUnderdogAccountSync;
+    if (!sync?.syncAccount) {
+      sendResponse({ ok: false, error: 'Account sync is not available. Reload the extension.' });
+      return true;
+    }
+    underdogSyncRunning = true;
+    (async () => {
+      try {
+        const [storedPortfolio, stored, board, csvBoard] = await Promise.all([
+          getPortfolio(),
+          loadAppearanceStore(),
+          fetchBoard().catch(() => null),
+          getCsvBoard().catch(() => null)
+        ]);
+        const staleUd = (storedPortfolio.drafts || []).filter((draft) => (
+          /^ud-/i.test(String(draft.id || ''))
+          && !(draft.picks || []).every((pick) => pick?.appearanceId && pick?.name)
+        ));
+        const portfolio = staleUd.length
+          ? await savePortfolio(self.FDSPortfolio.rebuildCounts({
+            ...storedPortfolio,
+            drafts: (storedPortfolio.drafts || []).filter((draft) => !staleUd.includes(draft))
+          }, { source: storedPortfolio.source, importedExposure: false }))
+          : storedPortfolio;
+        const fromTabs = {};
+        try {
+          const tabs = await chrome.tabs.query({
+            url: ['https://*.underdogfantasy.com/*', 'https://*.underdogsports.com/*']
+          });
+          await withTimeout(Promise.all((tabs || []).slice(0, 2).map(async (tab) => {
+            try {
+              const resp = await chrome.tabs.sendMessage(tab.id, { type: 'FDS_GET_UD_APPEARANCES' });
+              Object.assign(fromTabs, resp?.appearances || {});
+            } catch (_err) {
+              /* tab may not have the overlay */
+            }
+          })), 2000, null);
+        } catch (_err) {
+          /* no Underdog tabs */
+        }
+        const knownIds = new Set((portfolio.drafts || []).map((draft) => String(draft.id)));
+        await rememberUnderdogDrafts(draftsToRemember(portfolio.drafts || []));
+        const result = await sync.syncAccount({
+          knownIds,
+          rememberedDrafts: draftsToRemember(portfolio.drafts || []),
+          appearanceMap: { ...(stored.map || {}), ...fromTabs },
+          boardPlayers: board?.players?.length ? board.players : (csvBoard?.players || []),
+          scrapeDraft: null,
+          resolveFromPage: async (ids) => {
+            const tabs = await chrome.tabs.query({
+              url: ['https://*.underdogfantasy.com/*', 'https://*.underdogsports.com/*']
+            });
+            for (let t = 0; t < (tabs || []).length; t += 1) {
+              try {
+                const resp = await chrome.tabs.sendMessage(tabs[t].id, {
+                  type: 'FDS_RESOLVE_UD_IDS',
+                  ids: (ids || []).slice(0, 18)
+                });
+                if (resp?.appearances || resp?.probe) return resp;
+              } catch (_err) {
+                /* tab may not have the overlay */
+              }
+            }
+            return { appearances: {}, probe: 'page:none' };
+          },
+          mergeBatch: async (drafts) => {
+            const current = await getPortfolio();
+            const merged = self.FDSPortfolio.mergeDrafts(current, drafts, { source: 'underdog' });
+            await savePortfolio(merged.stats);
+            return merged;
+          }
+        });
+        const next = await getPortfolio();
+        sendResponse({
+          ok: true,
+          portfolio: next,
+          added: result.added,
+          skipped: result.skipped,
+          skippedKnown: result.skippedKnown,
+          skippedParse: result.skippedParse,
+          scanned: result.scanned,
+          listed: result.listed,
+          parsed: result.parsed,
+          slateCount: result.slateCount,
+          parseHint: result.parseHint || ''
+        });
+      } catch (err) {
+        sendResponse({ ok: false, error: err.message || 'Underdog sync failed.' });
+      } finally {
+        underdogSyncRunning = false;
+        await closeUnderdogScrapeTab();
+        underdogScrapePattern = null;
+      }
+    })();
     return true;
   }
   sendResponse({ ok: false, error: 'Unknown message' });

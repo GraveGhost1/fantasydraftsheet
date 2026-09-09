@@ -1,11 +1,29 @@
 (function (global) {
   const SOURCE = 'fds-draftkings-hook';
-  const PICK_LINE_WITH_NO = /^(\d{1,3}(?:\.\d{2})?)[\s.:-]+([A-Za-z][A-Za-z.'\-\s]+?)\s+(QB|RB|WR|TE)\s+([A-Z]{2,3})\b/;
-  const PICK_LINE_NAME_POS = /^([A-Za-z][A-Za-z.'\-\s]{2,40}?)\s+(QB|RB|WR|TE)\s+([A-Z]{2,3})\b/;
   const DK_TOTAL_PICKS = 20;
   let latestNetworkSnapshot = null;
   let latestPortfolioSnapshot = null;
   let latestVisibleRoster = null;
+  let lastHookAsk = 0;
+
+  function requestHookSnapshot() {
+    const now = Date.now();
+    if (now - lastHookAsk < 2000) return;
+    lastHookAsk = now;
+    const message = { source: SOURCE, kind: 'request' };
+    try {
+      window.postMessage(message, '*');
+    } catch (err) {
+      /* ignore */
+    }
+    [...document.querySelectorAll('iframe')].forEach((frame) => {
+      try {
+        frame.contentWindow?.postMessage(message, '*');
+      } catch (err) {
+        /* cross-origin iframe */
+      }
+    });
+  }
 
   window.addEventListener('message', (event) => {
     const payload = event.data;
@@ -56,30 +74,9 @@
   }
 
   function parsePickLine(text, { requirePickNo } = {}) {
-    let match = text.match(PICK_LINE_WITH_NO);
-    if (match) {
-      return {
-        pickNo: Number(String(match[1]).replace('.', '')),
-        name: match[2].replace(/\s+/g, ' ').trim(),
-        position: match[3],
-        team: match[4],
-        mine: false,
-        trusted: true
-      };
-    }
-    if (requirePickNo) return null;
-    match = text.match(PICK_LINE_NAME_POS);
-    if (match) {
-      return {
-        pickNo: null,
-        name: match[1].replace(/\s+/g, ' ').trim(),
-        position: match[2],
-        team: match[3],
-        mine: false,
-        trusted: true
-      };
-    }
-    return null;
+    const parsed = global.FDSPlayerMatch?.parsePickText?.(text, { requirePickNo });
+    if (!parsed?.name) return null;
+    return { ...parsed, mine: false, trusted: true };
   }
 
   function documentsToScan() {
@@ -101,7 +98,7 @@
     seen.add(key);
     picks.push({
       ...pick,
-      pickNo: Number(pick.pickNo) > 0 ? Number(pick.pickNo) : picks.length + 1 + (index || 0),
+      pickNo: Number(pick.pickNo) > 0 ? Number(pick.pickNo) : null,
       trusted: true
     });
   }
@@ -241,23 +238,37 @@
       return testRoom;
     }
 
+    if (!latestNetworkSnapshot) requestHookSnapshot();
     const network = latestNetworkSnapshot;
     const domPicks = readDomPicks();
     const networkPicks = (network?.picks || []).map((pick, index) => ({
       ...pick,
-      pickNo: Number(pick.pickNo) > 0 ? Number(pick.pickNo) : index + 1,
+      pickNo: Number(pick.pickNo) > 0 ? Number(pick.pickNo) : null,
       trusted: true
     }));
-    const picks = networkPicks.length ? networkPicks : domPicks;
-    const isDraftRoom = pageLooksLikeDraft() || picks.length > 0;
+    const picks = window.FDSRankBoard?.mergePicks
+      ? window.FDSRankBoard.mergePicks(networkPicks, domPicks)
+      : (networkPicks.length ? networkPicks : domPicks);
+    const board = window.FDSRankBoard;
+    const lifted = board?.liftZeroIndexedSlots
+      ? board.liftZeroIndexedSlots(picks, network?.mySlot)
+      : { picks, mySlot: network?.mySlot };
+    const teamSize = board?.inferTeamSize
+      ? board.inferTeamSize(lifted.picks, network?.teamSize)
+      : (Number(network?.teamSize) || 12);
+    const mySlot = board?.inferMySlot
+      ? board.inferMySlot(lifted.picks, { mySlot: lifted.mySlot, teamSize })
+      : lifted.mySlot;
+    const isDraftRoom = pageLooksLikeDraft() || lifted.picks.length > 0;
     const explorer = pageLooksLikeExplorer() && !isDraftRoom;
     return {
       isDraftRoom,
       isExplorer: explorer && !isDraftRoom,
       source: networkPicks.length ? 'network' : (domPicks.length ? 'dom' : 'none'),
-      picks,
+      picks: lifted.picks,
       onTheClock: network?.onTheClock ?? onTheClockFromDom(),
-      mySlot: network?.mySlot || null,
+      mySlot,
+      teamSize,
       draftId: network?.draftId || draftIdFromLocation(),
       totalPicks: Number(network?.totalPicks) || DK_TOTAL_PICKS,
       portfolioCapture: latestPortfolioSnapshot,

@@ -175,10 +175,10 @@
     });
     let picks = uniquePicks(fromLines);
 
-    if (picks.length < 8) {
+    if (picks.length < 4) {
       const blob = global.FDSPlayerMatch?.normalizeName(raw) || '';
       if (blob.length > 3500) {
-        return { picks, error: `Found ${picks.length} skill players. Need 8+ (QB/RB/WR/TE).` };
+        return { picks, error: `Found ${picks.length} skill players. Need 4+ for daily or 8+ for season.` };
       }
       const blobHits = [];
       (boardPlayers || [])
@@ -195,8 +195,8 @@
       picks = uniqueBlob.slice(0, 18);
     }
 
-    if (picks.length < 8) {
-      return { picks, error: `Found ${picks.length} skill players. Need 8+ (QB/RB/WR/TE).` };
+    if (picks.length < 4) {
+      return { picks, error: `Found ${picks.length} skill players. Need 4+ for daily or 8+ for season.` };
     }
     return {
       picks,
@@ -205,16 +205,36 @@
     };
   }
 
-  function looksLikeBestBallRoster(picks) {
-    if (!picks || picks.length < 8 || picks.length > 20) return false;
+  function positionCounts(picks) {
     const counts = { QB: 0, RB: 0, WR: 0, TE: 0 };
-    picks.forEach((player) => {
+    (picks || []).forEach((player) => {
       if (counts[player.position] != null) counts[player.position] += 1;
     });
+    return counts;
+  }
+
+  function looksLikeDailyRoster(picks) {
+    if (!picks || picks.length < 4 || picks.length > 10) return false;
+    const counts = positionCounts(picks);
+    const skill = counts.QB + counts.RB + counts.WR + counts.TE;
+    if (skill >= 4 && skill >= picks.length - 1) return true;
+    return skill === picks.length && counts.QB <= 2 && (counts.RB + counts.WR) >= 2;
+  }
+
+  function looksLikeBestBallRoster(picks) {
+    if (!picks || picks.length < 8 || picks.length > 20) return false;
+    const counts = positionCounts(picks);
     return counts.QB >= 1 && counts.RB >= 2 && counts.WR >= 3;
   }
 
+  function looksLikeCompletedRoster(picks) {
+    return looksLikeDailyRoster(picks) || looksLikeBestBallRoster(picks);
+  }
+
   function scoreRoster(picks) {
+    if (looksLikeDailyRoster(picks) && picks.length <= 10) {
+      return 80 - Math.abs(6 - picks.length) * 3;
+    }
     if (!looksLikeBestBallRoster(picks)) return 0;
     return 100 - Math.abs(18 - picks.length) * 4;
   }
@@ -252,7 +272,7 @@
 
   function parseRosterText(text, boardPlayers) {
     const parsed = parsePastedLineup(text, boardPlayers);
-    if (!parsed.error && looksLikeBestBallRoster(parsed.picks)) {
+    if (!parsed.error && looksLikeCompletedRoster(parsed.picks)) {
       return parsed;
     }
     return parsed.error ? parsed : { ...parsed, error: parsed.picks?.length ? 'That view does not look like one completed team.' : parsed.error };
@@ -336,7 +356,7 @@
     }
 
     const fromLabels = labeledBoardPicks(boardPlayers);
-    if (looksLikeBestBallRoster(fromLabels)) {
+    if (looksLikeCompletedRoster(fromLabels)) {
       return {
         picks: fromLabels,
         drafts: [{ id: lineupId(fromLabels, 'page'), savedAt: Date.now(), picks: fromLabels }],
@@ -360,7 +380,9 @@
     demoDrafts,
     parsePastedLineup,
     readVisibleRoster,
+    looksLikeDailyRoster,
     looksLikeBestBallRoster,
+    looksLikeCompletedRoster,
     rememberClickText,
     getLastClickText,
     lineupId
