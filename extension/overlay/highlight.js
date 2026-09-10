@@ -9,8 +9,8 @@
       position: relative !important;
     }
     .fds-host-heat-best {
-      background: rgba(37, 99, 235, 0.42) !important;
-      box-shadow: inset 5px 0 0 #2563eb !important;
+      background: rgba(61, 125, 154, 0.42) !important;
+      box-shadow: inset 5px 0 0 #3d7d9a !important;
     }
     .fds-host-heat-good {
       background: rgba(168, 85, 247, 0.36) !important;
@@ -31,7 +31,7 @@
       top: -9px;
       font: 700 10px/1 "Segoe UI", sans-serif;
       color: #eff6ff;
-      background: #2563eb;
+      background: #3d7d9a;
       padding: 3px 6px;
       border-radius: 999px;
       pointer-events: none;
@@ -49,7 +49,7 @@
     .fds-rank-inline {
       font-weight: 800;
       font-size: 12px;
-      color: #60a5fa;
+      color: #b7d6e8;
       flex-shrink: 0;
       font-variant-numeric: tabular-nums;
     }
@@ -68,7 +68,7 @@
     }
     .ud-player-row .fds-rank-inline,
     .player-row .fds-rank-inline {
-      color: #2563eb;
+      color: #3d7d9a;
     }
     .ud-player-row .fds-exp-pill,
     .player-row .fds-exp-pill,

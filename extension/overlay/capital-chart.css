@@ -78,7 +78,7 @@
 .fds-cap-fill.QB { background: #a855f7; }
 .fds-cap-fill.RB { background: #22c55e; }
 .fds-cap-fill.WR { background: #f97316; }
-.fds-cap-fill.TE { background: #3b82f6; }
+.fds-cap-fill.TE { background: #3d7d9a; }
 
 .fds-cap-fill.is-inRange {
   box-shadow: inset 0 0 0 2px rgba(134, 239, 172, 0.7);
@@ -178,7 +178,7 @@
 .fds-cap-row-fill.QB { background: #a855f7; }
 .fds-cap-row-fill.RB { background: #22c55e; }
 .fds-cap-row-fill.WR { background: #f97316; }
-.fds-cap-row-fill.TE { background: #3b82f6; }
+.fds-cap-row-fill.TE { background: #3d7d9a; }
 
 .fds-cap-row-fill.is-over {
   box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.8);

@@ -2,15 +2,15 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Draft Sheet Assistant</title>
+    <title>Ghost FF Assistant</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
     <header class="popup-header">
-      <div class="logo">DA</div>
+      <div class="logo" aria-hidden="true"></div>
       <div>
-        <h1>Draft Assistant</h1>
-        <p class="lede">Underdog and DraftKings Best Ball overlay</p>
+        <h1>Ghost FF</h1>
+        <p class="lede">Ghost Fantasy Football overlay</p>
       </div>
     </header>
 
@@ -27,7 +27,7 @@
     </section>
 
     <section class="card">
-      <label for="api-base">Draft Sheet URL</label>
+      <label for="api-base">Ghost FF URL</label>
       <input id="api-base" type="url" placeholder="http://127.0.0.1:8000" />
       <p class="hint">Local: run <code>python app.py</code>. Production: your Render URL.</p>
     </section>
@@ -56,7 +56,7 @@
           Import lineups or exposure CSV
           <input id="exposure-csv" type="file" accept=".csv,text/csv" />
         </label>
-        <p class="hint">Lineups: <code>draft_id,player,pos,team</code>. Daily teams can be 4–8 players; season-long needs 8+. Exposure-only CSV applies to the overlay's current mode (Season or Daily). Log in to keep lineups on your Draft Sheet account across browsers.</p>
+        <p class="hint">Lineups: <code>draft_id,player,pos,team</code>. Daily teams can be 4–8 players; season-long needs 8+. Exposure-only CSV applies to the overlay's current mode (Season or Daily). Log in to keep lineups on your Ghost FF account across browsers.</p>
         <p id="ud-dict-status" class="hint">Player IDs learned: 0. Open a completed Underdog team or a live draft room to start the ID sheet.</p>
         <button id="sync-underdog" type="button" class="full">Sync Underdog lineups</button>
         <p id="portfolio-status" class="hint"></p>

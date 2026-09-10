@@ -161,11 +161,11 @@ document.getElementById('login').addEventListener('click', async () => {
   try {
     const allowed = await requestApiAccess(apiBaseInput.value.trim());
     if (!allowed) {
-      setStatus('Permission to contact your Draft Sheet URL was denied.', 'err');
+      setStatus('Permission to contact your Ghost FF URL was denied.', 'err');
       return;
     }
   } catch (err) {
-    setStatus(err.message || 'Invalid Draft Sheet URL', 'err');
+    setStatus(err.message || 'Invalid Ghost FF URL', 'err');
     return;
   }
   await saveRankSource();
@@ -187,11 +187,11 @@ document.getElementById('public').addEventListener('click', async () => {
   try {
     const allowed = await requestApiAccess(apiBaseInput.value.trim());
     if (!allowed) {
-      setStatus('Permission to contact your Draft Sheet URL was denied.', 'err');
+      setStatus('Permission to contact your Ghost FF URL was denied.', 'err');
       return;
     }
   } catch (err) {
-    setStatus(err.message || 'Invalid Draft Sheet URL', 'err');
+    setStatus(err.message || 'Invalid Ghost FF URL', 'err');
     return;
   }
   await saveRankSource();
@@ -312,7 +312,7 @@ async function openLocalPage(path) {
       return;
     }
   } catch (err) {
-    setStatus(err.message || 'Invalid Draft Sheet URL', 'err');
+    setStatus(err.message || 'Invalid Ghost FF URL', 'err');
     return;
   }
   chrome.tabs.create({ url: `${base}${path}` });

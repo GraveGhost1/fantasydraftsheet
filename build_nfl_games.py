@@ -28,10 +28,88 @@ ALIASES = {
     'LA': 'LAR',
 }
 
+TEAM_NICKNAMES = {
+    'ARI': ('ARI', 'CARDINALS', 'ARIZONA'),
+    'ATL': ('ATL', 'FALCONS', 'ATLANTA'),
+    'BAL': ('BAL', 'RAVENS', 'BALTIMORE'),
+    'BUF': ('BUF', 'BILLS', 'BUFFALO'),
+    'CAR': ('CAR', 'PANTHERS', 'CAROLINA'),
+    'CHI': ('CHI', 'BEARS', 'CHICAGO'),
+    'CIN': ('CIN', 'BENGALS', 'CINCINNATI'),
+    'CLE': ('CLE', 'BROWNS', 'CLEVELAND'),
+    'DAL': ('DAL', 'COWBOYS', 'DALLAS'),
+    'DEN': ('DEN', 'BRONCOS', 'DENVER'),
+    'DET': ('DET', 'LIONS', 'DETROIT'),
+    'GB': ('GB', 'GNB', 'PACKERS', 'GREEN BAY'),
+    'HOU': ('HOU', 'TEXANS', 'HOUSTON'),
+    'IND': ('IND', 'COLTS', 'INDIANAPOLIS'),
+    'JAX': ('JAX', 'JAC', 'JAGUARS', 'JACKSONVILLE'),
+    'KC': ('KC', 'KCC', 'CHIEFS', 'KANSAS CITY'),
+    'LAC': ('LAC', 'CHARGERS', 'LOS ANGELES CHARGERS'),
+    'LAR': ('LAR', 'LA', 'RAMS', 'LOS ANGELES RAMS'),
+    'LV': ('LV', 'LVR', 'RAIDERS', 'LAS VEGAS', 'OAKLAND'),
+    'MIA': ('MIA', 'DOLPHINS', 'MIAMI'),
+    'MIN': ('MIN', 'VIKINGS', 'MINNESOTA'),
+    'NE': ('NE', 'NEP', 'PATRIOTS', 'NEW ENGLAND'),
+    'NO': ('NO', 'NOS', 'SAINTS', 'NEW ORLEANS'),
+    'NYG': ('NYG', 'GIANTS', 'NEW YORK GIANTS'),
+    'NYJ': ('NYJ', 'JETS', 'NEW YORK JETS'),
+    'PHI': ('PHI', 'EAGLES', 'PHILADELPHIA'),
+    'PIT': ('PIT', 'STEELERS', 'PITTSBURGH'),
+    'SEA': ('SEA', 'SEAHAWKS', 'SEATTLE'),
+    'SF': ('SF', 'SFO', '49ERS', 'NINERS', 'SAN FRANCISCO'),
+    'TB': ('TB', 'TAM', 'BUCCANEERS', 'BUCS', 'TAMPA BAY'),
+    'TEN': ('TEN', 'TITANS', 'TENNESSEE'),
+    'WAS': ('WAS', 'WSH', 'COMMANDERS', 'WASHINGTON'),
+}
+
 
 def normalize_team(raw: str) -> str:
     token = str(raw or '').strip().upper()
     return ALIASES.get(token, token)
+
+
+def _to_float(value):
+    try:
+        if value in (None, ''):
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def implied_points(total, home_spread):
+    if total is None or home_spread is None:
+        return None, None
+    return round((total - home_spread) / 2, 2), round((total + home_spread) / 2, 2)
+
+
+def _team_mentioned(team: str, text: str) -> bool:
+    blob = str(text or '').upper()
+    for token in TEAM_NICKNAMES.get(team, (team,)):
+        if token in blob:
+            return True
+    return False
+
+
+def _home_spread_from_odds(odds: dict, home_team: str, away_team: str):
+    spread = _to_float(odds.get('spread'))
+    details = str(odds.get('details') or '').strip()
+    if not details:
+        return spread
+    parts = details.rsplit(' ', 1)
+    if len(parts) != 2:
+        return spread
+    favorite_text, line_raw = parts
+    line = _to_float(line_raw)
+    if line is None:
+        return spread
+    abs_line = abs(line)
+    if _team_mentioned(home_team, favorite_text):
+        return -abs_line if abs_line else 0.0
+    if _team_mentioned(away_team, favorite_text):
+        return abs_line if abs_line else 0.0
+    return spread
 
 
 def fetch_json(url: str) -> dict:
@@ -92,7 +170,7 @@ def parse_event(event: dict) -> dict | None:
     if not home_team or not away_team:
         return None
 
-    odds = (comp.get('odds') or [{}])[0]
+    odds = (comp.get('odds') or [{}])[0] or {}
     venue = comp.get('venue') or {}
     status = (comp.get('status') or event.get('status') or {}).get('type') or {}
     raw_broadcast = comp.get('broadcast') or ''
@@ -101,6 +179,10 @@ def parse_event(event: dict) -> dict | None:
     week = int((event.get('week') or {}).get('number') or event.get('_week') or 0)
     if week < 1:
         return None
+
+    total = _to_float(odds.get('overUnder'))
+    home_spread = _home_spread_from_odds(odds, home_team, away_team)
+    implied_home, implied_away = implied_points(total, home_spread)
 
     return {
         'id': str(event.get('id') or comp.get('id') or f'{away_team}-{home_team}-w{week}'),
@@ -111,7 +193,11 @@ def parse_event(event: dict) -> dict | None:
         'broadcast': str(raw_broadcast or ''),
         'indoor': bool(venue.get('indoor')),
         'neutral': bool(comp.get('neutralSite')),
-        'total': odds.get('overUnder'),
+        'total': total,
+        'spread': home_spread,
+        'spreadDetails': str(odds.get('details') or ''),
+        'impliedHome': implied_home,
+        'impliedAway': implied_away,
         'timeValid': bool(comp.get('timeValid', True)),
         'flexTbd': bool((comp.get('status') or {}).get('isTBDFlex')),
         'short': event.get('shortName') or f'{away_team} @ {home_team}',

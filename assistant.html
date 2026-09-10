@@ -2,128 +2,92 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Draft Assistant · Underdog overlay</title>
-    <style>
-      :root {
-        color-scheme: dark;
-        --bg: #0a0e14;
-        --text: #f9fafb;
-        --muted: #9ca3af;
-        --accent: #3b82f6;
-        --border: rgba(255, 255, 255, 0.1);
-      }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--text);
-        font: 16px/1.5 "Segoe UI", Tahoma, sans-serif;
-      }
-      main {
-        max-width: 760px;
-        margin: 0 auto;
-        padding: 40px 20px 80px;
-      }
-      a { color: #93c5fd; }
-      .logo {
-        display: inline-grid;
-        place-items: center;
-        width: 40px;
-        height: 40px;
-        border-radius: 12px;
-        background: var(--accent);
-        font-weight: 800;
-        margin-bottom: 16px;
-      }
-      h1 { margin: 0 0 8px; }
-      .lede { color: var(--muted); margin-bottom: 28px; }
-      section {
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        padding: 18px 20px;
-        margin-bottom: 16px;
-        background: rgba(17, 24, 39, 0.55);
-      }
-      h2 { margin: 0 0 10px; font-size: 18px; }
-      ol { margin: 0; padding-left: 20px; }
-      li { margin: 8px 0; }
-      code, .copy {
-        font-family: ui-monospace, Consolas, monospace;
-        background: #111827;
-        padding: 2px 6px;
-        border-radius: 6px;
-      }
-      .copy-row {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        flex-wrap: wrap;
-      }
-      button {
-        font: inherit;
-        font-weight: 700;
-        border: 0;
-        border-radius: 10px;
-        padding: 8px 12px;
-        background: var(--accent);
-        color: #fff;
-        cursor: pointer;
-      }
-      .note { color: var(--muted); font-size: 14px; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Assistant · Ghost FF</title>
+    <link rel="stylesheet" href="styles.css?v=20260910-photos2" />
   </head>
   <body>
-    <main>
-      <div class="logo">DA</div>
-      <h1>Underdog Draft Assistant</h1>
-      <p class="lede">A Chrome overlay for Underdog Best Ball. It uses the same rankings as your draft sheet and does not change the existing board.</p>
+    <div class="app-shell">
+      <div class="header-cluster">
+        <div class="top-bar-chrome">
+          <a class="logo-section logo-link" href="/">
+            <span class="logo-mark" aria-hidden="true"></span>
+            <div class="logo-copy">
+              <h1>Ghost FF</h1>
+              <p>Ghost Fantasy Football</p>
+            </div>
+          </a>
+          <button type="button" id="nav-expand-toggle" class="nav-expand-toggle" aria-expanded="false" aria-controls="top-bar-nav">
+            <span class="nav-expand-label">Menu</span>
+            <span class="nav-expand-chevron" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div class="top-bar-nav" id="top-bar-nav">
+          <nav class="page-nav" aria-label="Ghost FF">
+            <a href="/" class="nav-btn">Draft</a>
+            <a href="/start-sit" class="nav-btn">Start/Sit</a>
+            <a href="/assistant" class="nav-btn is-current" aria-current="page">Assistant</a>
+          </nav>
+        </div>
+      </div>
 
-      <section>
-        <h2>Your server URL</h2>
-        <p>Paste this into the extension popup as <strong>Draft Sheet URL</strong>.</p>
-        <p class="copy-row">
-          <code id="api-base"></code>
-          <button id="copy-api" type="button">Copy</button>
-        </p>
-        <p class="note">Local: keep <code>http://127.0.0.1:8000</code> and run <code>python app.py</code>.</p>
-      </section>
+      <main class="ghost-main">
+        <header class="ghost-hero">
+          <p class="ghost-kicker">Best Ball overlay</p>
+          <h2>Draft Assistant</h2>
+          <p class="ghost-lede">A Chrome overlay for Underdog and DraftKings Best Ball. It uses the same Ghost FF ranks and does not change the draft board.</p>
+        </header>
 
-      <section>
-        <h2>Install the Chrome extension</h2>
-        <ol>
-          <li>Open <code>chrome://extensions</code></li>
-          <li>Turn on <strong>Developer mode</strong></li>
-          <li>Click <strong>Load unpacked</strong></li>
-          <li>Select the <code>extension</code> folder in this project</li>
-          <li>Pin <strong>Draft Sheet Assistant</strong>, log in (or use public ranks), then open an Underdog draft</li>
-        </ol>
-      </section>
+        <section class="ghost-panel">
+          <h2>Your server URL</h2>
+          <p>Paste this into the extension popup as <strong>Ghost FF URL</strong>.</p>
+          <p class="copy-row">
+            <code class="ghost-copy" id="api-base"></code>
+            <button id="copy-api" type="button">Copy</button>
+          </p>
+          <p class="ghost-note">Local: keep <code class="ghost-copy">http://127.0.0.1:8000</code> and run <code class="ghost-copy">python app.py</code>.</p>
+        </section>
 
-      <section>
-        <h2>Try it without a live draft</h2>
-        <p>After the extension is loaded, open the local test room:</p>
-        <p><a id="test-link" href="/extension/test-draft-room.html">Open test draft room</a></p>
-        <p class="note">Take <em>My pick</em> to fill your roster and the capital bars. Top remaining names turn green, then orange, then red. In the overlay, cycle QB/RB/WR/TE between dock, boost, and exclude.</p>
-      </section>
+        <section class="ghost-panel">
+          <h2>Install the Chrome extension</h2>
+          <ol>
+            <li>Open <code class="ghost-copy">chrome://extensions</code></li>
+            <li>Turn on <strong>Developer mode</strong></li>
+            <li>Click <strong>Load unpacked</strong></li>
+            <li>Select the <code class="ghost-copy">extension</code> folder in this project</li>
+            <li>Pin <strong>Ghost FF Assistant</strong>, log in (or use public ranks), then open a draft</li>
+          </ol>
+        </section>
 
-      <section>
-        <h2>On Underdog</h2>
-        <ol>
-          <li>Join a Best Ball draft on underdogfantasy.com</li>
-          <li>The panel appears on the right and re-ranks remaining players as picks come off</li>
-          <li>You still make the pick in Underdog — this overlay does not auto-draft</li>
-        </ol>
-      </section>
+        <section class="ghost-panel">
+          <h2>Try it without a live draft</h2>
+          <p>After the extension is loaded, open the local test room:</p>
+          <p><a id="test-link" href="/extension/test-draft-room.html">Open test draft room</a></p>
+          <p class="ghost-note">Take <em>My pick</em> to fill your roster and the capital bars. Top remaining names turn steel, then orange, then red. In the overlay, cycle QB/RB/WR/TE between dock, boost, and exclude.</p>
+        </section>
 
-      <p class="note"><a href="/">Back to the draft sheet</a> · existing rankings, login, and Sleeper sync are unchanged.</p>
-    </main>
+        <section class="ghost-panel">
+          <h2>On Underdog</h2>
+          <ol>
+            <li>Join a Best Ball draft on underdogfantasy.com</li>
+            <li>The panel appears on the right and re-ranks remaining players as picks come off</li>
+            <li>You still make the pick in Underdog — this overlay does not auto-draft</li>
+          </ol>
+        </section>
+      </main>
+    </div>
     <script>
       const origin = window.location.origin;
       document.getElementById('api-base').textContent = origin;
       document.getElementById('copy-api').addEventListener('click', async () => {
         await navigator.clipboard.writeText(origin);
         document.getElementById('copy-api').textContent = 'Copied';
+      });
+      const navToggle = document.getElementById('nav-expand-toggle');
+      const headerCluster = document.querySelector('.header-cluster');
+      navToggle?.addEventListener('click', () => {
+        const open = headerCluster.classList.toggle('is-nav-open');
+        navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
       });
     </script>
   </body>

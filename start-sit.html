@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Start/Sit · Ghost FF</title>
+    <link rel="stylesheet" href="styles.css?v=20260910-photos2" />
+    <link rel="stylesheet" href="start-sit.css?v=20260910-photos2" />
+  </head>
+  <body class="start-sit-page">
+    <div class="app-shell">
+      <div class="header-cluster">
+        <div class="top-bar-chrome">
+          <a class="logo-section logo-link" href="/">
+            <span class="logo-mark" aria-hidden="true"></span>
+            <div class="logo-copy">
+              <h1>Ghost FF</h1>
+              <p>Ghost Fantasy Football</p>
+            </div>
+          </a>
+          <button type="button" id="nav-expand-toggle" class="nav-expand-toggle" aria-expanded="false" aria-controls="top-bar-nav">
+            <span class="nav-expand-label">Menu</span>
+            <span class="nav-expand-chevron" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div class="top-bar-nav" id="top-bar-nav">
+          <nav class="page-nav" aria-label="Ghost FF">
+            <a href="/" class="nav-btn">Draft</a>
+            <a href="/start-sit" class="nav-btn is-current" aria-current="page">Start/Sit</a>
+            <a href="/assistant" class="nav-btn">Assistant</a>
+          </nav>
+        </div>
+      </div>
+
+      <main class="start-sit-main">
+        <header class="start-sit-hero">
+          <p class="eyebrow">Weekly lineup helper</p>
+          <h2>Who should you start this week?</h2>
+          <p class="lede">
+            Search two to four names. We’ll average Sleeper and ESPN in your scoring,
+            then nudge for the matchup — implied points, game script, home, and dome.
+          </p>
+        </header>
+
+        <section class="board" aria-label="Compare players">
+          <div class="start-sit-controls">
+            <label class="field">
+              <span>Week</span>
+              <select id="week-select" class="compact-select"></select>
+            </label>
+            <label class="field">
+              <span>Scoring</span>
+              <select id="scoring-select" class="compact-select">
+                <option value="standard">Standard</option>
+                <option value="half" selected>Half-PPR</option>
+                <option value="ppr">PPR</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>TE premium</span>
+              <input id="te-premium" class="player-input te-premium-input" type="number" min="0" max="2" step="0.1" value="0" inputmode="decimal" aria-describedby="te-premium-hint" />
+            </label>
+          </div>
+          <p id="te-premium-hint" class="hint">Extra points per TE catch only. Half-PPR + 0.5 means TEs get full PPR while WR/RB stay at the league rate.</p>
+          <p id="meta-status" class="hint">Loading this week’s games…</p>
+
+          <div class="player-pickers" id="player-pickers">
+            <div class="picker" data-slot="0">
+              <label for="player-0">Player A</label>
+              <input id="player-0" class="player-input" type="text" placeholder="Name, kicker, or D/ST" autocomplete="off" />
+              <div class="suggest" hidden></div>
+            </div>
+            <div class="picker" data-slot="1">
+              <label for="player-1">Player B</label>
+              <input id="player-1" class="player-input" type="text" placeholder="Name, kicker, or D/ST" autocomplete="off" />
+              <div class="suggest" hidden></div>
+            </div>
+          </div>
+
+          <div class="compare-actions">
+            <button type="button" id="add-player" class="ss-btn ss-btn-ghost">Add another</button>
+            <button type="button" id="compare-btn" class="ss-btn ss-btn-primary">Compare</button>
+          </div>
+        </section>
+
+        <p id="compare-status" class="compare-status" hidden></p>
+        <div id="recommendation" class="recommendation" hidden></div>
+        <div id="results" class="results"></div>
+        <p id="source-notes" class="source-notes" hidden></p>
+      </main>
+    </div>
+    <script src="start-sit.js?v=20260910-photos2"></script>
+  </body>
+</html>

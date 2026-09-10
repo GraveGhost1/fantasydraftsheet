@@ -1,9 +1,5 @@
 // API Configuration
 const API_CONFIG = {
-  fantasyPros: {
-    baseUrl: 'https://api.fantasypros.com/public/v2/json',
-    apiKey: 'PNnzNP9Brm5ZdldankRwc8l6Z1z9HpJR1KKEQTjF'
-  },
   sleeper: {
     baseUrl: 'https://api.sleeper.com',
     apiKey: '' // No key required
@@ -143,6 +139,8 @@ const SLEEPER_PLAYERS_FETCH_TIMEOUT_MS = 7000;
 const POSITION_ORDER = { QB: 1, RB: 2, WR: 3, TE: 4, FLEX: 5, K: 6, DEF: 7, DST: 7, D: 7 };
 let sleeperSyncTimer = null;
 let sleeperPlayersByIdCache = null;
+let sleeperPhotoIndexCache = null;
+let sleeperPhotoAttachInFlight = false;
 let sleeperSyncInFlight = false;
 let sleeperSyncQueued = false;
 let sleeperSyncLoopActive = false;
@@ -436,17 +434,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const headerCluster = document.querySelector('.header-cluster');
   const navExpandToggle = document.getElementById('nav-expand-toggle');
   const mainContent = document.querySelector('.main-content');
-  const topBarNav = document.getElementById('top-bar-nav');
-  const topBarAccount = document.querySelector('.top-bar-account');
   const draftDocks = Array.from(document.querySelectorAll('.draft-dock'));
   const placeDraftDocks = () => {
-    if (!headerCluster || !mainContent) return;
-    const wide = window.matchMedia('(min-width: 1101px)').matches;
+    if (!mainContent) return;
     draftDocks.forEach((dock) => {
-      if (wide && topBarNav && topBarAccount) {
-        // Desktop: logo | scoring | manual | search | account (right edge)
-        topBarNav.insertBefore(dock, topBarAccount);
-      } else if (dock.parentElement !== mainContent.parentElement || dock.nextElementSibling !== mainContent) {
+      if (dock.parentElement !== mainContent.parentElement || dock.nextElementSibling !== mainContent) {
         mainContent.parentNode.insertBefore(dock, mainContent);
       }
     });
@@ -630,9 +622,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (savedApiConfig) {
     try {
       const config = JSON.parse(savedApiConfig);
-      if (config.fantasyPros?.apiKey) {
-        API_CONFIG.fantasyPros.apiKey = config.fantasyPros.apiKey;
-      }
       if (config.moneyLine?.apiKey) {
         API_CONFIG.moneyLine.apiKey = config.moneyLine.apiKey;
       }
@@ -746,6 +735,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       render();
       initSleeperSyncFromState();
+      void attachSleeperPhotosToBoard(loadToken);
       if (loaded) {
         showAppModal('Your saved rankings have been loaded!', { title: 'Rankings loaded', type: 'success' });
       }
@@ -951,6 +941,7 @@ async function initializeBoardData({ loadServerState = false } = {}) {
   }
   render();
   initSleeperSyncFromState();
+  void attachSleeperPhotosToBoard(loadToken);
 }
 
 function findSavedPlayerByIdentity(savedByKey, savedList, livePlayer) {
@@ -1013,6 +1004,8 @@ function mergeLivePlayersWithSavedPlayers(livePlayers, savedPlayers, savedCustom
       draftedAt: savedPlayer.draftedAt ?? null,
       draftedSource: savedPlayer.draftedSource ?? null,
       roomPickNo: Number.isFinite(savedPlayer.roomPickNo) ? savedPlayer.roomPickNo : livePlayer.roomPickNo ?? null,
+      sleeperId: savedPlayer.sleeperId || livePlayer.sleeperId || null,
+      espnId: savedPlayer.espnId || livePlayer.espnId || null,
       projectedPoints: livePlayer.projectedPoints ?? savedPlayer.projectedPoints ?? null
     };
   });
@@ -2507,6 +2500,7 @@ function updateManualSearchSuggestions(query, { activeIndex = 0 } = {}) {
       data-player-id="${player.id}"
       data-suggestion-index="${index}"
     >
+      ${playerPhotoHtml(player, 'is-suggest')}
       <span class="manual-search-suggestion-name">${player.name}</span>
       <span class="manual-search-suggestion-meta">${player.position} · ${player.team}${player.myRank ? ` · #${player.myRank}` : ''}</span>
     </button>
@@ -2717,6 +2711,7 @@ function renderDraftedPlayersSection() {
     const pickLabel = Number.isFinite(player.roomPickNo) ? `Pick ${player.roomPickNo}` : 'No pick #';
     return `
       <div class="drafted-chip" data-player-id="${player.id}">
+        ${playerPhotoHtml(player, 'is-chip')}
         <span>${player.name}</span>
         <span class="drafted-chip-meta">${player.position} · ${pickLabel}</span>
         <span class="drafted-chip-source ${sourceClass}">${sourceLabel}</span>
@@ -3204,12 +3199,171 @@ async function getSleeperPlayersById() {
     byId.set(playerId, {
       fullName,
       team: value.team_abbr || value.team || '',
-      position: value.position || ''
+      position: value.position || '',
+      sleeperId: playerId,
+      espnId: value.espn_id ? `${value.espn_id}` : '',
+      active: value.active !== false && `${value.status || ''}`.toLowerCase() !== 'inactive'
     });
   }
 
   sleeperPlayersByIdCache = byId;
   return sleeperPlayersByIdCache;
+}
+
+function photoPositionCode(value) {
+  const position = normalizePositionCode(value);
+  return position === 'PK' ? 'K' : position;
+}
+
+function playerInitials(name) {
+  const parts = `${name || ''}`.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) {
+    return '?';
+  }
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+function playerPhotoUrl(player) {
+  const position = photoPositionCode(player?.position);
+  const team = `${player?.team || ''}`.trim().toLowerCase();
+  if (position === 'DEF' && team) {
+    return `https://sleepercdn.com/images/team_logos/nfl/${team}.png`;
+  }
+  if (player?.sleeperId) {
+    return `https://sleepercdn.com/content/nfl/players/thumb/${player.sleeperId}.jpg`;
+  }
+  if (player?.espnId) {
+    return `https://a.espncdn.com/i/headshots/nfl/players/full/${player.espnId}.png`;
+  }
+  return '';
+}
+
+function playerPhotoHtml(player, extraClass = '') {
+  const position = photoPositionCode(player?.position);
+  const isDst = position === 'DEF';
+  const url = playerPhotoUrl(player);
+  const className = `player-photo${isDst ? ' is-dst' : ''}${extraClass ? ` ${extraClass}` : ''}`;
+  const image = url
+    ? `<img src="${url}" alt="" loading="lazy" onload="this.parentElement.classList.add('has-photo')" onerror="this.remove()">`
+    : '';
+  return `<span class="${className}" aria-hidden="true"><span class="player-initials">${playerInitials(player?.name)}</span>${image}</span>`;
+}
+
+function photoLookupKeys(player) {
+  const position = photoPositionCode(player?.position);
+  const team = `${player?.team || ''}`.trim().toUpperCase();
+  const names = getNameMatchKeys(player?.name);
+  const keys = [];
+  names.forEach((name) => {
+    if (name && position && team) keys.push(`${name}|${position}|${team}`);
+    if (name && position) keys.push(`${name}|${position}`);
+    if (name) keys.push(name);
+  });
+  if (position === 'DEF' && team) {
+    keys.push(`def|${team}`);
+  }
+  return keys;
+}
+
+function applySleeperPhotosToPlayers(players, index) {
+  if (!Array.isArray(players) || !index) {
+    return 0;
+  }
+  let changed = 0;
+  players.forEach((player) => {
+    if (player.sleeperId || player.espnId) {
+      return;
+    }
+    let hit = null;
+    for (const key of photoLookupKeys(player)) {
+      hit = index[key];
+      if (hit) {
+        break;
+      }
+    }
+    if (!hit) {
+      return;
+    }
+    if (hit.sleeperId) player.sleeperId = hit.sleeperId;
+    if (hit.espnId) player.espnId = hit.espnId;
+    changed += 1;
+  });
+  return changed;
+}
+
+function buildSleeperPhotoIndexFromPlayers(byId) {
+  const index = {};
+  (byId || new Map()).forEach((info) => {
+    const record = {
+      sleeperId: info.sleeperId || '',
+      espnId: info.espnId || ''
+    };
+    photoLookupKeys({
+      name: info.fullName,
+      position: info.position,
+      team: info.team
+    }).forEach((key) => {
+      const existing = index[key];
+      if (!existing || (info.active && !existing.active)) {
+        index[key] = { ...record, active: Boolean(info.active) };
+      }
+    });
+  });
+  return index;
+}
+
+async function getSleeperPhotoIndex() {
+  if (sleeperPhotoIndexCache) {
+    return sleeperPhotoIndexCache;
+  }
+
+  try {
+    const response = await fetch('/api/sleeper-photos');
+    if (response.ok) {
+      const data = await response.json();
+      sleeperPhotoIndexCache = data.index || {};
+      return sleeperPhotoIndexCache;
+    }
+  } catch (error) {
+    console.warn('[PHOTOS] Local photo index failed:', error);
+  }
+
+  try {
+    const byId = await getSleeperPlayersById();
+    sleeperPhotoIndexCache = buildSleeperPhotoIndexFromPlayers(byId);
+  } catch (error) {
+    console.warn('[PHOTOS] Sleeper player metadata failed:', error);
+    sleeperPhotoIndexCache = {};
+  }
+  return sleeperPhotoIndexCache;
+}
+
+async function attachSleeperPhotosToBoard(loadToken = boardLoadToken) {
+  if (sleeperPhotoAttachInFlight || !(state.players || []).length) {
+    return 0;
+  }
+  sleeperPhotoAttachInFlight = true;
+  try {
+    const index = await getSleeperPhotoIndex();
+    if (loadToken !== boardLoadToken) {
+      return 0;
+    }
+    const changed = applySleeperPhotosToPlayers(state.players, index);
+    if (changed && loadToken === boardLoadToken) {
+      renderDraftBoard();
+      renderDraftedPlayersSection();
+      saveState({ silent: true });
+    }
+    return changed;
+  } catch (error) {
+    console.warn('[PHOTOS] Could not attach player photos:', error);
+    return 0;
+  } finally {
+    sleeperPhotoAttachInFlight = false;
+  }
 }
 
 async function syncSleeperDraft({ initiatedByUser = false, queueIfBusy = false } = {}) {
@@ -3847,29 +4001,6 @@ function applyAutoTiering() {
   applySmartTiering();
 }
 
-async function fetchFantasyProsRankings(season) {
-  console.log('[FantasyPros] Fetching from server endpoint');
-  
-  try {
-    // Use server-side endpoint to bypass CORS
-    const response = await fetch(`/api/fantasypros?season=${season}`);
-    console.log('[FantasyPros] Response status:', response.status);
-    
-    if (response.ok) {
-      const data = await response.json();
-      console.log('[FantasyPros] Rankings loaded successfully, players:', data.players?.length || 0);
-      console.log('[FantasyPros] Sample data:', data.players?.[0]);
-      return data;
-    }
-    
-    console.error('[FantasyPros] Failed to load rankings:', response.status, response.statusText);
-    return null;
-  } catch (error) {
-    console.error('[FantasyPros] Error fetching rankings:', error);
-    return null;
-  }
-}
-
 async function fetchSleeperProjections(season) {
   console.log('[Sleeper] Fetching projections for season:', season);
   try {
@@ -3911,27 +4042,6 @@ async function fetchMoneyLineProps() {
     return null;
   } catch (error) {
     console.error('[MoneyLine] Error fetching props:', error);
-    return null;
-  }
-}
-
-async function fetchTheOddsData() {
-  console.log('[TheOdds] Fetching from server endpoint');
-  try {
-    // Use server-side endpoint to bypass CORS
-    const response = await fetch('/api/theodds');
-    console.log('[TheOdds] Response status:', response.status);
-    
-    if (response.ok) {
-      const data = await response.json();
-      console.log('[TheOdds] Data loaded successfully');
-      console.log('[TheOdds] Sample data:', data[0]);
-      return data;
-    }
-    console.error('[TheOdds] Failed to load data:', response.status, response.statusText);
-    return null;
-  } catch (error) {
-    console.error('[TheOdds] Error fetching data:', error);
     return null;
   }
 }
@@ -4223,6 +4333,8 @@ async function loadLiveRankings(loadToken = boardLoadToken) {
           mergedPlayer.draftedAt = existingPlayer.draftedAt ?? null;
           mergedPlayer.draftedSource = existingPlayer.draftedSource ?? null;
           mergedPlayer.roomPickNo = existingPlayer.roomPickNo ?? null;
+          mergedPlayer.sleeperId = existingPlayer.sleeperId || null;
+          mergedPlayer.espnId = existingPlayer.espnId || null;
         } else {
           const snapshotRank = findSavedRankForPlayer(player);
           if (Number.isFinite(snapshotRank) && snapshotRank > 0) {
@@ -4259,6 +4371,8 @@ async function loadLiveRankings(loadToken = boardLoadToken) {
         roomPickNo: Number.isFinite(player.roomPickNo)
           ? player.roomPickNo
           : (Number.isFinite(existing?.roomPickNo) ? existing.roomPickNo : null),
+        sleeperId: existing?.sleeperId || player.sleeperId || null,
+        espnId: existing?.espnId || player.espnId || null,
         tier: hasSavedTierLayout ? (existing?.tier ?? player.tier ?? 1) : 1,
         projectedPoints: player.projectedPoints ?? existing?.projectedPoints ?? null
       };
@@ -4800,6 +4914,7 @@ function renderDraftBoard() {
           </td>
           <td class="col-player">
             <div class="player-cell">
+              ${playerPhotoHtml(player)}
               <span class="player-name">${player.name}</span>
             </div>
           </td>

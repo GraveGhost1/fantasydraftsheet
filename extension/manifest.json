@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "Draft Sheet Assistant",
-  "version": "1.17.0",
-  "description": "Live Underdog and DraftKings Best Ball overlay using your Fantasy Draft Sheet rankings.",
+  "name": "Ghost FF Assistant",
+  "version": "1.18.0",
+  "description": "Live Underdog and DraftKings Best Ball overlay using Ghost Fantasy Football rankings.",
   "action": {
-    "default_title": "Draft Sheet Assistant",
+    "default_title": "Ghost FF Assistant",
     "default_popup": "popup.html"
   },
   "background": {

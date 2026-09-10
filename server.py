@@ -828,11 +828,11 @@ def send_password_reset_email(email, token):
     smtp_password = os.environ.get('SMTP_PASSWORD')
     from_email = os.environ.get('SMTP_FROM_EMAIL', smtp_username or 'no-reply@localhost')
     message = EmailMessage()
-    message['Subject'] = 'Reset your Fantasy Draft Sheet password'
+    message['Subject'] = 'Reset your Ghost FF password'
     message['From'] = from_email
     message['To'] = email
     message.set_content(
-        'Use this link to reset your Fantasy Draft Sheet password. '
+        'Use this link to reset your Ghost FF password. '
         f'The link expires in 15 minutes:\n\n{reset_url}\n'
     )
 
@@ -1050,16 +1050,8 @@ class Handler(BaseHTTPRequestHandler):
             self.handle_proxy(parsed)
             return
 
-        if parsed.path == '/api/fantasypros':
-            self.handle_fantasypros(parsed)
-            return
-
         if parsed.path == '/api/fantasynerds':
             self.handle_fantasynerds(parsed)
-            return
-
-        if parsed.path == '/api/theodds':
-            self.handle_theodds(parsed)
             return
 
         if parsed.path == '/api/rotoballer':
@@ -1149,56 +1141,6 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b'Not Found')
 
-    def handle_fantasypros(self, parsed):
-        """Fetch FantasyPros rankings server-side to bypass CORS"""
-        try:
-            season = parsed.query.split('season=')[1].split('&')[0] if 'season=' in parsed.query else '2026'
-            # FantasyPros requires position parameter - fetch all positions
-            positions = ['QB', 'RB', 'WR', 'TE', 'K', 'DST']
-            all_players = []
-            
-            for position in positions:
-                url = f'https://api.fantasypros.com/public/v2/json/nfl/{season}/consensus-rankings?scoring=ppr&position={position}'
-                print(f'[FANTASYPROS] Fetching {position}: {url}', flush=True)
-                
-                req = urllib.request.Request(url, headers={
-                    'x-api-key': FANTASYPROS_API_KEY,
-                    'User-Agent': 'Mozilla/5.0'
-                })
-                
-                with urllib.request.urlopen(req, timeout=15) as response:
-                    body = response.read()
-                    print(f'[FANTASYPROS] {position} response status: {response.status}, body length: {len(body)}', flush=True)
-                    data = json.loads(body.decode())
-                    if data.get('players'):
-                        all_players.extend(data['players'])
-            
-            result = {'players': all_players}
-            result_json = json.dumps(result).encode('utf-8')
-            print(f'[FANTASYPROS] Total players fetched: {len(all_players)}', flush=True)
-            
-            self.send_response(200)
-            self._set_cors_headers()
-            self.send_header('Content-Type', 'application/json')
-            self.end_headers()
-            self.wfile.write(result_json)
-            print(f'[FANTASYPROS] Success: returned {len(result_json)} bytes', flush=True)
-        except urllib.error.HTTPError as e:
-            print(f'[FANTASYPROS] HTTP Error: {e.code} - {e.reason}', flush=True)
-            print(f'[FANTASYPROS] Response body: {e.read().decode() if hasattr(e, "read") else "N/A"}', flush=True)
-            self.send_response(502)
-            self._set_cors_headers()
-            self.end_headers()
-            self.wfile.write(json.dumps({'error': f'HTTP {e.code}: {e.reason}'}).encode('utf-8'))
-        except Exception as exc:
-            print(f'[FANTASYPROS] ERROR: {type(exc).__name__}: {exc}', flush=True)
-            import traceback
-            traceback.print_exc()
-            self.send_response(502)
-            self._set_cors_headers()
-            self.end_headers()
-            self.wfile.write(json.dumps({'error': str(exc)}).encode('utf-8'))
-
     def handle_fantasynerds(self, parsed):
         """Fetch FantasyNerds projections server-side to bypass CORS"""
         try:
@@ -1218,31 +1160,6 @@ class Handler(BaseHTTPRequestHandler):
                 self.wfile.write(body)
         except Exception as exc:
             print(f'[FANTASYNERDS] ERROR: {type(exc).__name__}: {exc}', flush=True)
-            self.send_response(502)
-            self._set_cors_headers()
-            self.end_headers()
-            self.wfile.write(json.dumps({'error': str(exc)}).encode('utf-8'))
-
-    def handle_theodds(self, parsed):
-        """Fetch The Odds API data server-side to bypass CORS"""
-        try:
-            # Get NFL events with player props
-            url = f'https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds?regions=us&markets=player_pass_tds,player_rush_tds,player_reception_tds,player_pass_yds,player_rush_yds,player_reception_yds&apiKey={THE_ODDS_API_KEY}'
-            print(f'[THEODDS] Fetching: {url}', flush=True)
-            
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            
-            with urllib.request.urlopen(req, timeout=15) as response:
-                body = response.read()
-                print(f'[THEODDS] Response status: {response.status}, body length: {len(body)}', flush=True)
-                
-                self.send_response(200)
-                self._set_cors_headers()
-                self.send_header('Content-Type', 'application/json')
-                self.end_headers()
-                self.wfile.write(body)
-        except Exception as exc:
-            print(f'[THEODDS] ERROR: {type(exc).__name__}: {exc}', flush=True)
             self.send_response(502)
             self._set_cors_headers()
             self.end_headers()

@@ -1,13 +1,13 @@
-# Fantasy Draft Sheet
+# Ghost Fantasy Football
 
-A browser-based fantasy football draft board that lets you:
+**Ghost FF** is a fantasy football toolkit with a rankings board, weekly start/sit, and a Best Ball draft overlay.
 
 - compare your personal rankings against ESPN and Yahoo ADP
 - adjust league settings like scoring, roster construction, and bench spots
 - sort players by any column header
 - assign tiers for a simple draft cheat sheet
 
-It also includes a **Draft Assistant** Chrome extension for Underdog Best Ball drafts — live recommendations, heat map highlighting, draft capital tracking, and portfolio exposure.
+It also includes a **Ghost FF Assistant** Chrome extension for Underdog Best Ball drafts — live recommendations, heat map highlighting, draft capital tracking, and portfolio exposure.
 
 ## Run locally
 
@@ -20,7 +20,11 @@ python app.py
 
 Then visit http://localhost:8000.
 
-## Draft Assistant (Underdog overlay)
+## Start / Sit
+
+Open http://localhost:8000/start-sit to compare two to four players for a given week. The tool averages Sleeper and ESPN weekly projections, then adjusts for implied team points, game script, home, dome, recent form, and an optional TE premium.
+
+## Ghost FF Assistant (Underdog overlay)
 
 The extension in [`extension/`](extension/) adds a Solver-style sidebar on Underdog Best Ball draft rooms. It uses expert best-ball ranks by default (from `underdog-bestball-rankings.csv`), not your redraft saved list.
 
@@ -38,7 +42,7 @@ The extension in [`extension/`](extension/) adds a Solver-style sidebar on Under
 |--------|----------------|
 | **Load expert ranks** | Fetches the public best-ball board (no login required) |
 | **Ranking source** | Expert BB, imported CSV, or your saved custom ranks |
-| **Draft Sheet URL** | API host — `http://127.0.0.1:8000` locally, or your Render URL in production |
+| **Ghost FF URL** | API host — `http://127.0.0.1:8000` locally, or your Render URL in production |
 | **Open test draft room** | Opens the local Underdog-style mock room for testing heat/recs |
 | **Open test player page** | Opens a mock Underdog players page for the Portfolio card |
 | **Account & imports** | Log in for custom ranks; import rank CSV or lineup/exposure CSV |
@@ -138,4 +142,4 @@ Verify after deploy:
 - `https://your-app.onrender.com/api/health` should return `{"ok": true}`
 - Log in, change rankings, click **Save**, log out, log back in
 
-For the Draft Assistant extension, set **Draft Sheet URL** in the popup to your Render URL (e.g. `https://your-app.onrender.com`) and click **Load expert ranks**.
+For the Ghost FF Assistant extension, set **Ghost FF URL** in the popup to your Render URL (e.g. `https://your-app.onrender.com`) and click **Load expert ranks**.

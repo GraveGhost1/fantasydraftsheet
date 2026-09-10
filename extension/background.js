@@ -375,7 +375,7 @@ async function ensureOriginPermission(apiBase) {
   try {
     return await chrome.permissions.request({ origins: [pattern] });
   } catch (err) {
-    throw new Error('Allow access to your Draft Sheet URL from the extension popup.');
+    throw new Error('Allow access to your Ghost FF URL from the extension popup.');
   }
 }
 
@@ -383,7 +383,7 @@ async function apiFetch(path, { method = 'GET', body, settings } = {}) {
   const config = settings || (await getSettings());
   const allowed = await ensureOriginPermission(config.apiBase);
   if (!allowed) {
-    throw new Error('Permission to contact your Draft Sheet server was denied.');
+    throw new Error('Permission to contact your Ghost FF server was denied.');
   }
   const url = `${config.apiBase}${path}`;
   const response = await fetch(url, {

@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Fantasy Draft Sheet</title>
-    <link rel="stylesheet" href="styles.css?v=20260829-refresh-picks" />
+    <title>Ghost Fantasy Football</title>
+    <link rel="stylesheet" href="styles.css?v=20260910-photos2" />
     <style id="mobile-nav-critical">
       /* Critical mobile nav — inline so it cannot be lost to CSS cache */
       .header-cluster {
@@ -15,9 +15,9 @@
         flex-direction: row;
         align-items: center;
         gap: 12px;
-        padding: 10px 20px;
-        background: rgba(10, 14, 20, 0.96);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 12px 24px;
+        background: rgba(8, 12, 18, 0.9);
+        border-bottom: 1px solid rgba(183, 214, 232, 0.08);
         backdrop-filter: blur(18px);
         -webkit-backdrop-filter: blur(18px);
       }
@@ -38,8 +38,8 @@
         padding: 0 12px;
         border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 12px;
-        background: rgba(59, 130, 246, 0.3);
-        color: #fff;
+        background: rgba(61, 125, 154, 0.35);
+        color: #f4fbff;
         font: inherit;
         font-size: 0.85rem;
         font-weight: 700;
@@ -166,7 +166,7 @@
     <div id="username-modal" class="modal-overlay" style="display: none;">
       <div class="modal-content">
         <h2>Account access</h2>
-        <p>Use your username and password to load your draft sheet. New accounts need an email for password recovery.</p>
+        <p>Use your username and password to load Ghost FF. New accounts need an email for password recovery.</p>
         <input id="username-input" type="text" placeholder="Your name" maxlength="30" />
         <input id="password-input" type="password" placeholder="Password" maxlength="50" />
         <input id="email-input" type="email" placeholder="Email address (new accounts)" maxlength="254" autocomplete="email" />
@@ -208,13 +208,13 @@
     <div class="app-shell">
       <div class="header-cluster">
         <div class="top-bar-chrome">
-          <div class="logo-section">
-            <span class="logo-mark" aria-hidden="true">FD</span>
+          <a class="logo-section logo-link" href="/">
+            <span class="logo-mark" aria-hidden="true"></span>
             <div class="logo-copy">
-              <h1>Draft Sheet</h1>
-              <p>Live rankings board</p>
+              <h1>Ghost FF</h1>
+              <p>Ghost Fantasy Football</p>
             </div>
-          </div>
+          </a>
           <button type="button" id="nav-expand-toggle" class="nav-expand-toggle" aria-expanded="false" aria-controls="top-bar-nav">
             <span class="nav-expand-label">Menu</span>
             <span class="nav-expand-chevron" aria-hidden="true"></span>
@@ -222,6 +222,12 @@
         </div>
 
         <div class="top-bar-nav" id="top-bar-nav">
+          <nav class="page-nav" aria-label="Ghost FF">
+            <a href="/" class="nav-btn is-current" aria-current="page">Draft</a>
+            <a href="/start-sit" class="nav-btn">Start/Sit</a>
+            <a href="/assistant" class="nav-btn">Assistant</a>
+          </nav>
+
           <div class="nav-control">
             <select id="scoring-format" class="compact-select nav-select" aria-label="Scoring format">
               <option value="standard">Standard</option>
@@ -349,6 +355,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=20260902-bestball-format"></script>
+    <script src="app.js?v=20260910-photos2"></script>
   </body>
 </html>

@@ -1175,7 +1175,7 @@
     if (!expanded) {
       root.innerHTML = `
         <div class="fds-header">
-          <div class="fds-logo">DA</div>
+          <div class="fds-logo" aria-hidden="true"></div>
           <div class="fds-title">
             <strong>Portfolio</strong>
             <span>${summary.lineupCount} ${modeNoun()} lineups</span>
@@ -1197,7 +1197,7 @@
     `).join('');
     root.innerHTML = `
       <div class="fds-header">
-        <div class="fds-logo">DA</div>
+        <div class="fds-logo" aria-hidden="true"></div>
         <div class="fds-title">
           <strong>Portfolio</strong>
           <span>${summary.lineupCount} ${modeNoun()} lineups · ${escapeHtml(portfolioSyncLabel(summary).toLowerCase())}</span>
@@ -1431,9 +1431,9 @@
     root.className = `fds-root${ui.collapsed ? ' is-collapsed' : ''}${onClock ? ' is-on-clock' : ''}`;
     root.innerHTML = `
       <div class="fds-header">
-        <div class="fds-logo">DA</div>
+        <div class="fds-logo" aria-hidden="true"></div>
         <div class="fds-title">
-          <strong>${onClock ? 'On the clock' : 'Draft Assistant'}</strong>
+          <strong>${onClock ? 'On the clock' : 'Ghost FF'}</strong>
           <span>${rankLabel} · ${portSummary.lineupCount} ${modeNoun()} lineups</span>
         </div>
         <div class="fds-header-actions">

@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, send_from_directory, make_response
 from assistant_board import build_assistant_board
+from start_sit import compare_players, meta as start_sit_meta, search_players, sleeper_photo_index
 from server import (
     init_db,
     load_adp_profile,
@@ -44,6 +45,54 @@ def serve_standalone():
 @app.route('/assistant')
 def serve_assistant():
     return send_from_directory(ROOT, 'assistant.html')
+
+
+@app.route('/start-sit')
+def serve_start_sit():
+    return send_from_directory(ROOT, 'start-sit.html')
+
+
+@app.route('/api/start-sit/meta', methods=['GET'])
+def start_sit_meta_api():
+    try:
+        week = request.args.get('week')
+        scoring = request.args.get('scoring') or 'half'
+        return jsonify(start_sit_meta(week, scoring))
+    except Exception as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), 500
+
+
+@app.route('/api/start-sit/search', methods=['GET'])
+def start_sit_search_api():
+    try:
+        query = request.args.get('q') or request.args.get('query') or ''
+        week = request.args.get('week')
+        return jsonify({'ok': True, 'players': search_players(query, week)})
+    except Exception as exc:
+        return jsonify({'ok': False, 'error': str(exc), 'players': []}), 500
+
+
+@app.route('/api/start-sit/compare', methods=['GET', 'POST'])
+def start_sit_compare_api():
+    try:
+        if request.method == 'POST':
+            data = request.get_json(silent=True) or {}
+            names = data.get('players') or data.get('names') or []
+            week = data.get('week')
+            scoring = data.get('scoring') or 'half'
+            te_premium = data.get('tePremium') if 'tePremium' in data else data.get('te_premium')
+        else:
+            raw = request.args.get('players') or request.args.get('names') or ''
+            names = [part.strip() for part in raw.split(',') if part.strip()]
+            week = request.args.get('week')
+            scoring = request.args.get('scoring') or 'half'
+            te_premium = request.args.get('tePremium') or request.args.get('te_premium')
+        result = compare_players(names, week, scoring, te_premium)
+        if not result.get('ok'):
+            return jsonify(result), result.get('status', 400)
+        return jsonify(result)
+    except Exception as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), 500
 
 
 def _assistant_cors(response):
@@ -121,13 +170,13 @@ def assistant_portfolio():
                 if status == 'INVALID_PASSWORD':
                     return _assistant_cors(jsonify({'error': 'Invalid username or password'})), 401
                 if status == 'MISSING_USER':
-                    return _assistant_cors(jsonify({'error': 'Log in to a Draft Sheet account to save lineups in the cloud'})), 401
+                    return _assistant_cors(jsonify({'error': 'Log in to a Ghost FF account to save lineups in the cloud'})), 401
                 return _assistant_cors(jsonify({'ok': True}))
             result = load_assistant_portfolio(username, password)
         if result == 'INVALID_PASSWORD':
             return _assistant_cors(jsonify({'error': 'Invalid username or password'})), 401
         if result == 'MISSING_USER':
-            return _assistant_cors(jsonify({'error': 'Log in to a Draft Sheet account to save lineups in the cloud'})), 401
+            return _assistant_cors(jsonify({'error': 'Log in to a Ghost FF account to save lineups in the cloud'})), 401
         return _assistant_cors(jsonify({'ok': True, 'portfolio': result or {'drafts': []}}))
     except Exception as exc:
         return _assistant_cors(jsonify({'error': str(exc)})), 500
@@ -339,6 +388,14 @@ def get_sleeper_rankings():
         return jsonify(data)
     except Exception as exc:
         return jsonify({'error': str(exc)}), 500
+
+
+@app.route('/api/sleeper-photos', methods=['GET'])
+def get_sleeper_photos():
+    try:
+        return jsonify({'ok': True, 'index': sleeper_photo_index()})
+    except Exception as exc:
+        return jsonify({'ok': False, 'error': str(exc), 'index': {}}), 500
 
 
 @app.route('/api/ghost', methods=['GET'])
