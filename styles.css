@@ -1192,7 +1192,8 @@ label.nav-btn {
   object-position: top center;
 }
 
-.player-photo.has-photo .player-initials {
+.player-photo.has-photo .player-initials,
+.player-photo:has(img) .player-initials {
   display: none;
 }
 

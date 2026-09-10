@@ -44,9 +44,9 @@ function photoHtml(player, extraClass = '') {
   const pos = String(player.position || '').toUpperCase();
   const isDst = pos === 'DEF' || pos === 'DST' || pos === 'D';
   const url = player.photo || '';
-  const className = `player-photo${isDst ? ' is-dst' : ''}${extraClass ? ` ${extraClass}` : ''}`;
+  const className = `player-photo${isDst ? ' is-dst' : ''}${url ? ' has-photo' : ''}${extraClass ? ` ${extraClass}` : ''}`;
   const image = url
-    ? `<img src="${escapeHtml(url)}" alt="" loading="lazy" onload="this.parentElement.classList.add('has-photo')" onerror="this.remove()">`
+    ? `<img src="${escapeHtml(url)}" alt="" loading="lazy" onerror="this.parentElement.classList.remove('has-photo');this.remove()">`
     : '';
   return `<span class="${className}" aria-hidden="true"><span class="player-initials">${playerInitials(player.name)}</span>${image}</span>`;
 }

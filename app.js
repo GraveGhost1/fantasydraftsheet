@@ -3245,9 +3245,9 @@ function playerPhotoHtml(player, extraClass = '') {
   const position = photoPositionCode(player?.position);
   const isDst = position === 'DEF';
   const url = playerPhotoUrl(player);
-  const className = `player-photo${isDst ? ' is-dst' : ''}${extraClass ? ` ${extraClass}` : ''}`;
+  const className = `player-photo${isDst ? ' is-dst' : ''}${url ? ' has-photo' : ''}${extraClass ? ` ${extraClass}` : ''}`;
   const image = url
-    ? `<img src="${url}" alt="" loading="lazy" onload="this.parentElement.classList.add('has-photo')" onerror="this.remove()">`
+    ? `<img src="${url}" alt="" loading="lazy" onerror="this.parentElement.classList.remove('has-photo');this.remove()">`
     : '';
   return `<span class="${className}" aria-hidden="true"><span class="player-initials">${playerInitials(player?.name)}</span>${image}</span>`;
 }
