@@ -2,7 +2,7 @@
   const DEFAULT_SETTINGS = {
     format: 'bestball',
     mode: 'season',
-    slatePreset: 'primetime',
+    slatePreset: 'sunday',
     slateWeek: 0,
     rankWeight: 85,
     projectionWeight: 35,
@@ -32,9 +32,9 @@
     merged.posTarget = { ...DEFAULT_SETTINGS.posTarget, ...(partial?.posTarget || {}) };
     merged.posBias = { ...DEFAULT_SETTINGS.posBias, ...(partial?.posBias || {}) };
     merged.mode = merged.mode === 'daily' ? 'daily' : 'season';
-    const preset = String(merged.slatePreset || 'primetime');
+    const preset = String(merged.slatePreset || 'sunday');
     const known = ['primetime', 'sunday', 'sunday-main', 'snf', 'mnf', 'friday', 'all'];
-    merged.slatePreset = known.includes(preset) ? preset : 'primetime';
+    merged.slatePreset = known.includes(preset) ? preset : 'sunday';
     const week = Number(merged.slateWeek);
     merged.slateWeek = Number.isFinite(week) && week >= 0 ? Math.round(week) : 0;
     ['rankWeight', 'projectionWeight', 'adpWeight', 'stackWeight', 'week17Importance',

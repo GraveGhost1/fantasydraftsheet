@@ -58,6 +58,7 @@
   border: 1px solid var(--ss-line);
   border-radius: 18px;
   background: var(--ss-paper);
+  overflow: visible;
 }
 
 .start-sit-controls {
@@ -186,6 +187,13 @@
 .suggest small {
   color: var(--ss-quiet);
   font-weight: 500;
+}
+
+.suggest-empty {
+  padding: 10px 12px;
+  color: var(--ss-quiet);
+  font-size: 0.84rem;
+  line-height: 1.4;
 }
 
 .compare-actions {

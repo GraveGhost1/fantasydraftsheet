@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, send_from_directory, make_response
 from assistant_board import build_assistant_board
-from start_sit import compare_players, meta as start_sit_meta, search_players, sleeper_photo_index
+from start_sit import compare_players, current_week as start_sit_week, meta as start_sit_meta, player_search_index, search_players, sleeper_photo_index
 from server import (
     init_db,
     load_adp_profile,
@@ -60,6 +60,20 @@ def start_sit_meta_api():
         return jsonify(start_sit_meta(week, scoring))
     except Exception as exc:
         return jsonify({'ok': False, 'error': str(exc)}), 500
+
+
+@app.route('/api/start-sit/players', methods=['GET'])
+def start_sit_players_api():
+    try:
+        week = request.args.get('week')
+        players = player_search_index(week)
+        return jsonify({
+            'ok': True,
+            'week': start_sit_week(week),
+            'players': players,
+        })
+    except Exception as exc:
+        return jsonify({'ok': False, 'error': str(exc), 'players': []}), 500
 
 
 @app.route('/api/start-sit/search', methods=['GET'])

@@ -303,16 +303,47 @@
   }
 
   function settingsPatchForMode(next) {
-    return { mode: next };
+    const dailyFmt = window.FDSSlate?.DAILY_FORMAT;
+    const season = defaultSettings();
+    if (next === 'daily' && dailyFmt) {
+      const week = Number(ui.settings?.slateWeek) || 0;
+      const suggested = window.FDSSlate?.suggestPreset?.(week || undefined) || 'sunday';
+      const currentPreset = ui.settings?.slatePreset || 'sunday';
+      let keepCurrent = currentPreset === suggested;
+      if (!keepCurrent && window.FDSSlate?.resolve) {
+        const horizon = Date.now() - 3 * 60 * 60 * 1000;
+        const games = window.FDSSlate.resolve({ week, preset: currentPreset }).games || [];
+        keepCurrent = games.some((game) => {
+          const kick = Date.parse(game.kickoff);
+          return !Number.isFinite(kick) || kick > horizon;
+        });
+      }
+      return {
+        mode: 'daily',
+        posMax: { ...dailyFmt.posMax },
+        posTarget: { ...dailyFmt.posTarget },
+        slatePreset: keepCurrent ? currentPreset : suggested,
+        slateImportance: Math.max(Number(ui.settings?.slateImportance) || 0, 70)
+      };
+    }
+    return {
+      mode: 'season',
+      posMax: { ...season.posMax },
+      posTarget: { ...season.posTarget }
+    };
   }
 
   function resolveActiveSlate() {
     if (!isDailyMode() || !window.FDSSlate?.resolve) return null;
     const settings = ui.settings || defaultSettings();
-    return window.FDSSlate.resolve({
-      week: settings.slateWeek || 0,
-      preset: settings.slatePreset || 'primetime'
-    });
+    const week = settings.slateWeek || 0;
+    let preset = settings.slatePreset || 'sunday';
+    const slate = window.FDSSlate.resolve({ week, preset });
+    if ((!slate.games || !slate.games.length) && window.FDSSlate.suggestPreset) {
+      preset = window.FDSSlate.suggestPreset(week || undefined);
+      return window.FDSSlate.resolve({ week, preset });
+    }
+    return slate;
   }
 
   async function maybeRecordPortfolio(myRoster) {
@@ -530,6 +561,9 @@
                 <div class="fds-rec-body">
                   <strong>${escapeHtml(rec.player.name)}</strong>
                   <em>${rec.player.position} · ${escapeHtml(rec.player.team || '')} · Rank ${rec.player.myRank || '—'}</em>
+                  ${(rec.reasons || []).length
+                    ? `<span class="fds-rec-why">${escapeHtml(rec.reasons.join(' · '))}</span>`
+                    : ''}
                 </div>
                 <div class="fds-rec-score" title="Raw score ${rec.rawScore ?? Math.round(rec.score)}">
                   ${rec.displayScore}
@@ -537,7 +571,9 @@
               </div>
             `).join('')}
           </div>
-          <p class="fds-rec-hint">Blue = draft now · Purple = next tier · same colors on the site player list.</p>
+          <p class="fds-rec-hint">${slate
+            ? 'Daily scores weight game totals, implied points, stacks, and bring-backs. Blue = draft now · purple = next tier.'
+            : 'Blue = draft now · Purple = next tier · same colors on the site player list.'}</p>
         </div>
       `);
     } else {
@@ -799,6 +835,7 @@
   }
 
   function rosterPickCount() {
+    if (isDailyMode()) return dailyRosterCap();
     const fromSnapshot = Number(lastSnapshot.totalPicks);
     if (Number.isFinite(fromSnapshot) && fromSnapshot > 0) return fromSnapshot;
     return window.FDSRankBoard?.TOTAL_PICKS || 18;
@@ -1516,7 +1553,9 @@
         const week = index + 1;
         return `<option value="${week}"${Number(ui.settings.slateWeek) === week ? ' selected' : ''}>Week ${week}</option>`;
       })).join('');
-    const capHint = 'hard cap · capital range is QB 2–3, RB 4–6, WR 6–9, TE 2–3';
+    const capHint = daily
+      ? 'daily hard cap · capital range is QB 1–2, RB 2–3, WR 3–5, TE 1–2'
+      : 'hard cap · capital range is QB 2–3, RB 4–6, WR 6–9, TE 2–3';
     return `
       <div class="fds-settings-overlay" data-action="close-settings">
         <div class="fds-settings-sheet" data-action="stop">
@@ -1531,7 +1570,7 @@
                 <button data-action="draft-mode" data-mode="season" class="fds-format${daily ? '' : ' is-active'}">Season-long</button>
                 <button data-action="draft-mode" data-mode="daily" class="fds-format${daily ? ' is-daily is-active' : ''}">Daily slate</button>
               </div>
-              <span class="fds-hint">${daily ? 'Filters to this week window. Playoff scoring is off. Exposure is daily-only.' : 'Full board and W15–W17 playoff stacks. Exposure is season-long only.'}</span>
+              <span class="fds-hint">${daily ? 'Filters to this week window. Scores use O/U, implied points, stacks, and bring-backs. Exposure is daily-only.' : 'Full board and W15–W17 playoff stacks. Exposure is season-long only.'}</span>
             </div>
             ${daily ? `
               <label class="fds-slider">
@@ -1748,7 +1787,15 @@
     if (settingsResp?.settings) ui.settings = settingsResp.settings;
     const dailyFmt = window.FDSSlate?.DAILY_FORMAT;
     const season = defaultSettings();
-    if (dailyFmt && samePosMap(ui.settings?.posMax, dailyFmt.posMax)) {
+    if (isDailyMode() && dailyFmt) {
+      const patch = settingsPatchForMode('daily');
+      const needsTargets = !samePosMap(ui.settings?.posMax, dailyFmt.posMax)
+        || !samePosMap(ui.settings?.posTarget, dailyFmt.posTarget);
+      const needsPreset = patch.slatePreset && patch.slatePreset !== (ui.settings?.slatePreset || '');
+      if (needsTargets || needsPreset) {
+        await persistSettings(patch);
+      }
+    } else if (dailyFmt && samePosMap(ui.settings?.posMax, dailyFmt.posMax)) {
       persistSettings({ posMax: { ...season.posMax }, posTarget: { ...season.posTarget } });
     }
     send('GET_PORTFOLIO').then((portfolioResp) => {

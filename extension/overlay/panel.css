@@ -360,6 +360,17 @@
   margin-top: 2px;
 }
 
+.fds-rec-why {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #9ec5d8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .fds-rec-score {
   font-weight: 800;
   font-size: 13px;

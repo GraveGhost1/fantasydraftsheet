@@ -143,8 +143,8 @@
   }
 
   function resolve(options = {}) {
-    const presetId = options.preset || 'primetime';
-    const preset = PRESETS[presetId] || PRESETS.primetime;
+    const presetId = options.preset || 'sunday';
+    const preset = PRESETS[presetId] || PRESETS.sunday;
     const week = resolveWeek(options.week);
     let games = gamesForWeek(week);
 
@@ -167,6 +167,24 @@
       teams,
       teamSet: new Set(teams)
     };
+  }
+
+  function upcomingGameCount(week, presetId, now = Date.now()) {
+    const slate = resolve({ week, preset: presetId });
+    const horizon = Number(now) - 3 * 60 * 60 * 1000;
+    return slate.games.filter((game) => {
+      const kick = parseKickoff(game.kickoff);
+      return kick == null || kick > horizon;
+    }).length;
+  }
+
+  function suggestPreset(week, now = Date.now()) {
+    const preferred = ['sunday', 'sunday-main', 'snf', 'mnf', 'friday', 'primetime'];
+    for (let i = 0; i < preferred.length; i += 1) {
+      const id = preferred[i];
+      if (upcomingGameCount(week, id, now) > 0) return id;
+    }
+    return upcomingGameCount(week, 'all', now) > 0 ? 'all' : 'sunday';
   }
 
   function playerOnSlate(player, slate) {
@@ -198,17 +216,134 @@
     return normalizeTeam(game.home) === code ? game.away : game.home;
   }
 
+  function teamSide(team, game) {
+    const code = normalizeTeam(team);
+    if (!game || !code) return null;
+    if (normalizeTeam(game.home) === code) return 'home';
+    if (normalizeTeam(game.away) === code) return 'away';
+    return null;
+  }
+
+  function teamImplied(team, game) {
+    const side = teamSide(team, game);
+    if (!side) return null;
+    if (side === 'home' && Number.isFinite(Number(game.impliedHome))) return Number(game.impliedHome);
+    if (side === 'away' && Number.isFinite(Number(game.impliedAway))) return Number(game.impliedAway);
+    return null;
+  }
+
+  function teamSpread(team, game) {
+    const side = teamSide(team, game);
+    if (!side || !Number.isFinite(Number(game.spread))) return null;
+    return side === 'home' ? Number(game.spread) : -Number(game.spread);
+  }
+
+  function fmt1(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return '';
+    return Math.abs(n - Math.round(n)) < 0.05 ? String(Math.round(n)) : n.toFixed(1);
+  }
+
+  function correlationHints(player, myRoster, slate) {
+    const hints = [];
+    if (!player?.team || !myRoster?.length || !slate) return hints;
+    const team = normalizeTeam(player.team);
+    const myQb = myRoster.find((owned) => owned.position === 'QB' && normalizeTeam(owned.team) === team);
+    const mySkill = myRoster.find((owned) => owned.position !== 'QB' && normalizeTeam(owned.team) === team);
+    if (player.position !== 'QB' && myQb) {
+      hints.push(`stack w/ ${shortName(myQb.name)}`);
+    } else if (player.position === 'QB' && mySkill) {
+      hints.push(`stack w/ ${shortName(mySkill.name)}`);
+    }
+    if (player.bringBack || [...new Set(myRoster.map((p) => normalizeTeam(p.team)))].some((owned) => sameGame(team, owned, slate))) {
+      const oppOwned = myRoster.find((owned) => sameGame(team, owned.team, slate));
+      if (oppOwned) hints.push(`bring-back vs ${shortName(oppOwned.name)}`);
+      else hints.push('bring-back');
+    }
+    return hints;
+  }
+
+  function shortName(name) {
+    const parts = String(name || '').trim().split(/\s+/);
+    if (parts.length <= 1) return parts[0] || '';
+    return `${parts[0][0]}. ${parts[parts.length - 1]}`;
+  }
+
   function slateBonusForPlayer(player, myRoster, slate, weights) {
     const game = gameForTeam(player?.team, slate);
     if (!game) return 0;
     const scale = (weights?.slateImportance ?? 70) / 100;
+    const pos = String(player?.position || '').toUpperCase();
     let bonus = 0;
+
     const total = Number(game.total);
     if (Number.isFinite(total)) {
-      bonus += (total - 45) * 1.2 * scale;
+      const totalDelta = total - 45;
+      const passMult = pos === 'QB' || pos === 'WR' || pos === 'TE' ? 22 : 12;
+      bonus += totalDelta * passMult * scale;
     }
-    if (game.indoor) bonus += 6 * scale;
+
+    const implied = teamImplied(player.team, game);
+    if (Number.isFinite(implied)) {
+      if (pos === 'QB' || pos === 'WR' || pos === 'TE') {
+        bonus += (implied - 22.5) * 10 * scale;
+      } else if (pos === 'RB') {
+        bonus += (implied - 22.5) * 6 * scale;
+      }
+    }
+
+    const spread = teamSpread(player.team, game);
+    if (Number.isFinite(spread)) {
+      if (pos === 'RB') {
+        bonus += (-spread) * 8 * scale;
+      } else if (pos === 'WR' || pos === 'TE') {
+        bonus += spread * 3.5 * scale;
+      } else if (pos === 'QB') {
+        bonus += (-spread) * 2.5 * scale;
+      }
+    }
+
+    if (game.indoor) {
+      if (pos === 'QB' || pos === 'WR' || pos === 'TE') bonus += 28 * scale;
+      else if (pos === 'RB') bonus += 10 * scale;
+    }
+
+    if (!game.neutral && teamSide(player.team, game) === 'home') {
+      bonus += 8 * scale;
+    }
+
     return bonus;
+  }
+
+  function explainDailyPick(player, myRoster, slate) {
+    const reasons = [];
+    const game = gameForTeam(player?.team, slate);
+    if (!game) {
+      return playerOnSlate(player, slate) ? ['on slate'] : ['off slate'];
+    }
+
+    const total = Number(game.total);
+    if (Number.isFinite(total)) {
+      reasons.push(`O/U ${fmt1(total)}`);
+    }
+
+    const implied = teamImplied(player.team, game);
+    if (Number.isFinite(implied)) {
+      reasons.push(`imp ${fmt1(implied)}`);
+    }
+
+    const spread = teamSpread(player.team, game);
+    if (Number.isFinite(spread)) {
+      const code = normalizeTeam(player.team);
+      if (spread === 0) reasons.push(`${code} PK`);
+      else if (spread < 0) reasons.push(`${code} -${fmt1(Math.abs(spread))}`);
+      else reasons.push(`${code} +${fmt1(spread)}`);
+    }
+
+    if (game.indoor) reasons.push('dome');
+
+    correlationHints(player, myRoster, slate).forEach((hint) => reasons.push(hint));
+    return reasons.slice(0, 4);
   }
 
   function escapeHtml(value) {
@@ -219,8 +354,11 @@
     const parts = kickoffParts(game.kickoff);
     const matchup = game.neutral ? `${game.away} vs ${game.home}` : `${game.away} @ ${game.home}`;
     const when = parts?.label || game.status || '';
-    const extra = Number.isFinite(Number(game.total)) ? `O/U ${game.total}` : '';
-    return { matchup, when, extra };
+    const bits = [];
+    if (Number.isFinite(Number(game.total))) bits.push(`O/U ${game.total}`);
+    if (game.spreadDetails) bits.push(game.spreadDetails);
+    else if (Number.isFinite(Number(game.spread))) bits.push(`${game.home} ${Number(game.spread) > 0 ? '+' : ''}${game.spread}`);
+    return { matchup, when, extra: bits.join(' · ') };
   }
 
   function renderSlateTable(slate, myRoster) {
@@ -254,11 +392,15 @@
     currentWeek,
     kickoffParts,
     resolve,
+    suggestPreset,
     playerOnSlate,
     gameForTeam,
     sameGame,
     opponentFor,
+    teamImplied,
+    teamSpread,
     slateBonusForPlayer,
+    explainDailyPick,
     renderSlateTable,
     scheduleSeason: getStore()?.season || null,
     scheduleSource: getStore()?.source || 'static'

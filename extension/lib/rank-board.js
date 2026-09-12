@@ -257,8 +257,12 @@
   }
 
   function countBandFor(pos, settings) {
-    const band = COUNT_BANDS[pos] || { min: 2, max: 3, earlyPick: 72 };
-    const maxSetting = settings?.posMax?.[pos] ?? DEFAULT_MAX[pos] ?? band.max;
+    const dailyBands = isDailyMode(settings) ? global.FDSSlate?.DAILY_FORMAT?.countBands : null;
+    const band = dailyBands?.[pos] || COUNT_BANDS[pos] || { min: 2, max: 3, earlyPick: 72 };
+    const defaultMax = isDailyMode(settings)
+      ? (global.FDSSlate?.DAILY_FORMAT?.posMax?.[pos] ?? band.max)
+      : (DEFAULT_MAX[pos] ?? band.max);
+    const maxSetting = settings?.posMax?.[pos] ?? defaultMax;
     return {
       min: band.min,
       max: Math.max(band.min, Math.min(band.max, Number(maxSetting) || band.max)),
@@ -429,7 +433,10 @@
     const myRoster = context.myRoster || [];
     const grouped = rosterByPosition(myRoster);
     const have = (grouped[player.position] || []).length;
-    const max = settings.posMax?.[player.position] ?? DEFAULT_MAX[player.position] ?? 99;
+    const dailyMax = isDailyMode(settings)
+      ? global.FDSSlate?.DAILY_FORMAT?.posMax?.[player.position]
+      : null;
+    const max = settings.posMax?.[player.position] ?? dailyMax ?? DEFAULT_MAX[player.position] ?? 99;
     if (have >= max) return { blocked: true, score: -9999, bias };
 
     return { blocked: false, have, bias, myRoster, grouped };
@@ -483,40 +490,53 @@
     const myRoster = rules.myRoster;
     const pickNo = context.pickNo || 1;
     const have = rules.have;
-    const capital = draftCapital(myRoster, settings, { pickNo });
+    const daily = isDailyMode(settings);
+    const capital = draftCapital(myRoster, settings, {
+      pickNo,
+      totalPicks: daily ? (global.FDSSlate?.DAILY_FORMAT?.totalPicks || 8) : TOTAL_PICKS
+    });
     const capItem = capital.byPosition[player.position];
-    const defaultTargets = isDailyMode(settings)
+    const defaultTargets = daily
       ? (global.FDSSlate?.DAILY_FORMAT?.posTarget || DEFAULT_TARGETS)
       : DEFAULT_TARGETS;
     const target = capItem?.suggestedCount ?? settings.posTarget?.[player.position] ?? defaultTargets[player.position] ?? 2;
     const rank = Number(player.myRank || 999);
 
     let score = talentScore(player, settings);
+    if (daily) {
+      // Keep rank as a tie-break; matchup + correlation should move the board.
+      score *= 0.32;
+    }
 
-    score += adpValueBonus(player, pickNo, settings);
-    score -= reachPenalty(player, pickNo);
+    score += adpValueBonus(player, pickNo, settings) * (daily ? 0.55 : 1);
+    score -= reachPenalty(player, pickNo) * (daily ? 0.45 : 1);
 
     const diff = adpDiff(player);
     if (diff != null && diff > 8) {
-      score -= Math.min(24, diff * 0.9);
+      score -= Math.min(daily ? 14 : 24, diff * (daily ? 0.45 : 0.9));
     }
 
     const stackScale = (settings.stackWeight ?? 55) / 50;
-    if (player.stack) score += 32 * stackScale;
-    if (player.bringBack) score += 22 * stackScale;
+    if (daily) {
+      if (player.stack) score += 130 * stackScale;
+      if (player.bringBack) score += 95 * stackScale;
+    } else {
+      if (player.stack) score += 32 * stackScale;
+      if (player.bringBack) score += 22 * stackScale;
+    }
 
-    if (isDailyMode(settings) && global.FDSSlate && context.slate) {
+    if (daily && global.FDSSlate && context.slate) {
       score += global.FDSSlate.slateBonusForPlayer(player, myRoster, context.slate, settings);
-    } else if (global.FDSPlayoffSchedule) {
+    } else if (!daily && global.FDSPlayoffSchedule) {
       score += global.FDSPlayoffSchedule.playoffBonusForPlayer(player, myRoster, settings);
     }
 
-    const needMin = isDailyMode(settings) ? 1 : POSITIONAL_NEED_MIN_PICK;
+    const needMin = daily ? 1 : POSITIONAL_NEED_MIN_PICK;
     if (pickNo >= needMin) {
       if (have < target) {
-        score += positionalNeedBonus(have, target, pickNo);
+        score += positionalNeedBonus(have, target, pickNo) * (daily ? 1.35 : 1);
       } else {
-        score -= (have - target + 1) * 22;
+        score -= (have - target + 1) * (daily ? 38 : 22);
       }
     }
 
@@ -544,18 +564,21 @@
 
     if (settings.format === 'superflex') {
       if (player.position === 'QB') score += 35;
-    } else {
+    } else if (!daily) {
       if (pickNo <= 36 && player.position === 'QB' && rank > 24) score -= 28;
       if (pickNo <= 24 && player.position === 'QB' && rank > 18) score -= 18;
       if (pickNo <= 36 && player.position === 'TE' && rank > 30) score -= 16;
+    } else {
+      if (have >= target && player.position === 'QB') score -= 45;
+      if (have >= target && player.position === 'TE') score -= 28;
     }
 
     const sos = Number(player.sosRank);
     if (Number.isFinite(sos) && sos > 0 && sos <= 10) {
-      score += (11 - sos) * 1.5;
+      score += (11 - sos) * (daily ? 4 : 1.5);
     }
 
-    if (rules.bias === 'boost') score += 58;
+    if (rules.bias === 'boost') score += daily ? 90 : 58;
     return score;
   }
 
@@ -578,8 +601,13 @@
     return (a.myRank || 999) - (b.myRank || 999) || (a.adp || 999) - (b.adp || 999);
   }
 
-  function scoreReference(pickNo) {
+  function scoreReference(pickNo, daily = false) {
     const pick = pickNo || 1;
+    if (daily) {
+      if (pick <= 3) return 2200;
+      if (pick <= 6) return 1800;
+      return 1400;
+    }
     if (pick <= 12) return 9200;
     if (pick <= 24) return 7800;
     if (pick <= 48) return 5200;
@@ -587,17 +615,28 @@
     return 1800;
   }
 
-  function toDisplayScore(rawScore, pickNo) {
-    const ref = scoreReference(pickNo);
+  function toDisplayScore(rawScore, pickNo, daily = false) {
+    const ref = scoreReference(pickNo, daily);
     const scaled = Math.min(10, Math.max(0, (rawScore / ref) * 10));
     return Math.round(scaled * 10) / 10;
   }
 
-  function formatRecommendations(items, pickNo = 1) {
+  function reasonForRec(item, context) {
+    const settings = getSettings(context);
+    if (!isDailyMode(settings) || !global.FDSSlate?.explainDailyPick || !context.slate) {
+      return [];
+    }
+    return global.FDSSlate.explainDailyPick(item.player, context.myRoster || [], context.slate);
+  }
+
+  function formatRecommendations(items, pickNo = 1, context = {}) {
+    const settings = getSettings(context);
+    const daily = isDailyMode(settings);
     return items.map((item) => ({
       ...item,
       rawScore: Math.round(item.score),
-      displayScore: toDisplayScore(item.score, pickNo)
+      displayScore: toDisplayScore(item.score, pickNo, daily),
+      reasons: reasonForRec(item, context)
     }));
   }
 
@@ -624,7 +663,8 @@
         heat: heatBand(index),
         rank: index + 1,
         rawScore: Math.round(item.score),
-        displayScore: toDisplayScore(item.score, pickNo)
+        displayScore: toDisplayScore(item.score, pickNo, daily),
+        reasons: reasonForRec(item, context)
       }))
       .filter((item) => item.heat);
   }
@@ -640,11 +680,12 @@
     if (!scored.length) {
       return formatRecommendations(
         sortScoredCandidates(scorePlayers(remaining, context)).slice(0, limit),
-        pickNo
+        pickNo,
+        context
       );
     }
 
-    return formatRecommendations(scored.slice(0, limit), pickNo);
+    return formatRecommendations(scored.slice(0, limit), pickNo, context);
   }
 
   function slotForPick(pickNo, teamSize = DEFAULT_TEAM_SIZE) {

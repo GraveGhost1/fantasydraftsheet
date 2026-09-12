@@ -3,8 +3,12 @@ const state = {
   scoring: 'half',
   tePremium: 0,
   slots: ['', ''],
-  activeSuggest: -1,
+  players: [],
+  playersLoading: false,
+  playersError: '',
 };
+
+let playersLoadId = 0;
 
 const weekSelect = document.getElementById('week-select');
 const scoringSelect = document.getElementById('scoring-select');
@@ -152,32 +156,152 @@ function setSlotValue(picker, name) {
   state.slots[slot] = name;
 }
 
+function normalizeSearch(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/\s+(jr\.?|sr\.?|ii|iii|iv|v|vi)$/i, '')
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+function filterLocalPlayers(query, limit = 8) {
+  const trimmed = String(query || '').trim();
+  if (!trimmed) return [];
+  const needle = normalizeSearch(trimmed);
+  if (!needle) return [];
+  const needleLower = trimmed.toLowerCase();
+  const needleTeam = trimmed.toUpperCase();
+
+  return state.players
+    .map((player) => {
+      const name = player.name || '';
+      const hay = player.nameKey || normalizeSearch(name);
+      const keys = player.searchKeys || [];
+      const parts = name.split(/\s+/).filter(Boolean);
+      const first = normalizeSearch(parts[0] || '');
+      const last = normalizeSearch(parts[parts.length - 1] || '');
+      const pos = String(player.position || '').toUpperCase();
+      const team = String(player.team || '').toUpperCase();
+      const teamHit = needle === normalizeSearch(team) && (pos === 'DEF' || pos === 'K' || needleTeam.length <= 3);
+
+      let score = 0;
+      if (hay === needle) score = 100;
+      else if (last === needle || first === needle) score = 92;
+      else if (teamHit && pos === 'DEF') score = 90;
+      else if (hay.startsWith(needle) || last.startsWith(needle) || first.startsWith(needle)) score = 85;
+      else if (teamHit && pos === 'K') score = 80;
+      else if (keys.includes(needle)) score = 75;
+      else if (keys.some((key) => key.includes(needle))) score = 70;
+      else if (hay.includes(needle) || name.toLowerCase().includes(needleLower)) score = 60;
+
+      return { player, score };
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => (
+      b.score - a.score
+      || (a.player.team ? 0 : 1) - (b.player.team ? 0 : 1)
+      || (a.player.name || '').localeCompare(b.player.name || '')
+    ))
+    .slice(0, limit)
+    .map((entry) => entry.player);
+}
+
+function suggestOptions(picker) {
+  return [...picker.querySelectorAll('.suggest button[data-name]')];
+}
+
+function setActiveSuggest(picker, index) {
+  const options = suggestOptions(picker);
+  if (!options.length) return;
+  const next = ((index % options.length) + options.length) % options.length;
+  options.forEach((option, optionIndex) => {
+    option.classList.toggle('is-active', optionIndex === next);
+  });
+  options[next].scrollIntoView({ block: 'nearest' });
+}
+
+function activeSuggestIndex(picker) {
+  const options = suggestOptions(picker);
+  return options.findIndex((option) => option.classList.contains('is-active'));
+}
+
+function renderSuggestMessage(picker, message) {
+  const suggest = picker.querySelector('.suggest');
+  suggest.innerHTML = `<div class="suggest-empty">${escapeHtml(message)}</div>`;
+  openSuggest(picker);
+}
+
+function renderSuggestPlayers(picker, players) {
+  const suggest = picker.querySelector('.suggest');
+  suggest.innerHTML = players.map((player, index) => {
+    const extra = [displayPos(player.position), player.team, player.matchupLabel, player.total != null ? `O/U ${fmt(player.total, 1)}` : '']
+      .filter(Boolean)
+      .join(' · ');
+    return `<button type="button" data-name="${escapeHtml(player.name)}" class="${index === 0 ? 'is-active' : ''}">${photoHtml(player, 'is-suggest')}<span class="suggest-copy"><strong>${escapeHtml(player.name)}</strong><small>${escapeHtml(extra)}</small></span></button>`;
+  }).join('');
+  openSuggest(picker);
+}
+
+function updateSuggestions(picker) {
+  const input = picker.querySelector('.player-input');
+  const query = input.value.trim();
+  state.slots[Number(picker.dataset.slot)] = query;
+  if (!query) {
+    closeSuggest(picker);
+    return;
+  }
+  if (state.playersLoading && !state.players.length) {
+    renderSuggestMessage(picker, 'Loading players…');
+    return;
+  }
+  if (!state.players.length) {
+    renderSuggestMessage(picker, state.playersError || 'Player list is not ready yet.');
+    return;
+  }
+  const matches = filterLocalPlayers(query);
+  if (!matches.length) {
+    renderSuggestMessage(picker, `No players match “${query}”`);
+    return;
+  }
+  renderSuggestPlayers(picker, matches);
+}
+
+function chooseSuggestion(picker, name) {
+  if (!name) return;
+  setSlotValue(picker, name);
+  closeSuggest(picker);
+  picker.querySelector('.player-input')?.blur();
+}
+
 function bindPicker(picker) {
   const input = picker.querySelector('.player-input');
   const suggest = picker.querySelector('.suggest');
-  let timer = null;
-  input.addEventListener('input', () => {
-    const slot = Number(picker.dataset.slot);
-    state.slots[slot] = input.value.trim();
-    clearTimeout(timer);
-    const query = input.value.trim();
-    if (query.length < 2) {
-      suggest.innerHTML = '';
-      closeSuggest(picker);
-      return;
-    }
-    timer = setTimeout(() => searchPlayers(picker, query), 180);
-  });
+  input.addEventListener('input', () => updateSuggestions(picker));
   input.addEventListener('focus', () => {
     closeAllSuggests(picker);
-    if (input.value.trim().length >= 2 && suggest.innerHTML.trim()) {
-      openSuggest(picker);
-    }
+    if (input.value.trim()) updateSuggestions(picker);
   });
   input.addEventListener('keydown', (event) => {
+    const options = suggestOptions(picker);
     if (event.key === 'Escape') {
       closeSuggest(picker);
       input.blur();
+      return;
+    }
+    if (event.key === 'ArrowDown' && options.length) {
+      event.preventDefault();
+      setActiveSuggest(picker, activeSuggestIndex(picker) + 1);
+      return;
+    }
+    if (event.key === 'ArrowUp' && options.length) {
+      event.preventDefault();
+      const current = activeSuggestIndex(picker);
+      setActiveSuggest(picker, current <= 0 ? options.length - 1 : current - 1);
+      return;
+    }
+    if (event.key === 'Enter' && options.length) {
+      event.preventDefault();
+      const active = options[Math.max(0, activeSuggestIndex(picker))];
+      chooseSuggestion(picker, active?.dataset.name);
     }
   });
   suggest.addEventListener('pointerdown', (event) => {
@@ -185,38 +309,8 @@ function bindPicker(picker) {
     if (!button) return;
     event.preventDefault();
     event.stopPropagation();
-    setSlotValue(picker, button.dataset.name);
-    picker.dataset.searchId = String(Number(picker.dataset.searchId || 0) + 1);
-    suggest.innerHTML = '';
-    closeSuggest(picker);
-    input.blur();
+    chooseSuggestion(picker, button.dataset.name);
   });
-}
-
-async function searchPlayers(picker, query) {
-  const suggest = picker.querySelector('.suggest');
-  const requestId = Number(picker.dataset.searchId || 0) + 1;
-  picker.dataset.searchId = String(requestId);
-  try {
-    const data = await fetchJson(`/api/start-sit/search?q=${encodeURIComponent(query)}&week=${state.week}`);
-    if (picker.dataset.searchId !== String(requestId)) return;
-    if (picker.querySelector('.player-input').value.trim() !== query) return;
-    const players = data.players || [];
-    if (!players.length) {
-      suggest.innerHTML = '';
-      closeSuggest(picker);
-      return;
-    }
-    suggest.innerHTML = players.map((player) => {
-      const extra = [displayPos(player.position), player.team, player.matchupLabel, player.total != null ? `O/U ${fmt(player.total, 1)}` : '']
-        .filter(Boolean)
-        .join(' · ');
-      return `<button type="button" data-name="${escapeHtml(player.name)}">${photoHtml(player, 'is-suggest')}<span class="suggest-copy"><strong>${escapeHtml(player.name)}</strong><small>${escapeHtml(extra)}</small></span></button>`;
-    }).join('');
-    openSuggest(picker);
-  } catch (error) {
-    if (picker.dataset.searchId === String(requestId)) closeSuggest(picker);
-  }
 }
 
 function addPicker() {
@@ -229,7 +323,7 @@ function addPicker() {
   const labels = ['Player A', 'Player B', 'Player C', 'Player D'];
   picker.innerHTML = `
     <label for="player-${slot}">${labels[slot]}</label>
-    <input id="player-${slot}" class="player-input" type="text" placeholder="Name, kicker, or D/ST" autocomplete="off" />
+    <input id="player-${slot}" class="player-input" type="text" placeholder="Name, kicker, or D/ST" autocomplete="off" aria-autocomplete="list" />
     <div class="suggest" hidden></div>
   `;
   pickers.appendChild(picker);
@@ -382,6 +476,33 @@ async function compare() {
   }
 }
 
+async function loadPlayers() {
+  const requestId = ++playersLoadId;
+  state.playersLoading = true;
+  state.playersError = '';
+  pickerEls().forEach((picker) => {
+    if (picker.querySelector('.player-input')?.value.trim()) updateSuggestions(picker);
+  });
+  try {
+    const data = await fetchJson(`/api/start-sit/players?week=${state.week}`);
+    if (requestId !== playersLoadId) return;
+    state.players = data.players || [];
+    if (!state.players.length) {
+      state.playersError = 'No weekly players returned.';
+    }
+  } catch (error) {
+    if (requestId !== playersLoadId) return;
+    state.players = [];
+    state.playersError = error.message || 'Could not load players.';
+  } finally {
+    if (requestId !== playersLoadId) return;
+    state.playersLoading = false;
+    pickerEls().forEach((picker) => {
+      if (picker.querySelector('.player-input')?.value.trim()) updateSuggestions(picker);
+    });
+  }
+}
+
 async function loadMeta() {
   const data = await fetchJson(`/api/start-sit/meta?week=${state.week}&scoring=${state.scoring}`);
   state.week = data.week || state.week;
@@ -438,7 +559,8 @@ weekSelect.addEventListener('mousedown', () => closeAllSuggests());
 weekSelect.addEventListener('change', async () => {
   closeAllSuggests();
   state.week = Number(weekSelect.value);
-  await loadMeta();
+  state.players = [];
+  await Promise.all([loadMeta(), loadPlayers()]);
 });
 scoringSelect.addEventListener('mousedown', () => closeAllSuggests());
 scoringSelect.addEventListener('change', () => {
@@ -454,10 +576,12 @@ tePremiumInput?.addEventListener('change', () => {
 
 fillWeeks(1);
 readQuery();
+state.playersLoading = true;
 loadMeta()
-  .then(() => {
-    if (selectedNames().length >= 2) compare();
-  })
   .catch((error) => {
     metaStatus.textContent = error.message || 'Could not load weekly games.';
+  })
+  .then(() => loadPlayers())
+  .then(() => {
+    if (selectedNames().length >= 2) compare();
   });

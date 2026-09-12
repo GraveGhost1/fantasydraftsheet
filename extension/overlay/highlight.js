@@ -29,13 +29,17 @@
       position: absolute;
       left: 8px;
       top: -9px;
-      font: 700 10px/1 "Segoe UI", sans-serif;
+      font: 700 10px/1.2 "Segoe UI", sans-serif;
       color: #eff6ff;
       background: #3d7d9a;
       padding: 3px 6px;
       border-radius: 999px;
       pointer-events: none;
       z-index: 3;
+      max-width: min(280px, calc(100% - 16px));
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .fds-host-name-line,
     .name-line {
@@ -345,7 +349,11 @@
     const nodes = candidateNodes();
     const recLabel = new Map();
     recs.forEach((rec, index) => {
-      recLabel.set(`${rec.player.name}|${rec.player.position}`, `REC ${index + 1} · ${rec.displayScore}`);
+      const why = (rec.reasons || []).slice(0, 2).join(' · ');
+      const label = why
+        ? `REC ${index + 1} · ${rec.displayScore} · ${why}`
+        : `REC ${index + 1} · ${rec.displayScore}`;
+      recLabel.set(`${rec.player.name}|${rec.player.position}`, label);
     });
 
     heat.slice(0, 12).forEach((item) => {

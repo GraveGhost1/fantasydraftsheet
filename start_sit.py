@@ -1113,22 +1113,66 @@ def _avg_stats(stat_rows: list[dict]) -> dict:
     return out
 
 
-def search_players(query: str, week=None, limit=8) -> list[dict]:
+def player_search_index(week=None) -> list[dict]:
     week = current_week(week)
+    key = f'player-index-{week}'
+    cached = cache_get(key)
+    if cached is not None:
+        return cached
+    matchups = {}
+    for game in games_for_week(week):
+        home = normalize_team(game.get('home'))
+        away = normalize_team(game.get('away'))
+        if home and home not in matchups:
+            matchups[home] = matchup_for_team(home, week)
+        if away and away not in matchups:
+            matchups[away] = matchup_for_team(away, week)
+    rows = sleeper_projections(week)
+    out = []
+    seen = set()
+    for row in rows:
+        name = row.get('name') or ''
+        if not name:
+            continue
+        pos = normalize_pos(row.get('position'))
+        team = normalize_team(row.get('team'))
+        identity = (normalize_name(name), pos, team)
+        if identity in seen:
+            continue
+        seen.add(identity)
+        matchup = matchups.get(team) or {}
+        out.append({
+            'name': name,
+            'position': pos,
+            'team': team,
+            'sleeperId': row.get('id') or '',
+            'photo': player_photo_url(row.get('id') or '', pos, team),
+            'matchupLabel': matchup.get('label'),
+            'total': matchup.get('total'),
+            'implied': matchup.get('implied'),
+            'nameKey': normalize_name(name),
+            'searchKeys': sorted(lookup_keys(name, team, pos)),
+        })
+    out.sort(key=lambda item: (0 if item.get('team') else 1, item.get('name') or ''))
+    return cache_set(key, out, min(CACHE_TTL['sleeper_proj'], CACHE_TTL['odds']))
+
+
+def search_players(query: str, week=None, limit=8) -> list[dict]:
     needle = str(query or '').strip()
-    if len(needle) < 2:
+    if not needle:
         return []
     needle_key = normalize_name(needle)
+    if not needle_key:
+        return []
     needle_team = normalize_team(needle)
     is_team_code = needle_team in TEAM_SEARCH_KEYS
-    rows = sleeper_projections(week)
     hits = []
-    for row in rows:
+    for row in player_search_index(week):
         name = row.get('name') or ''
         team = row.get('team') or ''
         pos = normalize_pos(row.get('position'))
-        keys = lookup_keys(name, team, pos)
-        hay = normalize_name(name)
+        keys = set(row.get('searchKeys') or lookup_keys(name, team, pos))
+        hay = row.get('nameKey') or normalize_name(name)
         team_code_hit = bool(is_team_code and needle_team == normalize_team(team) and pos in {'DEF', 'K'})
         if is_team_code:
             matched = team_code_hit or needle_key in keys
@@ -1141,7 +1185,6 @@ def search_players(query: str, week=None, limit=8) -> list[dict]:
             )
         if not matched:
             continue
-        matchup = matchup_for_team(team, week)
         rank = 6
         if hay == needle_key:
             rank = 0
@@ -1155,23 +1198,14 @@ def search_players(query: str, week=None, limit=8) -> list[dict]:
             rank = 4
         elif needle_key in keys:
             rank = 5
-        hits.append({
-            'name': name,
-            'position': pos,
-            'team': team,
-            'sleeperId': row.get('id') or '',
-            'photo': player_photo_url(row.get('id') or '', pos, team),
-            'matchupLabel': matchup.get('label'),
-            'total': matchup.get('total'),
-            'implied': matchup.get('implied'),
-            '_rank': rank,
-            '_rostered': 0 if team else 1,
-        })
+        hits.append({**row, '_rank': rank, '_rostered': 0 if team else 1})
     hits.sort(key=lambda item: (item['_rank'], item['_rostered'], item.get('name') or ''))
     out = []
     for item in hits[:limit]:
         item.pop('_rank', None)
         item.pop('_rostered', None)
+        item.pop('nameKey', None)
+        item.pop('searchKeys', None)
         out.append(item)
     return out
 
