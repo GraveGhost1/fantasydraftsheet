@@ -1105,71 +1105,8 @@ label.nav-btn {
     min-height: 40px;
   }
 
-  .rankings-table {
-    table-layout: fixed;
-    width: 100%;
-  }
-
-  .rankings-table th,
-  .rankings-table td,
-  .comparison-table th,
-  .comparison-table td {
-    padding: 8px;
-    font-size: 0.82rem;
-    overflow: hidden;
-  }
-
-  .rankings-table th {
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-
-  .col-rank { width: 3rem; }
-  .col-player { width: auto; }
-  .col-adp,
-  .col-expert { width: 3.5rem; }
-  .col-draft-action { width: 3.5rem; }
-
-  .rankings-table tbody tr {
-    min-height: 48px;
-  }
-
-  .rankings-table td.col-rank,
-  .rankings-table th.col-rank {
-    padding-left: 8px;
-    white-space: nowrap;
-  }
-
-  .player-name {
-    flex: 1 1 auto;
-    min-width: 0;
-    font-size: 0.92rem;
-  }
-
-  .pos-pill {
-    font-size: 0.75rem;
-    padding: 4px 8px;
-    min-width: 0;
-  }
-
-  .row-draft-btn {
-    min-height: 40px;
-    min-width: 0;
-    width: 100%;
-    padding: 0 8px;
-    font-size: 0.75rem;
-  }
-
-  .drag-handle {
-    display: none;
-  }
-
   .drafted-hint {
     display: none;
-  }
-
-  .table-container {
-    max-height: none;
   }
 }
 
@@ -1926,41 +1863,132 @@ button.page-link:hover {
 
   .table-container {
     max-height: none;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .rankings-table,
+  .rankings-table thead,
+  .rankings-table tbody {
+    display: block;
+    width: 100%;
+    max-width: 100%;
   }
 
   .rankings-table {
-    table-layout: fixed;
+    table-layout: auto;
+  }
+
+  .rankings-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .rankings-table thead tr,
+  .rankings-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 2.75rem 3.25rem;
     width: 100%;
+    min-width: 0;
+    align-items: center;
+  }
+
+  .rankings-table thead tr:has(.col-draft-action),
+  .rankings-table tbody tr:has(.col-draft-action) {
+    grid-template-columns: minmax(0, 1fr) 2.75rem 3.25rem 3.25rem;
   }
 
   .rankings-table th,
   .rankings-table td {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    max-width: 100%;
+    width: auto;
     padding: 8px 4px;
     overflow: hidden;
+    font-size: 0.82rem;
   }
 
   .rankings-table th {
     white-space: nowrap;
+    background: var(--header-bg);
+  }
+
+  .rankings-table tbody tr.tier-divider {
+    display: block;
+  }
+
+  .rankings-table tr.tier-divider td {
+    display: block;
+    width: 100%;
+  }
+
+  .rankings-table .col-rank,
+  .rankings-table .col-team,
+  .rankings-table .col-adp-diff,
+  .rankings-table .col-personal-diff,
+  .rankings-table .col-sos,
+  .rankings-table .col-expert {
+    display: none !important;
+  }
+
+  body.compact-metric-expert .rankings-table .col-adp {
+    display: none !important;
+  }
+
+  body.compact-metric-expert .rankings-table .col-expert {
+    display: flex !important;
+    justify-content: flex-end;
   }
 
   .col-player {
     width: auto;
+    min-width: 0;
   }
 
-  .col-pos {
-    width: 3.5rem;
-    max-width: 3.5rem;
+  .col-pos,
+  .col-adp,
+  .col-expert,
+  .col-draft-action {
+    justify-content: center;
+    width: auto;
+    max-width: none;
   }
 
   .col-adp,
   .col-expert {
-    width: 3rem;
-    max-width: 3rem;
+    justify-content: flex-end;
+    font-variant-numeric: tabular-nums;
   }
 
-  .col-draft-action {
-    width: 3.5rem;
-    max-width: 3.5rem;
+  .player-cell {
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .player-photo {
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
+  }
+
+  .player-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pos-pill {
+    min-width: 0;
+    max-width: 100%;
+    padding: 2px 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .row-draft-btn {
@@ -1972,16 +2000,6 @@ button.page-link:hover {
     font-size: 0.72rem;
     font-weight: 700;
     white-space: nowrap;
-  }
-
-  .player-name {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-
-  .pos-pill {
-    min-width: 0;
-    padding: 2px 4px;
   }
 
   .main-content {
