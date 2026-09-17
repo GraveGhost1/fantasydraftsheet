@@ -116,7 +116,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["overlay/panel.css", "overlay/capital-chart.css"],
+      "resources": ["brand.css", "overlay/panel.css", "overlay/capital-chart.css"],
       "matches": [
         "https://*.underdogfantasy.com/*",
         "https://underdogfantasy.com/*",

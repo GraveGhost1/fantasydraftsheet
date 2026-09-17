@@ -414,7 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (csvHelp) {
       csvHelp.style.display = visible ? 'flex' : 'none';
     }
-    const helpLabel = visible ? 'Hide CSV Help' : 'CSV Help';
+    const helpLabel = visible ? 'Hide CSV help' : 'CSV help';
     if (toggleHelpButton) {
       toggleHelpButton.textContent = helpLabel;
     }
@@ -874,7 +874,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // CSV upload functionality
   const csvUpload = document.getElementById('csv-upload');
   
-  if (csvUpload && csvUploadLabel) {
+  if (csvUpload) {
     csvUpload.addEventListener('change', handleCsvUpload);
   }
 
@@ -4902,7 +4902,7 @@ function renderDraftBoard() {
       const normalizedPosition = normalizePositionForCss(player.position);
       const markCell = showMarkButtons
         ? `<td class="col-draft-action">
-            <button type="button" class="row-draft-btn" data-action="draft" data-player-id="${player.id}" title="Mark drafted">Mark</button>
+            <button type="button" class="row-draft-btn" data-action="draft" data-player-id="${player.id}" title="Mark drafted" aria-label="Mark drafted">Mark</button>
           </td>`
         : '';
 
@@ -4914,6 +4914,7 @@ function renderDraftBoard() {
           </td>
           <td class="col-player">
             <div class="player-cell">
+              <span class="player-rank">${player.myRank}</span>
               ${playerPhotoHtml(player)}
               <span class="player-name">${player.name}</span>
             </div>
@@ -4944,7 +4945,7 @@ function renderDraftBoard() {
         <tr class="tier-divider${Number(state.ui?.selectedTier) === tier ? ' is-selected' : ''}" data-tier="${tier}">
           <td colspan="${columnCount}">
             <div class="tier-bar">
-              <span class="tier-pill t${tier}">Tier ${tier}</span>
+              <span class="tier-pill t${tier}">T${tier}</span>
               <span class="tier-divider-count">${players.length} players</span>
             </div>
           </td>
@@ -4993,27 +4994,27 @@ function updateTableHeader() {
   if (!headerRow) return;
   
   const adpLabels = {
-    all: 'ADP',
-    espn: 'ESPN',
-    yahoo: 'Yahoo',
-    sleeper: 'Sleeper',
-    rotoballer: 'Underdog',
-    ffpc: 'FFPC',
-    average: 'Average',
-    expert: 'ADP'
+    all: { full: 'ADP', short: 'ADP' },
+    espn: { full: 'ESPN', short: 'ESPN' },
+    yahoo: { full: 'Yahoo', short: 'YAH' },
+    sleeper: { full: 'Sleeper', short: 'SLE' },
+    rotoballer: { full: 'Underdog', short: 'UD' },
+    ffpc: { full: 'FFPC', short: 'FFPC' },
+    average: { full: 'Average', short: 'ADP' },
+    expert: { full: 'ADP', short: 'ADP' }
   };
-  
-  const currentLabel = adpLabels[state.adpSource] || 'ADP';
+
+  const currentLabel = adpLabels[state.adpSource] || adpLabels.all;
   const markHeader = isManualDraftMode() ? '<th class="col-draft-action">Mark</th>' : '';
   const expertHeaderClass = isExpertMetricSelected() ? 'col-expert is-compact-metric' : 'col-expert';
   const adpHeaderClass = isExpertMetricSelected() ? 'col-adp' : 'col-adp is-compact-metric';
-  
+
   headerRow.innerHTML = `
     <th class="col-rank" data-key="myRank">Rank</th>
     <th class="col-player" data-key="player">Player</th>
     <th class="col-pos" data-key="position">Pos</th>
     <th class="col-team" data-key="team">Team</th>
-    <th class="${adpHeaderClass}" data-key="adp">${currentLabel}</th>
+    <th class="${adpHeaderClass}" data-key="adp">${currentLabel.full}</th>
     <th class="${expertHeaderClass}" data-key="expertRank">Expert</th>
     <th class="col-adp-diff" data-key="adpDiff">Diff</th>
     <th class="col-personal-diff" data-key="personalDiff">My Diff</th>

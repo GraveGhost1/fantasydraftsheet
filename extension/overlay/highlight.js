@@ -10,30 +10,30 @@
     }
     .fds-host-heat-best {
       background: rgba(61, 125, 154, 0.42) !important;
-      box-shadow: inset 5px 0 0 #3d7d9a !important;
+      box-shadow: inset 4px 0 0 #3d7d9a !important;
     }
     .fds-host-heat-good {
-      background: rgba(168, 85, 247, 0.36) !important;
-      box-shadow: inset 5px 0 0 #a855f7 !important;
+      background: rgba(196, 165, 116, 0.28) !important;
+      box-shadow: inset 4px 0 0 #c4a574 !important;
     }
     .fds-host-heat-ok {
-      background: rgba(168, 85, 247, 0.22) !important;
-      box-shadow: inset 5px 0 0 #c084fc !important;
+      background: rgba(183, 214, 232, 0.16) !important;
+      box-shadow: inset 4px 0 0 #b7d6e8 !important;
     }
     .fds-host-heat-fade {
-      background: rgba(236, 72, 153, 0.28) !important;
-      box-shadow: inset 5px 0 0 #ec4899 !important;
+      background: rgba(142, 154, 171, 0.16) !important;
+      box-shadow: inset 4px 0 0 #8e9aab !important;
     }
     .fds-host-heat[data-fds-rec-label]::after {
       content: attr(data-fds-rec-label);
       position: absolute;
       left: 8px;
-      top: -9px;
-      font: 700 10px/1.2 "Segoe UI", sans-serif;
-      color: #eff6ff;
+      top: -8px;
+      font: 700 10px/1.2 "Manrope", "Segoe UI", sans-serif;
+      color: #f4fbff;
       background: #3d7d9a;
-      padding: 3px 6px;
-      border-radius: 999px;
+      padding: 4px 8px;
+      border-radius: 6px;
       pointer-events: none;
       z-index: 3;
       max-width: min(280px, calc(100% - 16px));
@@ -51,7 +51,7 @@
     }
     .fds-host-rank,
     .fds-rank-inline {
-      font-weight: 800;
+      font-weight: 700;
       font-size: 12px;
       color: #b7d6e8;
       flex-shrink: 0;
@@ -66,8 +66,8 @@
       color: #e5e7eb;
       background: rgba(15, 23, 42, 0.85);
       border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 999px;
-      padding: 2px 7px;
+      border-radius: 6px;
+      padding: 4px 8px;
       font-variant-numeric: tabular-nums;
     }
     .ud-player-row .fds-rank-inline,
@@ -87,12 +87,12 @@
     }
     #fds-capital-host {
       margin: 12px 12px 16px;
-      padding: 14px;
-      border-radius: 12px;
+      padding: 16px;
+      border-radius: 6px;
       background: rgba(17, 24, 39, 0.94);
       border: 1px solid rgba(255, 255, 255, 0.1);
-      color: #f9fafb;
-      font: 13px/1.4 "Segoe UI", system-ui, sans-serif;
+      color: #eef3f7;
+      font: 13px/1.4 "Manrope", "Segoe UI", system-ui, sans-serif;
     }
     #fds-capital-host h3 {
       margin: 0 0 8px;

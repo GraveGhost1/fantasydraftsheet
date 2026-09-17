@@ -381,7 +381,14 @@
     const root = host.attachShadow({ mode: 'open' });
     if (!cssText) {
       try {
-        cssText = await (await fetch(chrome.runtime.getURL('overlay/panel.css'))).text();
+        let brandCss = '';
+        try {
+          brandCss = await (await fetch(chrome.runtime.getURL('brand.css'))).text();
+        } catch (brandErr) {
+          /* overlay still renders with panel.css tokens */
+        }
+        const panelCss = await (await fetch(chrome.runtime.getURL('overlay/panel.css'))).text();
+        cssText = `${brandCss}\n${panelCss}`;
         try {
           cssText += `\n${await (await fetch(chrome.runtime.getURL('overlay/capital-chart.css'))).text()}`;
         } catch (chartErr) {
@@ -572,8 +579,8 @@
             `).join('')}
           </div>
           <p class="fds-rec-hint">${slate
-            ? 'Daily scores weight game totals, implied points, stacks, and bring-backs. Blue = draft now · purple = next tier.'
-            : 'Blue = draft now · Purple = next tier · same colors on the site player list.'}</p>
+            ? 'Daily scores weight game totals, implied points, stacks, and bring-backs. Steel = draft now · gold = next tier.'
+            : 'Steel = draft now · gold = next tier · same colors on the site player list.'}</p>
         </div>
       `);
     } else {
@@ -742,9 +749,9 @@
         <button data-action="draft-mode" data-mode="daily" class="fds-format${isDailyMode() ? ' is-daily is-active' : ''}">Daily</button>
       </div>
       <div class="fds-heat-legend" aria-hidden="true">
-        <span class="is-best">Blue draft</span>
-        <span class="is-good">Purple next</span>
-        <span class="is-fade">Pink fade</span>
+        <span class="is-best">Steel draft</span>
+        <span class="is-good">Gold next</span>
+        <span class="is-fade">Fade</span>
       </div>
       <div class="fds-bias">
         ${['QB', 'RB', 'WR', 'TE'].map((pos) => {

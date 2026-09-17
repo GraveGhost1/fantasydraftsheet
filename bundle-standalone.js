@@ -3,6 +3,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const indexHtml = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+const brandCss = fs.readFileSync(path.join(__dirname, 'brand.css'), 'utf8');
 const stylesCss = fs.readFileSync(path.join(__dirname, 'styles.css'), 'utf8');
 const appJs = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
 
@@ -22,17 +23,24 @@ try {
 let standaloneHtml = indexHtml;
 
 standaloneHtml = standaloneHtml.replace(
-  /<link\s+rel="stylesheet"\s+href="styles\.css(?:\?[^"]*)?"\s*\/>/,
-  `<style>\n${stylesCss}\n</style>`
+  /<link\s+rel="stylesheet"\s+href="brand\.css(?:\?[^"]*)?"\s*\/>\s*<link\s+rel="stylesheet"\s+href="styles\.css(?:\?[^"]*)?"\s*\/>/,
+  `<style>\n${brandCss}\n${stylesCss}\n</style>`
 );
+
+if (standaloneHtml.includes('href="brand.css') || standaloneHtml.includes('href="styles.css')) {
+  standaloneHtml = standaloneHtml.replace(
+    /<link\s+rel="stylesheet"\s+href="styles\.css(?:\?[^"]*)?"\s*\/>/,
+    `<style>\n${brandCss}\n${stylesCss}\n</style>`
+  );
+}
 
 standaloneHtml = standaloneHtml.replace(
   /<script\s+src="app\.js(?:\?[^"]*)?"\s*><\/script>/,
   `<script>\nwindow.EMBEDDED_RANKINGS = ${embeddedRankingsJson};\n</script>\n<script>\n${appJs}\n</script>`
 );
 
-if (standaloneHtml.includes('href="styles.css') || standaloneHtml.includes('src="app.js')) {
-  console.error('Failed to inline styles.css and/or app.js. Check index.html link/script tags.');
+if (standaloneHtml.includes('href="styles.css') || standaloneHtml.includes('href="brand.css') || standaloneHtml.includes('src="app.js')) {
+  console.error('Failed to inline brand.css/styles.css and/or app.js. Check index.html link/script tags.');
   process.exit(1);
 }
 

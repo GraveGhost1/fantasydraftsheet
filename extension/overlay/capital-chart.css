@@ -1,4 +1,13 @@
 /* Same-scale capital bars with a suggested range band */
+.fds-cap-chart-wrap,
+.fds-playoff-table,
+#fds-capital-host {
+  --radius: 6px;
+  --pos-qb: #c4a574;
+  --pos-rb: #2f9e6b;
+  --pos-wr: #c4845a;
+  --pos-te: #3d7d9a;
+}
 .fds-cap-chart-wrap h3 {
   margin: 0 0 8px;
   font-size: 11px;
@@ -10,7 +19,7 @@
 .fds-cap-message {
   margin: 0 0 10px;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   font-size: 11px;
   line-height: 1.4;
 }
@@ -48,7 +57,7 @@
   position: relative;
   width: 100%;
   background: rgba(255, 255, 255, 0.06);
-  border-radius: 8px 8px 0 0;
+  border-radius: var(--radius) var(--radius) 0 0;
   overflow: hidden;
 }
 
@@ -70,15 +79,15 @@
   right: 0;
   bottom: 0;
   min-height: 0;
-  border-radius: 6px 6px 0 0;
+  border-radius: var(--radius) var(--radius) 0 0;
   z-index: 1;
   transition: height 0.2s ease;
 }
 
-.fds-cap-fill.QB { background: #a855f7; }
-.fds-cap-fill.RB { background: #22c55e; }
-.fds-cap-fill.WR { background: #f97316; }
-.fds-cap-fill.TE { background: #3d7d9a; }
+.fds-cap-fill.QB { background: var(--pos-qb, #c4a574); }
+.fds-cap-fill.RB { background: var(--pos-rb, #2f9e6b); }
+.fds-cap-fill.WR { background: var(--pos-wr, #c4845a); }
+.fds-cap-fill.TE { background: var(--pos-te, #3d7d9a); }
 
 .fds-cap-fill.is-inRange {
   box-shadow: inset 0 0 0 2px rgba(134, 239, 172, 0.7);
@@ -90,7 +99,7 @@
 }
 
 .fds-cap-pos {
-  font-weight: 800;
+  font-weight: 700;
   font-size: 11px;
 }
 
@@ -148,7 +157,7 @@
 .fds-cap-row-track {
   position: relative;
   height: 14px;
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: rgba(255, 255, 255, 0.08);
   overflow: hidden;
 }
@@ -170,15 +179,15 @@
   left: 0;
   top: 0;
   bottom: 0;
-  border-radius: 999px;
+  border-radius: var(--radius);
   z-index: 1;
   min-width: 0;
 }
 
-.fds-cap-row-fill.QB { background: #a855f7; }
-.fds-cap-row-fill.RB { background: #22c55e; }
-.fds-cap-row-fill.WR { background: #f97316; }
-.fds-cap-row-fill.TE { background: #3d7d9a; }
+.fds-cap-row-fill.QB { background: var(--pos-qb, #c4a574); }
+.fds-cap-row-fill.RB { background: var(--pos-rb, #2f9e6b); }
+.fds-cap-row-fill.WR { background: var(--pos-wr, #c4845a); }
+.fds-cap-row-fill.TE { background: var(--pos-te, #3d7d9a); }
 
 .fds-cap-row-fill.is-over {
   box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.8);

@@ -4,9 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Ghost Fantasy Football</title>
-    <link rel="stylesheet" href="styles.css?v=20260912-mobile" />
+    <link rel="stylesheet" href="brand.css?v=20260917-sheet" />
+    <link rel="stylesheet" href="styles.css?v=20260917-sheet" />
     <style id="mobile-nav-critical">
-      /* Critical mobile nav — inline so it cannot be lost to CSS cache */
       .header-cluster {
         position: sticky;
         top: 0;
@@ -15,16 +15,14 @@
         flex-direction: row;
         align-items: center;
         gap: 12px;
-        padding: 12px 24px;
-        background: rgba(8, 12, 18, 0.9);
-        border-bottom: 1px solid rgba(183, 214, 232, 0.08);
-        backdrop-filter: blur(18px);
-        -webkit-backdrop-filter: blur(18px);
+        padding: 8px 16px;
+        background: #0c121a;
+        border-bottom: 1px solid #1c2733;
       }
       .top-bar-chrome {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
         flex: 0 0 auto;
         min-width: 0;
       }
@@ -32,17 +30,16 @@
         display: none;
         align-items: center;
         justify-content: center;
-        gap: 8px;
         min-width: 44px;
         min-height: 40px;
         padding: 0 12px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 12px;
-        background: rgba(61, 125, 154, 0.35);
-        color: #f4fbff;
+        border: 1px solid #1c2733;
+        border-radius: 6px;
+        background: transparent;
+        color: #eef3f7;
         font: inherit;
         font-size: 0.85rem;
-        font-weight: 700;
+        font-weight: 600;
         cursor: pointer;
       }
       .nav-expand-chevron {
@@ -52,11 +49,12 @@
         border-right: 2px solid currentColor;
         border-bottom: 2px solid currentColor;
         transform: rotate(45deg);
-        margin-top: -3px;
+        margin-top: -4px;
+        margin-left: 8px;
       }
       .header-cluster.is-nav-open .nav-expand-chevron {
         transform: rotate(-135deg);
-        margin-top: 3px;
+        margin-top: 4px;
       }
       .top-bar-nav {
         display: flex;
@@ -76,20 +74,14 @@
       .draft-dock {
         display: flex;
         align-items: center;
-        flex: 1 1 280px;
-        max-width: 540px;
-        min-width: 0;
         gap: 8px;
-        margin-left: 0;
-        margin-right: 0;
+        min-width: 0;
       }
-
       .draft-dock .compact-input {
         width: 100%;
         min-width: 0;
         max-width: 100%;
       }
-
       @media (max-width: 1100px) {
         .header-cluster {
           flex-direction: column !important;
@@ -101,40 +93,24 @@
         .top-bar-chrome {
           width: 100% !important;
           justify-content: space-between !important;
-          min-height: 56px !important;
-          padding: 10px 12px !important;
-          box-sizing: border-box !important;
+          min-height: 48px !important;
+          padding: 8px 12px !important;
         }
-        .nav-expand-toggle {
-          display: inline-flex !important;
-        }
-        .logo-copy p {
-          display: none !important;
-        }
+        .nav-expand-toggle { display: inline-flex !important; }
         .top-bar-nav {
           display: none !important;
           flex-direction: column !important;
           width: 100% !important;
           padding: 0 12px 12px !important;
-          box-sizing: border-box !important;
-          border-top: 1px solid rgba(255, 255, 255, 0.08);
+          border-top: 1px solid #1c2733;
         }
-        .header-cluster.is-nav-open .top-bar-nav {
-          display: flex !important;
-        }
-        .top-bar-nav > * {
-          width: 100% !important;
-        }
+        .header-cluster.is-nav-open .top-bar-nav { display: flex !important; }
+        .top-bar-nav > * { width: 100% !important; }
         .top-bar-account {
           margin-left: 0 !important;
           flex-direction: column !important;
           align-items: stretch !important;
           width: 100% !important;
-        }
-        .top-bar-account > * {
-          width: 100% !important;
-          min-height: 40px !important;
-          justify-content: center !important;
         }
         .draft-dock {
           position: fixed !important;
@@ -146,19 +122,14 @@
           max-width: none !important;
           flex: none !important;
           margin: 0 !important;
-          padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
-          border-radius: 16px 16px 0 0 !important;
-          border: 1px solid rgba(255, 255, 255, 0.12) !important;
+          padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+          border-radius: 6px 6px 0 0 !important;
+          border: 1px solid #1c2733 !important;
           border-bottom: 0 !important;
-          background: rgba(17, 24, 39, 0.98) !important;
-          box-sizing: border-box !important;
+          background: #121a24 !important;
         }
-        .draft-dock[hidden] {
-          display: none !important;
-        }
-        body {
-          padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
-        }
+        .draft-dock[hidden] { display: none !important; }
+        body { padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important; }
       }
     </style>
   </head>
@@ -212,7 +183,6 @@
             <span class="logo-mark" aria-hidden="true"></span>
             <div class="logo-copy">
               <h1>Ghost FF</h1>
-              <p>Ghost Fantasy Football</p>
             </div>
           </a>
           <button type="button" id="nav-expand-toggle" class="nav-expand-toggle" aria-expanded="false" aria-controls="top-bar-nav">
@@ -223,31 +193,15 @@
 
         <div class="top-bar-nav" id="top-bar-nav">
           <nav class="page-nav" aria-label="Ghost FF">
-            <a href="/" class="nav-btn is-current" aria-current="page">Draft</a>
-            <a href="/start-sit" class="nav-btn">Start/Sit</a>
-            <a href="/assistant" class="nav-btn">Assistant</a>
+            <a href="/" class="page-link is-current" aria-current="page">Draft</a>
+            <a href="/start-sit" class="page-link">Start/Sit</a>
+            <a href="/assistant" class="page-link">Assistant</a>
           </nav>
-
-          <div class="nav-control">
-            <select id="scoring-format" class="compact-select nav-select" aria-label="Scoring format">
-              <option value="standard">Standard</option>
-              <option value="half" selected>Half-PPR</option>
-              <option value="ppr">PPR</option>
-              <option value="bestball">Best Ball</option>
-            </select>
-          </div>
-
-          <button id="manual-mode-toggle" type="button" class="manual-mode-btn" aria-pressed="true" title="Toggle manual draft tracking">
-            <span class="manual-mode-dot" aria-hidden="true"></span>
-            <span class="manual-mode-label">Manual</span>
-          </button>
 
           <div class="top-bar-account">
             <span id="user-display" class="user-display"></span>
             <button id="login-button" class="nav-login">Log in</button>
-            <button id="logout-button" class="nav-btn" style="display: none;">Log out</button>
-            <label for="csv-upload" class="nav-btn" id="csv-upload-label">Import</label>
-            <button type="button" id="export-rankings-nav" class="nav-btn">Export</button>
+            <button id="logout-button" class="page-link" style="display: none;">Log out</button>
           </div>
         </div>
 
@@ -270,7 +224,7 @@
       </div>
 
       <div class="main-content">
-        <div id="csv-help" class="csv-help-banner">
+        <div id="csv-help" class="csv-help-banner" style="display: none;">
           <div class="csv-help-copy">
             <strong>Upload your rankings</strong>
             <p>Drag players to set your ranks, then <em>Export</em> to save. <em>Import</em> restores a saved sheet (needs <code>Player</code> and <code>RK</code> columns). Max import size 5MB.</p>
@@ -289,6 +243,12 @@
               <button type="button" class="chip-filter" data-filter="K">K</button>
               <button type="button" class="chip-filter" data-filter="DEF">DEF</button>
             </div>
+            <select id="scoring-format" class="compact-select" aria-label="Scoring format">
+              <option value="standard">Standard</option>
+              <option value="half" selected>Half-PPR</option>
+              <option value="ppr">PPR</option>
+              <option value="bestball">Best Ball</option>
+            </select>
             <div class="adp-selector">
               <select id="adp-source" class="compact-select" aria-label="ADP or expert ranking to show">
                 <option value="all">All ADP Sources</option>
@@ -301,15 +261,25 @@
                 <option value="expert">Expert Rank</option>
               </select>
             </div>
+            <button id="manual-mode-toggle" type="button" class="manual-mode-btn" aria-pressed="true" title="Toggle manual draft tracking">
+              <span class="manual-mode-dot" aria-hidden="true"></span>
+              <span class="manual-mode-label">Manual</span>
+            </button>
           </div>
-          <div class="action-buttons">
-            <button id="add-tier" class="ghost compact-button">+ Add Tier</button>
-            <button id="delete-tier" class="ghost compact-button">- Delete Tier</button>
-            <button id="export-rankings" class="ghost compact-button">Export</button>
-            <button id="save-rankings" class="ghost compact-button">Save</button>
-            <button id="apply-saved-rankings" class="ghost compact-button">Load</button>
-            <button id="reset-board" class="ghost compact-button">Refresh Board</button>
-            <button id="toggle-help" class="ghost compact-button">Hide CSV Help</button>
+          <div class="board-toolbar">
+            <button id="save-rankings" type="button">Save</button>
+            <details class="board-menu">
+              <summary>More</summary>
+              <div class="board-menu-panel">
+                <button id="add-tier" class="ghost" type="button">Add tier</button>
+                <button id="delete-tier" class="ghost" type="button">Delete tier</button>
+                <label for="csv-upload" id="csv-upload-label">Import</label>
+                <button id="export-rankings" class="ghost" type="button">Export</button>
+                <button id="apply-saved-rankings" class="ghost" type="button">Load</button>
+                <button id="reset-board" class="ghost" type="button">Refresh</button>
+                <button id="toggle-help" class="ghost" type="button">CSV help</button>
+              </div>
+            </details>
           </div>
         </div>
 
@@ -355,6 +325,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=20260910-photos3"></script>
+    <script src="app.js?v=20260917-sheet3"></script>
   </body>
 </html>
