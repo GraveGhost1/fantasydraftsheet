@@ -7,11 +7,15 @@ import time
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 GAMES_PATH = ROOT / 'extension' / 'data' / 'nfl-games-2026.json'
+STADIUMS_PATH = ROOT / 'extension' / 'data' / 'nfl-stadiums.json'
 SEASON = 2026
+WEATHER_HORIZON_HOURS = 14 * 24
+WEATHER_PAST_GRACE_HOURS = 3
 CACHE_TTL = {
     'sleeper_proj': 30 * 60,
     'sleeper_stats': 30 * 60,
@@ -20,6 +24,9 @@ CACHE_TTL = {
     'espn': 30 * 60,
     'odds': 15 * 60,
     'games': 5 * 60,
+    'stadiums': 12 * 60 * 60,
+    'weather': 45 * 60,
+    'fpa': 30 * 60,
 }
 
 TEAM_ALIASES = {'WSH': 'WAS', 'JAC': 'JAX', 'LA': 'LAR', 'GNB': 'GB', 'KCC': 'KC', 'SFO': 'SF', 'TAM': 'TB', 'NOR': 'NO', 'NWE': 'NE', 'LVR': 'LV'}
@@ -306,6 +313,354 @@ def load_games_file() -> list[dict]:
     return cache_set('games-file', games, CACHE_TTL['games'])
 
 
+def load_stadiums() -> dict:
+    cached = cache_get('stadiums-file')
+    if cached is not None:
+        return cached
+    empty = {'teams': {}, 'neutralSites': {}, 'neutralByGameId': {}}
+    if not STADIUMS_PATH.exists():
+        return cache_set('stadiums-file', empty, CACHE_TTL['stadiums'])
+    try:
+        payload = json.loads(STADIUMS_PATH.read_text(encoding='utf-8'))
+    except Exception:
+        return cache_set('stadiums-file', empty, CACHE_TTL['stadiums'])
+    if not isinstance(payload, dict):
+        return cache_set('stadiums-file', empty, CACHE_TTL['stadiums'])
+    return cache_set('stadiums-file', {
+        'teams': payload.get('teams') or {},
+        'neutralSites': payload.get('neutralSites') or {},
+        'neutralByGameId': payload.get('neutralByGameId') or {},
+    }, CACHE_TTL['stadiums'])
+
+
+def parse_kickoff(raw) -> datetime | None:
+    text = str(raw or '').strip()
+    if not text:
+        return None
+    try:
+        if text.endswith('Z'):
+            text = text[:-1] + '+00:00'
+        stamp = datetime.fromisoformat(text)
+        if stamp.tzinfo is None:
+            stamp = stamp.replace(tzinfo=timezone.utc)
+        return stamp.astimezone(timezone.utc)
+    except Exception:
+        return None
+
+
+def venue_for_game(game: dict) -> dict:
+    """Resolve kickoff venue from home stadium, or an explicit neutral override."""
+    indoor = bool(game.get('indoor'))
+    home = normalize_team(game.get('home'))
+    stadiums = load_stadiums()
+    teams = stadiums.get('teams') or {}
+    home_site = teams.get(home) if home else None
+
+    if indoor:
+        return {
+            'ok': False,
+            'reason': 'indoor',
+            'indoor': True,
+            'neutral': bool(game.get('neutral')),
+            'name': (home_site or {}).get('name') or 'Dome',
+            'city': (home_site or {}).get('city') or '',
+            'lat': None,
+            'lon': None,
+        }
+
+    if game.get('neutral'):
+        game_id = str(game.get('id') or '')
+        override = (stadiums.get('neutralByGameId') or {}).get(game_id)
+        if isinstance(override, str):
+            override = (stadiums.get('neutralSites') or {}).get(override)
+        if isinstance(override, dict) and override.get('lat') is not None and override.get('lon') is not None:
+            return {
+                'ok': True,
+                'reason': 'neutral',
+                'indoor': False,
+                'neutral': True,
+                'name': override.get('name') or 'Neutral site',
+                'city': override.get('city') or '',
+                'lat': float(override['lat']),
+                'lon': float(override['lon']),
+            }
+        return {
+            'ok': False,
+            'reason': 'neutral_unknown',
+            'indoor': False,
+            'neutral': True,
+            'name': 'Neutral site',
+            'city': '',
+            'lat': None,
+            'lon': None,
+        }
+
+    if not home_site or home_site.get('lat') is None or home_site.get('lon') is None:
+        return {
+            'ok': False,
+            'reason': 'missing_stadium',
+            'indoor': False,
+            'neutral': False,
+            'name': 'Outdoor',
+            'city': '',
+            'lat': None,
+            'lon': None,
+        }
+
+    return {
+        'ok': True,
+        'reason': 'home',
+        'indoor': False,
+        'neutral': False,
+        'name': home_site.get('name') or 'Outdoor',
+        'city': home_site.get('city') or '',
+        'lat': float(home_site['lat']),
+        'lon': float(home_site['lon']),
+    }
+
+
+def _nearest_hourly(hourly: dict, kickoff: datetime) -> dict | None:
+    times = hourly.get('time') or []
+    if not times:
+        return None
+    target = kickoff.replace(minute=0, second=0, microsecond=0)
+    best_idx = None
+    best_delta = None
+    for idx, stamp in enumerate(times):
+        parsed = parse_kickoff(stamp if 'T' in str(stamp) else f'{stamp}:00+00:00')
+        if not parsed:
+            continue
+        delta = abs((parsed - target).total_seconds())
+        if best_delta is None or delta < best_delta:
+            best_delta = delta
+            best_idx = idx
+    if best_idx is None or best_delta is None or best_delta > 3 * 3600:
+        return None
+
+    def at(key, default=None):
+        values = hourly.get(key) or []
+        if best_idx >= len(values):
+            return default
+        return values[best_idx]
+
+    return {
+        'time': times[best_idx],
+        'tempF': to_float(at('temperature_2m')),
+        'precipIn': to_float(at('precipitation')),
+        'precipProb': to_float(at('precipitation_probability')),
+        'snowfallIn': to_float(at('snowfall')),
+        'windMph': to_float(at('wind_speed_10m')),
+        'gustMph': to_float(at('wind_gusts_10m')),
+        'weatherCode': to_float(at('weather_code')),
+    }
+
+
+def fetch_open_meteo(lat: float, lon: float, kickoff: datetime) -> dict | None:
+    day = kickoff.strftime('%Y-%m-%d')
+    cache_key = f'weather-{round(lat, 3)}-{round(lon, 3)}-{day}'
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+    params = urllib.parse.urlencode({
+        'latitude': f'{lat:.4f}',
+        'longitude': f'{lon:.4f}',
+        'hourly': ','.join([
+            'temperature_2m',
+            'precipitation',
+            'precipitation_probability',
+            'snowfall',
+            'wind_speed_10m',
+            'wind_gusts_10m',
+            'weather_code',
+        ]),
+        'temperature_unit': 'fahrenheit',
+        'wind_speed_unit': 'mph',
+        'precipitation_unit': 'inch',
+        'timezone': 'UTC',
+        'forecast_days': '16',
+    })
+    url = f'https://api.open-meteo.com/v1/forecast?{params}'
+    try:
+        data = http_json(url, timeout=12)
+    except Exception:
+        return cache_set(cache_key, None, 120)
+    if not isinstance(data, dict):
+        return cache_set(cache_key, None, 120)
+    snapshot = _nearest_hourly(data.get('hourly') or {}, kickoff)
+    return cache_set(cache_key, snapshot, CACHE_TTL['weather'])
+
+
+def weather_label(snapshot: dict) -> str:
+    bits = []
+    temp = to_float(snapshot.get('tempF'))
+    wind = to_float(snapshot.get('windMph')) or 0
+    gust = to_float(snapshot.get('gustMph')) or 0
+    precip = to_float(snapshot.get('precipIn')) or 0
+    snow = to_float(snapshot.get('snowfallIn')) or 0
+    precip_prob = to_float(snapshot.get('precipProb')) or 0
+    if temp is not None:
+        bits.append(f'{round(temp):g}°F')
+    wind_show = max(wind, gust * 0.85)
+    if wind_show >= 8:
+        bits.append(f'{round(wind_show):g} mph wind')
+    if snow >= 0.05:
+        bits.append('snow')
+    elif precip >= 0.05 or precip_prob >= 55:
+        bits.append('rain' if precip >= 0.05 else f'{round(precip_prob):g}% rain')
+    return ' · '.join(bits) if bits else 'Fair'
+
+
+def weather_for_game(game: dict) -> dict | None:
+    """Kickoff weather at the venue. None/skip for dome, unknown neutral, or out of horizon."""
+    venue = venue_for_game(game)
+    stadium_name = venue.get('name') or ('Dome' if venue.get('indoor') else 'Outdoor')
+
+    if venue.get('indoor'):
+        return {
+            'applicable': False,
+            'reason': 'indoor',
+            'stadium': stadium_name,
+            'summary': None,
+            'snapshot': None,
+        }
+
+    if not venue.get('ok'):
+        reason = venue.get('reason') or 'unavailable'
+        summary = 'Neutral site — weather N/A' if reason == 'neutral_unknown' else 'Weather N/A'
+        return {
+            'applicable': False,
+            'reason': reason,
+            'stadium': stadium_name,
+            'summary': summary,
+            'snapshot': None,
+        }
+
+    kickoff = parse_kickoff(game.get('kickoff'))
+    if not kickoff:
+        return {
+            'applicable': False,
+            'reason': 'no_kickoff',
+            'stadium': stadium_name,
+            'summary': 'Weather N/A',
+            'snapshot': None,
+        }
+
+    now = datetime.now(timezone.utc)
+    hours = (kickoff - now).total_seconds() / 3600
+    if hours < -WEATHER_PAST_GRACE_HOURS:
+        return {
+            'applicable': False,
+            'reason': 'past',
+            'stadium': stadium_name,
+            'summary': None,
+            'snapshot': None,
+        }
+    if hours > WEATHER_HORIZON_HOURS:
+        return {
+            'applicable': False,
+            'reason': 'horizon',
+            'stadium': stadium_name,
+            'summary': 'Forecast not available yet',
+            'snapshot': None,
+        }
+
+    snapshot = fetch_open_meteo(venue['lat'], venue['lon'], kickoff)
+    if not snapshot:
+        return {
+            'applicable': False,
+            'reason': 'fetch_failed',
+            'stadium': stadium_name,
+            'summary': 'Weather unavailable',
+            'snapshot': None,
+        }
+
+    return {
+        'applicable': True,
+        'reason': venue.get('reason') or 'home',
+        'stadium': stadium_name,
+        'city': venue.get('city') or '',
+        'summary': weather_label(snapshot),
+        'snapshot': {
+            'tempF': round1(snapshot.get('tempF')),
+            'windMph': round1(snapshot.get('windMph')),
+            'gustMph': round1(snapshot.get('gustMph')),
+            'precipIn': round2(snapshot.get('precipIn')),
+            'precipProb': round1(snapshot.get('precipProb')),
+            'snowfallIn': round2(snapshot.get('snowfallIn')),
+            'time': snapshot.get('time'),
+        },
+    }
+
+
+def weather_delta_for_position(snapshot: dict, position: str) -> tuple[float, str]:
+    """Small fantasy deltas so weather does not dominate source consensus."""
+    if not snapshot:
+        return 0.0, ''
+    pos = normalize_pos(position)
+    wind = max(to_float(snapshot.get('windMph')) or 0, (to_float(snapshot.get('gustMph')) or 0) * 0.8)
+    precip = to_float(snapshot.get('precipIn')) or 0
+    snow = to_float(snapshot.get('snowfallIn')) or 0
+    precip_prob = to_float(snapshot.get('precipProb')) or 0
+    temp = to_float(snapshot.get('tempF'))
+    wet = snow >= 0.05 or precip >= 0.08 or (precip >= 0.03 and precip_prob >= 60)
+    cold = temp is not None and temp <= 25
+    delta = 0.0
+    tags = []
+
+    if wind >= 20:
+        tags.append(f'{round(wind):g} mph wind')
+        if pos in {'QB', 'WR', 'TE'}:
+            delta -= 0.75
+        elif pos == 'K':
+            delta -= 1.0
+        elif pos == 'RB':
+            delta += 0.15
+    elif wind >= 15:
+        tags.append(f'{round(wind):g} mph wind')
+        if pos in {'QB', 'WR', 'TE'}:
+            delta -= 0.4
+        elif pos == 'K':
+            delta -= 0.6
+        elif pos == 'RB':
+            delta += 0.1
+
+    if snow >= 0.05:
+        tags.append('snow')
+        if pos in {'QB', 'WR', 'TE'}:
+            delta -= 0.55
+        elif pos == 'RB':
+            delta += 0.35
+        elif pos == 'K':
+            delta -= 0.4
+        elif pos == 'DEF':
+            delta += 0.15
+    elif wet:
+        tags.append('rain')
+        if pos in {'QB', 'WR', 'TE'}:
+            delta -= 0.35
+        elif pos == 'RB':
+            delta += 0.25
+        elif pos == 'K':
+            delta -= 0.25
+        elif pos == 'DEF':
+            delta += 0.1
+
+    if cold and snow < 0.05:
+        tags.append(f'{round(temp):g}°F')
+        if pos in {'QB', 'WR', 'TE'}:
+            delta -= 0.2
+        elif pos == 'RB':
+            delta += 0.15
+        elif pos == 'K':
+            delta -= 0.15
+
+    delta = round2(clamp(delta, -1.2, 0.6))
+    if abs(delta) < 0.05:
+        return 0.0, ''
+    label = ' · '.join(tags) if tags else 'Weather'
+    return delta, label
+
+
 def sleeper_state() -> dict:
     cached = cache_get('sleeper-state')
     if cached is not None:
@@ -422,7 +777,7 @@ def games_for_week(week: int) -> list[dict]:
     return rows
 
 
-def matchup_for_team(team: str, week: int) -> dict:
+def matchup_for_team(team: str, week: int, include_weather: bool = False) -> dict:
     code = normalize_team(team)
     for game in games_for_week(week):
         home = game['home']
@@ -452,6 +807,22 @@ def matchup_for_team(team: str, week: int) -> dict:
         else:
             spread_label = f'{code} +{underdog_by:g}'
             lean_label = f'Underdog by {underdog_by:g}'
+        indoor = bool(game.get('indoor'))
+        venue = venue_for_game(game)
+        stadium = venue.get('name') or ('Dome' if indoor else 'Outdoor')
+        weather_payload = None
+        # Only hit Open-Meteo when scoring a compare for outdoor games.
+        if include_weather:
+            weather = weather_for_game(game)
+            if weather:
+                stadium = weather.get('stadium') or stadium
+                weather_payload = {
+                    'applicable': bool(weather.get('applicable')),
+                    'reason': weather.get('reason'),
+                    'summary': weather.get('summary'),
+                    'city': weather.get('city') or '',
+                    'snapshot': weather.get('snapshot'),
+                }
         return {
             'opponent': opponent,
             'home': home_side,
@@ -469,8 +840,10 @@ def matchup_for_team(team: str, week: int) -> dict:
             'underdogBy': round2(underdog_by) if team_spread is not None else None,
             'implied': implied,
             'oppImplied': opp_implied,
-            'indoor': bool(game.get('indoor')),
-            'stadium': 'Dome' if game.get('indoor') else 'Outdoor',
+            'indoor': indoor,
+            'neutral': bool(game.get('neutral')),
+            'stadium': stadium,
+            'weather': weather_payload,
             'bye': False,
         }
     return {
@@ -491,7 +864,9 @@ def matchup_for_team(team: str, week: int) -> dict:
         'implied': None,
         'oppImplied': None,
         'indoor': False,
+        'neutral': False,
         'stadium': 'Bye',
+        'weather': None,
         'bye': True,
     }
 
@@ -653,8 +1028,8 @@ def sleeper_projections(week: int) -> list[dict]:
     return cache_set(key, parsed, CACHE_TTL['sleeper_proj'])
 
 
-def sleeper_week_stats(season: int, week: int) -> dict:
-    key = f'sleeper-stats-{season}-{week}'
+def sleeper_week_stat_rows(season: int, week: int) -> list[dict]:
+    key = f'sleeper-stats-rows-{season}-{week}'
     cached = cache_get(key)
     if cached is not None:
         return cached
@@ -667,14 +1042,140 @@ def sleeper_week_stats(season: int, week: int) -> dict:
         rows = http_json(url, timeout=20)
     except Exception:
         rows = []
-    mapped = {}
+    parsed = []
     if isinstance(rows, list):
         for row in rows:
             pid = str(row.get('player_id') or '')
             stats = row.get('stats') if isinstance(row.get('stats'), dict) else {}
-            if pid:
-                mapped[pid] = stats
+            info = row.get('player') if isinstance(row.get('player'), dict) else {}
+            pos = normalize_pos(info.get('position') or row.get('position'))
+            team = normalize_team(row.get('team') or info.get('team') or info.get('team_abbr'))
+            opponent = normalize_team(row.get('opponent') or '')
+            if not pid:
+                continue
+            parsed.append({
+                'player_id': pid,
+                'team': team,
+                'opponent': opponent,
+                'position': pos,
+                'stats': stats,
+            })
+    return cache_set(key, parsed, CACHE_TTL['sleeper_stats'])
+
+
+def sleeper_week_stats(season: int, week: int) -> dict:
+    key = f'sleeper-stats-{season}-{week}'
+    cached = cache_get(key)
+    if cached is not None:
+        return cached
+    mapped = {
+        row['player_id']: row['stats']
+        for row in sleeper_week_stat_rows(season, week)
+        if row.get('player_id')
+    }
     return cache_set(key, mapped, CACHE_TTL['sleeper_stats'])
+
+
+def defensive_fpa_table(through_week: int, scoring: str = 'half') -> dict:
+    """Season-to-date fantasy points allowed by each team to each position.
+
+    Built from Sleeper weekly player scores: a QB's points count against the
+    defense they faced that week. Rank 1 = fewest FPA (toughest); 32 = most (softest).
+    """
+    week = int(through_week or 1)
+    scoring = (scoring or 'half').lower()
+    if scoring == 'std':
+        scoring = 'standard'
+    key = f'fpa-{SEASON}-{week}-{scoring}'
+    cached = cache_get(key)
+    if cached is not None:
+        return cached
+
+    field = scoring_field(scoring)
+    # week -> defense/offense-key -> pos -> points allowed that week
+    weekly: dict[int, dict[str, dict[str, float]]] = {}
+    lookback = [w for w in range(1, week) if w >= 1]
+    for prior in lookback:
+        bucket = weekly.setdefault(prior, {})
+        for row in sleeper_week_stat_rows(SEASON, prior):
+            pos = normalize_pos(row.get('position'))
+            if pos not in {'QB', 'RB', 'WR', 'TE', 'K', 'DEF'}:
+                continue
+            opp = normalize_team(row.get('opponent'))
+            if not opp:
+                continue
+            pts = to_float((row.get('stats') or {}).get(field))
+            if pts is None:
+                continue
+            by_pos = bucket.setdefault(opp, {})
+            by_pos[pos] = (by_pos.get(pos) or 0) + pts
+
+    # team -> pos -> list of weekly totals
+    series: dict[str, dict[str, list[float]]] = {}
+    for _week_num, teams in weekly.items():
+        for team, by_pos in teams.items():
+            team_series = series.setdefault(team, {})
+            for pos, total in by_pos.items():
+                team_series.setdefault(pos, []).append(total)
+
+    positions = ('QB', 'RB', 'WR', 'TE', 'K', 'DEF')
+    table: dict[str, dict[str, dict]] = {}
+    league_sums = {pos: [] for pos in positions}
+    for team, by_pos in series.items():
+        table[team] = {}
+        for pos in positions:
+            samples = by_pos.get(pos) or []
+            if not samples:
+                continue
+            avg = sum(samples) / len(samples)
+            table[team][pos] = {
+                'avg': round1(avg),
+                'games': len(samples),
+            }
+            league_sums[pos].append(avg)
+
+    league_avg = {
+        pos: round1(sum(vals) / len(vals)) if vals else None
+        for pos, vals in league_sums.items()
+    }
+
+    for pos in positions:
+        ranked = sorted(
+            (
+                (team, (table.get(team) or {}).get(pos) or {})
+                for team in table
+                if (table.get(team) or {}).get(pos)
+            ),
+            key=lambda item: item[1].get('avg') or 0,
+        )
+        for rank, (team, row) in enumerate(ranked, start=1):
+            row['rank'] = rank
+            row['leagueAvg'] = league_avg.get(pos)
+            row['teams'] = len(ranked)
+
+    return cache_set(key, {'byTeam': table, 'leagueAvg': league_avg}, CACHE_TTL['fpa'])
+
+
+def fpa_for_matchup(opponent: str, position: str, through_week: int, scoring: str = 'half') -> dict | None:
+    opp = normalize_team(opponent)
+    pos = normalize_pos(position)
+    if not opp or pos not in {'QB', 'RB', 'WR', 'TE', 'K', 'DEF'}:
+        return None
+    if int(through_week or 1) <= 1:
+        return None
+    table = defensive_fpa_table(through_week, scoring)
+    row = ((table.get('byTeam') or {}).get(opp) or {}).get(pos)
+    if not row or row.get('avg') is None:
+        return None
+    return {
+        'opponent': opp,
+        'position': pos,
+        'avg': row.get('avg'),
+        'rank': row.get('rank'),
+        'games': row.get('games'),
+        'leagueAvg': row.get('leagueAvg'),
+        'teams': row.get('teams'),
+    }
 
 
 ESPN_STAT_IDS = {
@@ -1017,7 +1518,153 @@ def _volume_index(stats: dict, position: str) -> float | None:
     return (rec or 0) + ((rec_yds or 0) / 20.0)
 
 
-def _adjust(consensus: float, matchup: dict, form: dict, position: str, injury: str, stats: dict, pos_volume_avg: float | None):
+def _is_receiving_back(stats: dict, backfield: list | None = None, player_name: str = '') -> bool:
+    """Pass-catching RBs benefit from negative game script; early-down RBs from positive.
+
+    Prefer relative role vs other RBs on the same team: clear receptions lead, or
+    the highest catch-rate (rec / touches) among meaningfully used backs.
+    Fall back to absolute profile when the backfield has no useful comparison.
+    """
+    my_rec = to_float((stats or {}).get('rec')) or 0
+    my_rush = to_float((stats or {}).get('rushAtt')) or 0
+    my_rush_yds = to_float((stats or {}).get('rushYds')) or 0
+    my_rec_yds = to_float((stats or {}).get('recYds')) or 0
+    my_key = normalize_name(player_name)
+    my_touches = my_rec + my_rush
+
+    def catch_rate(rec: float, rush: float) -> float:
+        touches = rec + rush
+        return (rec / touches) if touches > 0 else 0.0
+
+    mates = []
+    if isinstance(backfield, list):
+        for mate in backfield:
+            if not isinstance(mate, dict):
+                continue
+            injury = str(mate.get('injury') or '').upper()
+            if injury in SIT_INJURIES:
+                continue
+            mate_key = mate.get('nameKey') or normalize_name(mate.get('name') or '')
+            if my_key and mate_key == my_key:
+                continue
+            mate_rec = to_float(mate.get('rec'))
+            if mate_rec is None:
+                continue
+            mate_rush = to_float(mate.get('rushAtt')) or 0
+            # Ignore scrap-heap projections when judging the committee.
+            if mate_rec + mate_rush < 2.0:
+                continue
+            mates.append({'rec': mate_rec, 'rush': mate_rush})
+
+    if mates:
+        best_other_rec = max(m['rec'] for m in mates)
+        field_total = my_rec + sum(m['rec'] for m in mates)
+        # Clear receiving lead in the backfield.
+        if my_rec >= best_other_rec + 0.4:
+            return True
+        if field_total > 0 and (my_rec / field_total) >= 0.55 and my_rec >= best_other_rec:
+            return True
+
+        my_rate = catch_rate(my_rec, my_rush)
+        if my_touches >= 5.0 and my_rate >= 0.14:
+            rate_leader = True
+            for mate in mates:
+                mate_touches = mate['rec'] + mate['rush']
+                if mate_touches < 5.0:
+                    continue
+                mate_rate = catch_rate(mate['rec'], mate['rush'])
+                if mate_rate > my_rate + 0.015:
+                    rate_leader = False
+                    break
+            if rate_leader:
+                return True
+
+        # Clear early-down / secondary behind a pass-catch lead.
+        if best_other_rec >= my_rec + 0.4:
+            return False
+        # Near-even committee — use absolute profile below.
+
+    if my_rec >= 2.5:
+        return True
+
+    if my_touches > 0 and (my_rec / my_touches) >= 0.22:
+        return True
+
+    yards = my_rush_yds + my_rec_yds
+    if yards > 0 and (my_rec_yds / yards) >= 0.28:
+        return True
+
+    if my_rec >= 1.5 and my_rush > 0 and my_rec >= my_rush * 0.18:
+        return True
+
+    return False
+
+
+def _backfield_rec_index(sleeper_rows: list, espn_rows: list) -> dict[str, list[dict]]:
+    """Team → RB receiving projections merged from weekly boards."""
+    merged: dict[str, dict] = {}
+
+    def ingest(rows: list):
+        for row in rows or []:
+            if normalize_pos(row.get('position')) != 'RB':
+                continue
+            team = normalize_team(row.get('team'))
+            name = row.get('name') or ''
+            if not team or not name:
+                continue
+            key = f'{team}|{normalize_name(name)}'
+            stats = row.get('stats') if isinstance(row.get('stats'), dict) else {}
+            rec = to_float(stats.get('rec'))
+            if rec is None:
+                rec = to_float(row.get('impliedRec'))
+            rush = to_float(stats.get('rushAtt'))
+            entry = merged.setdefault(key, {
+                'team': team,
+                'name': name,
+                'nameKey': normalize_name(name),
+                'recs': [],
+                'rushes': [],
+                'injury': '',
+            })
+            if rec is not None:
+                entry['recs'].append(rec)
+            if rush is not None:
+                entry['rushes'].append(rush)
+            injury = row.get('injury')
+            if injury and not entry.get('injury'):
+                entry['injury'] = injury
+
+    ingest(sleeper_rows)
+    ingest(espn_rows)
+
+    by_team: dict[str, list[dict]] = {}
+    for entry in merged.values():
+        recs = entry.get('recs') or []
+        if not recs:
+            continue
+        by_team.setdefault(entry['team'], []).append({
+            'name': entry['name'],
+            'nameKey': entry['nameKey'],
+            'rec': round1(sum(recs) / len(recs)),
+            'rushAtt': round1(sum(entry['rushes']) / len(entry['rushes'])) if entry.get('rushes') else None,
+            'injury': entry.get('injury') or '',
+        })
+    return by_team
+
+
+def _adjust(
+    consensus: float,
+    matchup: dict,
+    form: dict,
+    position: str,
+    injury: str,
+    stats: dict,
+    pos_volume_avg: float | None,
+    receiving_back: bool | None = None,
+    player_name: str = '',
+    backfield: list | None = None,
+    fpa: dict | None = None,
+):
     adjustments = []
     injured = str(injury or '').upper()
     if matchup.get('bye'):
@@ -1029,8 +1676,10 @@ def _adjust(consensus: float, matchup: dict, form: dict, position: str, injury: 
         delta = round2(-0.15 * consensus)
         adjustments.append({'id': 'injury', 'label': 'Questionable', 'delta': delta})
 
-    form_avg = form.get('average')
-    if form_avg is not None and consensus:
+    # Skip form when the lookback is thin (e.g. returning from injury / DNPs).
+    form_games = form.get('games') if isinstance(form, dict) else None
+    form_avg = form.get('average') if isinstance(form, dict) else None
+    if form_avg is not None and consensus and isinstance(form_games, list) and len(form_games) >= 2:
         ratio = form_avg / max(consensus, 1)
         delta = round2(clamp((ratio - 1) * 0.30 * consensus, -2.5, 2.5))
         if abs(delta) >= 0.15:
@@ -1051,8 +1700,21 @@ def _adjust(consensus: float, matchup: dict, form: dict, position: str, injury: 
 
     team_spread = matchup.get('spread')
     if team_spread is not None:
+        spread_label = matchup.get('leanLabel') or 'Spread'
         if position == 'RB':
-            delta = clamp(-team_spread * 0.10, -1.2, 1.2)
+            is_pass = (
+                receiving_back
+                if receiving_back is not None
+                else _is_receiving_back(stats or {}, backfield=backfield, player_name=player_name)
+            )
+            if is_pass:
+                # Trailing (underdog / positive spread) → more checkdowns & pass work.
+                delta = clamp(team_spread * 0.10, -1.2, 1.2)
+                spread_label = 'Receiving RB'
+            else:
+                # Leading (favorite / negative spread) → more early-down / clock work.
+                delta = clamp(-team_spread * 0.10, -1.2, 1.2)
+                spread_label = 'Early-down RB'
         elif position in {'WR', 'TE'}:
             delta = clamp(team_spread * 0.04, -0.6, 0.6)
         elif position == 'DEF':
@@ -1063,7 +1725,21 @@ def _adjust(consensus: float, matchup: dict, form: dict, position: str, injury: 
             delta = 0
         delta = round2(delta)
         if abs(delta) >= 0.05:
-            adjustments.append({'id': 'spread', 'label': matchup.get('leanLabel') or 'Spread', 'delta': delta})
+            adjustments.append({'id': 'spread', 'label': spread_label, 'delta': delta})
+
+    fpa_row = fpa if isinstance(fpa, dict) else (matchup.get('fpa') if isinstance(matchup.get('fpa'), dict) else None)
+    if fpa_row and fpa_row.get('avg') is not None and fpa_row.get('leagueAvg') is not None:
+        scales = {'QB': 0.12, 'RB': 0.10, 'WR': 0.10, 'TE': 0.14, 'K': 0.18, 'DEF': 0.12}
+        scale = scales.get(normalize_pos(position), 0.10)
+        delta = round2(clamp((fpa_row['avg'] - fpa_row['leagueAvg']) * scale, -1.5, 1.5))
+        if abs(delta) >= 0.05:
+            rank = fpa_row.get('rank')
+            pos_label = display_pos_label(position)
+            if rank:
+                label = f'{pos_label} FPA #{rank}'
+            else:
+                label = f'{pos_label} FPA {fpa_row["avg"]:g}'
+            adjustments.append({'id': 'fpa', 'label': label, 'delta': delta})
 
     if matchup.get('home') and not matchup.get('bye'):
         adjustments.append({'id': 'home', 'label': 'Home game', 'delta': 0.3})
@@ -1075,6 +1751,17 @@ def _adjust(consensus: float, matchup: dict, form: dict, position: str, injury: 
             adjustments.append({'id': 'dome', 'label': 'Dome', 'delta': 0.1})
         elif position == 'K':
             adjustments.append({'id': 'dome', 'label': 'Dome', 'delta': 0.2})
+    else:
+        weather = matchup.get('weather') if isinstance(matchup.get('weather'), dict) else None
+        snapshot = (weather or {}).get('snapshot') if weather and weather.get('applicable') else None
+        if snapshot:
+            w_delta, w_label = weather_delta_for_position(snapshot, position)
+            if abs(w_delta) >= 0.05:
+                adjustments.append({
+                    'id': 'weather',
+                    'label': w_label or (weather.get('summary') or 'Weather'),
+                    'delta': w_delta,
+                })
 
     vol = _volume_index(stats, position)
     if vol is not None and pos_volume_avg:
@@ -1085,6 +1772,13 @@ def _adjust(consensus: float, matchup: dict, form: dict, position: str, injury: 
     raw = consensus + sum(item['delta'] for item in adjustments)
     adjusted = round1(clamp(raw, 0.65 * consensus, 1.35 * consensus)) if consensus else 0
     return adjusted, adjustments, False
+
+
+def display_pos_label(pos: str) -> str:
+    code = normalize_pos(pos)
+    if code == 'DEF':
+        return 'D/ST'
+    return code or 'Pos'
 
 
 def _consensus(source_points: dict) -> tuple[float | None, float | None]:
@@ -1247,6 +1941,8 @@ def compare_players(names: list[str], week=None, scoring='half', te_premium=0) -
     if not espn_rows:
         source_errors.setdefault('espn', 'No weekly projections returned')
 
+    backfields = _backfield_rec_index(sleeper_rows, espn_rows)
+
     volume_samples = []
     built = []
     for name in clean_names:
@@ -1260,7 +1956,12 @@ def compare_players(names: list[str], week=None, scoring='half', te_premium=0) -
             continue
         pos = identity.get('position') or pos
         team = identity.get('team') or team
-        matchup = matchup_for_team(team, week)
+        matchup = matchup_for_team(team, week, include_weather=True)
+        fpa = None
+        if not matchup.get('bye'):
+            fpa = fpa_for_matchup(matchup.get('opponent'), pos, week, scoring)
+            if fpa:
+                matchup = {**matchup, 'fpa': fpa}
         fallback_rec = None
         for src_row in (sleeper_row, espn_row):
             if not src_row:
@@ -1286,6 +1987,13 @@ def compare_players(names: list[str], week=None, scoring='half', te_premium=0) -
         form = _recent_form((sleeper_row or {}).get('id') or '', week, scoring, pos, te_premium)
         volume_samples.append(_volume_index(stats, pos))
         injury = (sleeper_row or {}).get('injury') or (espn_row or {}).get('injury')
+        receiving_back = None
+        if normalize_pos(pos) == 'RB':
+            receiving_back = _is_receiving_back(
+                stats,
+                backfield=backfields.get(normalize_team(team)) or [],
+                player_name=identity.get('name') or name,
+            )
         built.append({
             'name': identity.get('name') or name,
             'position': pos,
@@ -1304,6 +2012,7 @@ def compare_players(names: list[str], week=None, scoring='half', te_premium=0) -
             'teBonus': te_bonus or None,
             'form': form,
             'injuryStatus': injury,
+            'receivingBack': receiving_back,
         })
 
     pos_volume = {}
@@ -1325,6 +2034,7 @@ def compare_players(names: list[str], week=None, scoring='half', te_premium=0) -
         samples = pos_volume.get(pos) or []
         pos_avg = sum(samples) / len(samples) if samples else None
         consensus = row.get('consensus') or 0
+        team = normalize_team(row.get('team'))
         adjusted, adjustments, hard_sit = _adjust(
             consensus,
             row.get('matchup') or {},
@@ -1333,6 +2043,10 @@ def compare_players(names: list[str], week=None, scoring='half', te_premium=0) -
             row.get('injury'),
             row.get('stats') or {},
             pos_avg,
+            receiving_back=row.get('receivingBack'),
+            player_name=row.get('name') or '',
+            backfield=backfields.get(team) or [],
+            fpa=(row.get('matchup') or {}).get('fpa'),
         )
         row['adjusted'] = adjusted
         row['adjustments'] = adjustments

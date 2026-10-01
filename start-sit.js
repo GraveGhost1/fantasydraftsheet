@@ -347,12 +347,39 @@ function matchupBlock(matchup) {
   const ou = matchup.total != null ? fmt(matchup.total, 1) : '—';
   const implied = matchup.implied != null ? fmt(matchup.implied, 1) : '—';
   const oppImplied = matchup.oppImplied != null ? fmt(matchup.oppImplied, 1) : '—';
+  const venue = matchup.stadium || (matchup.indoor ? 'Dome' : 'Outdoor');
+  const weather = matchup.weather;
+  let weatherLine = '';
+  if (matchup.indoor) {
+    weatherLine = 'Dome — weather N/A';
+  } else if (weather?.summary) {
+    weatherLine = weather.summary;
+  } else if (weather?.applicable && weather?.snapshot) {
+    const snap = weather.snapshot;
+    const bits = [];
+    if (snap.tempF != null) bits.push(`${fmt(snap.tempF, 0)}°F`);
+    if (snap.windMph != null && snap.windMph >= 8) bits.push(`${fmt(snap.windMph, 0)} mph wind`);
+    if ((snap.snowfallIn || 0) >= 0.05) bits.push('snow');
+    else if ((snap.precipIn || 0) >= 0.05) bits.push('rain');
+    weatherLine = bits.join(' · ') || 'Fair';
+  } else if (matchup.neutral) {
+    weatherLine = 'Neutral site — weather N/A';
+  }
+  const fpa = matchup.fpa;
+  let fpaLine = '';
+  if (fpa && fpa.avg != null) {
+    const rank = fpa.rank != null ? ` · #${fpa.rank}` : '';
+    const games = fpa.games != null ? ` (${fpa.games}g)` : '';
+    fpaLine = `${fmt(fpa.avg, 1)} FPA${rank}${games}`;
+  }
   return `
     <div class="matchup-list">
       <div><span>Game</span><strong>${escapeHtml(matchup.label || '—')}</strong></div>
       <div><span>Total / spread</span><strong>${escapeHtml(ou)} · ${escapeHtml(matchup.spreadLabel || '—')}</strong></div>
       <div><span>Implied points</span><strong>${escapeHtml(implied)} vs ${escapeHtml(oppImplied)}</strong></div>
-      <div><span>Venue</span><strong>${escapeHtml(matchup.stadium || (matchup.indoor ? 'Dome' : 'Outdoor'))}</strong></div>
+      <div><span>Venue</span><strong>${escapeHtml(venue)}</strong></div>
+      ${weatherLine ? `<div><span>Weather</span><strong>${escapeHtml(weatherLine)}</strong></div>` : ''}
+      ${fpaLine ? `<div><span>Opp vs pos</span><strong>${escapeHtml(fpaLine)}</strong></div>` : ''}
     </div>
   `;
 }
