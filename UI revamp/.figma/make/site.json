@@ -1,0 +1,10 @@
+{
+  "description": "Provides fantasy football players with intuitive tools to analyze start-sit decisions and view up-to-date player rankings for smarter lineup choices.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

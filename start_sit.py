@@ -27,6 +27,7 @@ CACHE_TTL = {
     'stadiums': 12 * 60 * 60,
     'weather': 45 * 60,
     'fpa': 30 * 60,
+    'dst_matchup': 30 * 60,
 }
 
 TEAM_ALIASES = {'WSH': 'WAS', 'JAC': 'JAX', 'LA': 'LAR', 'GNB': 'GB', 'KCC': 'KC', 'SFO': 'SF', 'TAM': 'TB', 'NOR': 'NO', 'NWE': 'NE', 'LVR': 'LV'}
@@ -1178,6 +1179,204 @@ def fpa_for_matchup(opponent: str, position: str, through_week: int, scoring: st
     }
 
 
+def offense_dst_matchup_table(through_week: int) -> dict:
+    """How friendly each offense has been for opposing D/STs.
+
+    Per offense (the team your D/ST is facing), average across prior weeks:
+    - sacks taken / turnovers forced against them
+    - points scored
+    - pass rate (dropbacks share) and pass-attempt volume
+    - red-zone volume and points-per-RZ-trip (efficiency)
+    """
+    week = int(through_week or 1)
+    key = f'dst-matchup-v2-{SEASON}-{week}'
+    cached = cache_get(key)
+    if cached is not None:
+        return cached
+
+    # week -> offense -> defensive outcomes + offensive style that week
+    weekly: dict[int, dict[str, dict[str, float]]] = {}
+    lookback = [w for w in range(1, week) if w >= 1]
+    for prior in lookback:
+        bucket = weekly.setdefault(prior, {})
+
+        def ensure(offense: str) -> dict:
+            return bucket.setdefault(offense, {
+                'sacks': 0.0,
+                'turnovers': 0.0,
+                'points': None,
+                'dstPts': None,
+                'passAtt': 0.0,
+                'rushAtt': 0.0,
+                'rzAtt': 0.0,
+            })
+
+        for row in sleeper_week_stat_rows(SEASON, prior):
+            pos = normalize_pos(row.get('position'))
+            stats = row.get('stats') or {}
+            if pos == 'DEF':
+                offense = normalize_team(row.get('opponent'))
+                if not offense:
+                    continue
+                entry = ensure(offense)
+                entry['sacks'] += to_float(stats.get('sack')) or 0
+                entry['turnovers'] += (to_float(stats.get('int')) or 0) + (to_float(stats.get('fum_rec')) or 0)
+                pa = to_float(stats.get('pts_allow'))
+                if pa is not None:
+                    entry['points'] = pa
+                dst_pts = to_float(stats.get('pts_half_ppr'))
+                if dst_pts is None:
+                    dst_pts = to_float(stats.get('pts_std'))
+                if dst_pts is not None:
+                    entry['dstPts'] = dst_pts
+                continue
+
+            if pos not in {'QB', 'RB', 'WR', 'TE'}:
+                continue
+            team = normalize_team(row.get('team'))
+            if not team:
+                continue
+            entry = ensure(team)
+            entry['passAtt'] += to_float(stats.get('pass_att')) or 0
+            entry['rushAtt'] += to_float(stats.get('rush_att')) or 0
+            entry['rzAtt'] += (
+                (to_float(stats.get('pass_rz_att')) or 0)
+                + (to_float(stats.get('rush_rz_att')) or 0)
+            )
+
+    series: dict[str, dict[str, list[float]]] = {}
+    for _week_num, offenses in weekly.items():
+        for team, totals in offenses.items():
+            plays = (totals.get('passAtt') or 0) + (totals.get('rushAtt') or 0)
+            pass_rate = ((totals.get('passAtt') or 0) / plays) if plays > 0 else None
+            points = totals.get('points')
+            rz_att = totals.get('rzAtt') or 0
+            rz_pp = (points / rz_att) if (points is not None and rz_att > 0) else None
+            team_series = series.setdefault(team, {
+                'sacks': [], 'turnovers': [], 'points': [], 'dstPts': [],
+                'passRate': [], 'passAtt': [], 'rzAtt': [], 'rzPp': [],
+            })
+            team_series['sacks'].append(totals['sacks'])
+            team_series['turnovers'].append(totals['turnovers'])
+            if points is not None:
+                team_series['points'].append(points)
+            if totals.get('dstPts') is not None:
+                team_series['dstPts'].append(totals['dstPts'])
+            if pass_rate is not None:
+                team_series['passRate'].append(pass_rate)
+            if plays > 0:
+                team_series['passAtt'].append(totals.get('passAtt') or 0)
+            if rz_att > 0:
+                team_series['rzAtt'].append(rz_att)
+            if rz_pp is not None:
+                team_series['rzPp'].append(rz_pp)
+
+    def avg(values: list[float]):
+        return (sum(values) / len(values)) if values else None
+
+    by_team = {}
+    league_samples = {
+        'sacks': [], 'turnovers': [], 'points': [], 'dstPts': [],
+        'passRate': [], 'passAtt': [], 'rzAtt': [], 'rzPp': [],
+    }
+    for team, samples in series.items():
+        sacks = avg(samples['sacks'])
+        turnovers = avg(samples['turnovers'])
+        points = avg(samples['points'])
+        dst_pts = avg(samples['dstPts'])
+        pass_rate = avg(samples['passRate'])
+        pass_att = avg(samples['passAtt'])
+        rz_att = avg(samples['rzAtt'])
+        rz_pp = avg(samples['rzPp'])
+        games = len(samples['sacks'])
+        if not games:
+            continue
+        by_team[team] = {
+            'sacks': round2(sacks),
+            'turnovers': round2(turnovers),
+            'points': round1(points) if points is not None else None,
+            'dstPts': round1(dst_pts) if dst_pts is not None else None,
+            'passRate': round2(pass_rate * 100) if pass_rate is not None else None,  # percent
+            'passAtt': round1(pass_att) if pass_att is not None else None,
+            'rzAtt': round1(rz_att) if rz_att is not None else None,
+            'rzPp': round2(rz_pp) if rz_pp is not None else None,
+            'games': games,
+        }
+        for key_name, value in (
+            ('sacks', sacks), ('turnovers', turnovers), ('points', points), ('dstPts', dst_pts),
+            ('passRate', pass_rate), ('passAtt', pass_att), ('rzAtt', rz_att), ('rzPp', rz_pp),
+        ):
+            if value is not None:
+                league_samples[key_name].append(value)
+
+    league = {}
+    for key_name, vals in league_samples.items():
+        if not vals:
+            league[key_name] = None
+        elif key_name == 'passRate':
+            league[key_name] = round2(avg(vals) * 100)
+        elif key_name in {'points', 'dstPts', 'passAtt', 'rzAtt'}:
+            league[key_name] = round1(avg(vals))
+        else:
+            league[key_name] = round2(avg(vals))
+
+    # Composite: sacks/TOs/pass-heavy/inefficient RZ/low scoring → better stream.
+    scored = []
+    for team, row in by_team.items():
+        index = 0.0
+        if league.get('sacks') is not None and row.get('sacks') is not None:
+            index += (row['sacks'] - league['sacks']) * 0.30
+        if league.get('turnovers') is not None and row.get('turnovers') is not None:
+            index += (row['turnovers'] - league['turnovers']) * 0.45
+        if league.get('points') is not None and row.get('points') is not None:
+            index += (league['points'] - row['points']) * 0.06
+        if league.get('passRate') is not None and row.get('passRate') is not None:
+            # passRate stored as percent (e.g. 58.0)
+            index += (row['passRate'] - league['passRate']) * 0.03
+        if league.get('passAtt') is not None and row.get('passAtt') is not None:
+            index += (row['passAtt'] - league['passAtt']) * 0.02
+        if league.get('rzPp') is not None and row.get('rzPp') is not None:
+            # Lower points per RZ trip = stalled drives = better for DST.
+            index += (league['rzPp'] - row['rzPp']) * 0.12
+        row['index'] = round2(index)
+        scored.append((team, row['index']))
+
+    scored.sort(key=lambda item: item[1])  # lowest index = toughest for DST
+    for rank, (team, _index) in enumerate(scored, start=1):
+        by_team[team]['rank'] = rank
+        by_team[team]['league'] = league
+        by_team[team]['teams'] = len(scored)
+
+    return cache_set(key, {'byTeam': by_team, 'league': league}, CACHE_TTL['dst_matchup'])
+
+
+def dst_matchup_for_offense(opponent: str, through_week: int) -> dict | None:
+    """DST streaming profile for the offense your defense is facing."""
+    opp = normalize_team(opponent)
+    if not opp or int(through_week or 1) <= 1:
+        return None
+    table = offense_dst_matchup_table(through_week)
+    row = (table.get('byTeam') or {}).get(opp)
+    if not row:
+        return None
+    return {
+        'opponent': opp,
+        'sacks': row.get('sacks'),
+        'turnovers': row.get('turnovers'),
+        'points': row.get('points'),
+        'dstPts': row.get('dstPts'),
+        'passRate': row.get('passRate'),
+        'passAtt': row.get('passAtt'),
+        'rzAtt': row.get('rzAtt'),
+        'rzPp': row.get('rzPp'),
+        'index': row.get('index'),
+        'rank': row.get('rank'),
+        'games': row.get('games'),
+        'teams': row.get('teams'),
+        'league': row.get('league') or table.get('league') or {},
+    }
+
+
 ESPN_STAT_IDS = {
     'passYds': '3',
     'passTd': '4',
@@ -1664,6 +1863,7 @@ def _adjust(
     player_name: str = '',
     backfield: list | None = None,
     fpa: dict | None = None,
+    dst_matchup: dict | None = None,
 ):
     adjustments = []
     injured = str(injury or '').upper()
@@ -1718,7 +1918,9 @@ def _adjust(
         elif position in {'WR', 'TE'}:
             delta = clamp(team_spread * 0.04, -0.6, 0.6)
         elif position == 'DEF':
-            delta = clamp(-team_spread * 0.08, -1.2, 1.2)
+            # Favorites still get a small clock/script edge, but game total
+            # (below) can outweigh this when the environment is low-scoring.
+            delta = clamp(-team_spread * 0.06, -0.9, 0.9)
         elif position == 'K':
             delta = clamp(-team_spread * 0.03, -0.5, 0.5)
         else:
@@ -1727,9 +1929,28 @@ def _adjust(
         if abs(delta) >= 0.05:
             adjustments.append({'id': 'spread', 'label': spread_label, 'delta': delta})
 
+    # Low game totals help BOTH defenses (10-7 environment), regardless of favorite/dog.
+    if normalize_pos(position) == 'DEF' and not matchup.get('bye'):
+        game_total = to_float(matchup.get('total'))
+        if game_total is not None:
+            delta = round2(clamp((45.0 - game_total) * 0.10, -1.4, 1.4))
+            if abs(delta) >= 0.05:
+                adjustments.append({
+                    'id': 'gameTotal',
+                    'label': f'O/U {game_total:g}',
+                    'delta': delta,
+                })
+
+    # Offense skill positions: fantasy points allowed by the opposing defense.
+    # D/ST uses a separate offense-profile matchup (sacks / TOs / points).
     fpa_row = fpa if isinstance(fpa, dict) else (matchup.get('fpa') if isinstance(matchup.get('fpa'), dict) else None)
-    if fpa_row and fpa_row.get('avg') is not None and fpa_row.get('leagueAvg') is not None:
-        scales = {'QB': 0.12, 'RB': 0.10, 'WR': 0.10, 'TE': 0.14, 'K': 0.18, 'DEF': 0.12}
+    if (
+        normalize_pos(position) != 'DEF'
+        and fpa_row
+        and fpa_row.get('avg') is not None
+        and fpa_row.get('leagueAvg') is not None
+    ):
+        scales = {'QB': 0.12, 'RB': 0.10, 'WR': 0.10, 'TE': 0.14, 'K': 0.18}
         scale = scales.get(normalize_pos(position), 0.10)
         delta = round2(clamp((fpa_row['avg'] - fpa_row['leagueAvg']) * scale, -1.5, 1.5))
         if abs(delta) >= 0.05:
@@ -1738,8 +1959,21 @@ def _adjust(
             if rank:
                 label = f'{pos_label} FPA #{rank}'
             else:
-                label = f'{pos_label} FPA {fpa_row["avg"]:g}'
+                label = f'{pos_label} FPA'
             adjustments.append({'id': 'fpa', 'label': label, 'delta': delta})
+
+    dst_row = (
+        dst_matchup
+        if isinstance(dst_matchup, dict)
+        else (matchup.get('dstMatchup') if isinstance(matchup.get('dstMatchup'), dict) else None)
+    )
+    if normalize_pos(position) == 'DEF' and dst_row and dst_row.get('index') is not None:
+        delta = round2(clamp(dst_row['index'], -1.5, 1.5))
+        if abs(delta) >= 0.05:
+            # Same scale as skill FPA: #1 = toughest matchup, #32 = friendliest.
+            rank = dst_row.get('rank')
+            label = f'Opp D/ST FPA #{rank}' if rank else 'Opp D/ST FPA'
+            adjustments.append({'id': 'dstMatchup', 'label': label, 'delta': delta})
 
     if matchup.get('home') and not matchup.get('bye'):
         adjustments.append({'id': 'home', 'label': 'Home game', 'delta': 0.3})
@@ -1958,10 +2192,16 @@ def compare_players(names: list[str], week=None, scoring='half', te_premium=0) -
         team = identity.get('team') or team
         matchup = matchup_for_team(team, week, include_weather=True)
         fpa = None
+        dst_matchup = None
         if not matchup.get('bye'):
-            fpa = fpa_for_matchup(matchup.get('opponent'), pos, week, scoring)
-            if fpa:
-                matchup = {**matchup, 'fpa': fpa}
+            if normalize_pos(pos) == 'DEF':
+                dst_matchup = dst_matchup_for_offense(matchup.get('opponent'), week)
+                if dst_matchup:
+                    matchup = {**matchup, 'dstMatchup': dst_matchup}
+            else:
+                fpa = fpa_for_matchup(matchup.get('opponent'), pos, week, scoring)
+                if fpa:
+                    matchup = {**matchup, 'fpa': fpa}
         fallback_rec = None
         for src_row in (sleeper_row, espn_row):
             if not src_row:
@@ -2047,6 +2287,7 @@ def compare_players(names: list[str], week=None, scoring='half', te_premium=0) -
             player_name=row.get('name') or '',
             backfield=backfields.get(team) or [],
             fpa=(row.get('matchup') or {}).get('fpa'),
+            dst_matchup=(row.get('matchup') or {}).get('dstMatchup'),
         )
         row['adjusted'] = adjusted
         row['adjustments'] = adjustments

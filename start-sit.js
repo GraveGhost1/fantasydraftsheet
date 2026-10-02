@@ -368,9 +368,15 @@ function matchupBlock(matchup) {
   const fpa = matchup.fpa;
   let fpaLine = '';
   if (fpa && fpa.avg != null) {
-    const rank = fpa.rank != null ? ` · #${fpa.rank}` : '';
-    const games = fpa.games != null ? ` (${fpa.games}g)` : '';
-    fpaLine = `${fmt(fpa.avg, 1)} FPA${rank}${games}`;
+    const pos = fpa.position || '';
+    const rank = fpa.rank != null ? `#${fpa.rank}` : '';
+    fpaLine = [pos ? `vs ${pos}` : '', rank].filter(Boolean).join(' · ') || rank;
+  }
+  const dst = matchup.dstMatchup;
+  let dstLine = '';
+  if (dst && dst.rank != null) {
+    // #1 = toughest offense for D/ST, #32 = friendliest (same direction as skill FPA).
+    dstLine = `Opp for D/ST · #${dst.rank}`;
   }
   return `
     <div class="matchup-list">
@@ -380,6 +386,7 @@ function matchupBlock(matchup) {
       <div><span>Venue</span><strong>${escapeHtml(venue)}</strong></div>
       ${weatherLine ? `<div><span>Weather</span><strong>${escapeHtml(weatherLine)}</strong></div>` : ''}
       ${fpaLine ? `<div><span>Opp vs pos</span><strong>${escapeHtml(fpaLine)}</strong></div>` : ''}
+      ${dstLine ? `<div><span>D/ST matchup</span><strong>${escapeHtml(dstLine)}</strong></div>` : ''}
     </div>
   `;
 }
