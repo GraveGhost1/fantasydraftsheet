@@ -1,5 +1,6 @@
 const state = {
   week: 1,
+  weekLocked: false,
   scoring: 'half',
   tePremium: 0,
   slots: ['', ''],
@@ -154,6 +155,41 @@ function setSlotValue(picker, name) {
   const slot = Number(picker.dataset.slot);
   input.value = name;
   state.slots[slot] = name;
+  syncSlotMark(picker);
+}
+
+function plainInitials(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+function syncSlotMark(picker) {
+  const input = picker.querySelector('.player-input');
+  const mark = picker.querySelector('.slot-mark');
+  if (!input || !mark) return;
+  const name = input.value.trim();
+  if (!name) {
+    mark.hidden = true;
+    mark.textContent = '';
+    delete mark.dataset.pos;
+    return;
+  }
+  const match = state.players.find((player) => (player.name || '').toLowerCase() === name.toLowerCase());
+  mark.hidden = false;
+  mark.dataset.pos = match?.position || '';
+  const photo = match?.photo || '';
+  mark.classList.toggle('has-photo', Boolean(photo));
+  if (photo) {
+    mark.innerHTML = `${escapeHtml(plainInitials(name))}<img src="${escapeHtml(photo)}" alt="" loading="lazy" onerror="this.remove()">`;
+    return;
+  }
+  mark.textContent = plainInitials(name);
+}
+
+function syncAllMarks() {
+  pickerEls().forEach(syncSlotMark);
 }
 
 function normalizeSearch(value) {
@@ -245,6 +281,7 @@ function updateSuggestions(picker) {
   const input = picker.querySelector('.player-input');
   const query = input.value.trim();
   state.slots[Number(picker.dataset.slot)] = query;
+  syncSlotMark(picker);
   if (!query) {
     closeSuggest(picker);
     return;
@@ -318,12 +355,15 @@ function addPicker() {
   const slot = state.slots.length;
   state.slots.push('');
   const picker = document.createElement('div');
-  picker.className = 'picker';
+  picker.className = 'picker selected-player';
   picker.dataset.slot = String(slot);
-  const labels = ['Player A', 'Player B', 'Player C', 'Player D'];
+  const labels = ['Player one', 'Player two', 'Player three', 'Player four'];
   picker.innerHTML = `
-    <label for="player-${slot}">${labels[slot]}</label>
-    <input id="player-${slot}" class="player-input" type="text" placeholder="Name, kicker, or D/ST" autocomplete="off" aria-autocomplete="list" />
+    <span class="player-mark slot-mark" hidden></span>
+    <span class="picker-copy">
+      <label for="player-${slot}"><small>${labels[slot]}</small></label>
+      <input id="player-${slot}" class="player-input" type="text" placeholder="Search" autocomplete="off" aria-autocomplete="list" />
+    </span>
     <div class="suggest" hidden></div>
   `;
   pickers.appendChild(picker);
@@ -396,56 +436,75 @@ function chipFor(adj) {
   return `<span class="chip ${cls}">${escapeHtml(adj.label)} ${signed(adj.delta)}</span>`;
 }
 
-function renderPlayer(player) {
+function ordinal(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return '—';
+  const mod = num % 100;
+  const suffix = mod >= 11 && mod <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][num % 10] || 'th');
+  return `${num}${suffix}`;
+}
+
+function factorClass(delta) {
+  if (delta > 0.04) return 'good';
+  if (delta < -0.04) return 'bad';
+  return 'neutral';
+}
+
+function renderPlayer(player, maxAdjusted = 0) {
   if (player.missing) {
-    return `<article class="missing-card">${photoHtml(player, 'is-card')}<div><strong>${escapeHtml(player.name)}</strong><p>${escapeHtml(player.error || 'Not found')}</p></div></article>`;
+    return `<article class="comparison-card missing-card">${photoHtml(player, 'is-card')}<div><strong>${escapeHtml(player.name)}</strong><p>${escapeHtml(player.error || 'Not found')}</p></div></article>`;
   }
-  const verdict = player.verdict === 'start' ? 'Start' : 'Sit';
-  const sources = Object.values(player.sources || {});
-  const statBits = projectedStatsLine(player);
-  const form = player.form?.average != null
-    ? `Last 3 games: ${fmt(player.form.average)} pts/game`
-    : (player.form?.note || 'Not enough 2026 games yet for recent form.');
-  const kicker = [displayPos(player.position), player.team, player.injury].filter(Boolean).join(' · ');
+  const recommended = player.verdict === 'start';
+  const matchup = player.matchup || {};
+  const fpa = matchup.fpa || matchup.dstMatchup || {};
+  const edge = fpa.avg != null && fpa.leagueAvg != null ? Number(fpa.avg) - Number(fpa.leagueAvg) : null;
+  const bar = maxAdjusted > 0 && player.adjusted != null
+    ? Math.max(8, Math.min(100, Math.round((Number(player.adjusted) / maxAdjusted) * 100)))
+    : 0;
+  const form = player.form?.average != null ? `${fmt(player.form.average)} last 3` : (player.consensus != null ? `${fmt(player.consensus)} source avg` : '—');
+  const sources = Object.values(player.sources || {})
+    .filter((entry) => entry && entry.points != null)
+    .map((entry) => `${entry.label} ${fmt(entry.points)}`)
+    .join(' · ');
+  const factors = (player.adjustments || []).slice(0, 4).map((adj) => (
+    `<span class="${factorClass(adj.delta)}">${escapeHtml(adj.label)} ${signed(adj.delta)}</span>`
+  )).join('');
   return `
-    <article class="player-card is-${escapeHtml(player.verdict || 'sit')}">
-      <header class="card-head">
-        <div class="card-identity">
-          ${photoHtml(player, 'is-card')}
-          <div>
-            <p class="card-kicker">${escapeHtml(kicker)}</p>
-            <h3>${escapeHtml(player.name)}</h3>
-          </div>
-        </div>
-        <p class="verdict ${escapeHtml(player.verdict || 'sit')}">${verdict}</p>
-      </header>
-      <div class="score-row">
-        <div class="score">
-          <span>Adjusted</span>
-          <strong>${fmt(player.adjusted)}</strong>
-        </div>
-        <div class="score secondary">
-          <span>Source average</span>
-          <strong>${fmt(player.consensus)}</strong>
+    <article class="comparison-card${recommended ? ' recommended' : ''}">
+      ${recommended ? '<span class="recommendation-pill">Recommended start</span>' : ''}
+      <div class="comparison-player">
+        ${photoHtml(player, 'is-card')}
+        <div>
+          <h3>${escapeHtml(player.name)}</h3>
+          <p>${escapeHtml(displayPos(player.position))}${player.team ? ` · ${escapeHtml(player.team)}` : ''}${matchup.label ? ` <span>· ${escapeHtml(matchup.label)}</span>` : ''}${player.injury ? ` · ${escapeHtml(player.injury)}` : ''}</p>
         </div>
       </div>
-      ${matchupBlock(player.matchup)}
-      <table class="proj-table">
-        <thead><tr><th>Source</th><th>Proj</th></tr></thead>
-        <tbody>
-          ${sources.map(sourceRow).join('')}
-        </tbody>
-      </table>
-      <p class="card-note">${statBits ? escapeHtml(statBits) : 'No projected stat line yet.'} · ${escapeHtml(form)}${player.teBonus ? ` · TE premium +${fmt(player.teBonus)} already included` : ''}</p>
-      <div class="chips">${(player.adjustments || []).map(chipFor).join('')}</div>
+      <div class="projection-block">
+        <span>Projected points</span>
+        <strong>${fmt(player.adjusted)}</strong>
+        <small>${escapeHtml(form)}${player.teBonus ? ` · TE +${fmt(player.teBonus)}` : ''}</small>
+      </div>
+      <div class="confidence-bar"><span style="width: ${bar}%"></span></div>
+      <div class="stat-pair">
+        <span><small>Matchup rank</small><b>${escapeHtml(ordinal(fpa.rank))}</b></span>
+        <span><small>Vs ${escapeHtml(displayPos(player.position) || 'pos')}</small><b class="${edge == null ? '' : edge >= 0 ? 'positive' : 'negative'}">${edge == null ? '—' : signed(edge)}</b></span>
+        <span><small>Source avg</small><b>${fmt(player.consensus)}</b></span>
+      </div>
+      <div class="factors">${factors || '<span class="neutral">No matchup adjustment</span>'}</div>
+      ${sources ? `<p class="card-sources">${escapeHtml(sources)}</p>` : ''}
     </article>
   `;
 }
 
-function confidenceLine(rec) {
-  if (rec.confidence === 'high') return 'This one looks pretty clear.';
-  if (rec.confidence === 'medium') return 'A reasonable lean, not a lock.';
-  return 'Close enough that either call is defensible.';
+function renderPlayers(players) {
+  const max = Math.max(0, ...players.map((player) => Number(player.adjusted) || 0));
+  return players.map((player) => renderPlayer(player, max)).join('');
+}
+
+function confidenceLabel(level) {
+  if (level === 'high') return 'Clear edge';
+  if (level === 'medium') return 'Lean';
+  return 'Close call';
 }
 
 function renderRecommendation(rec) {
@@ -457,9 +516,13 @@ function renderRecommendation(rec) {
   recommendationEl.hidden = false;
   recommendationEl.classList.toggle('is-low', rec.confidence === 'low');
   recommendationEl.innerHTML = `
-    <p class="rec-kicker">${escapeHtml(confidenceLine(rec))}</p>
-    <h3>${escapeHtml(rec.summary)}</h3>
-    <p class="rec-meta">${fmt(rec.margin)} point gap after the matchup adjustments.</p>
+    <span class="decision-icon" aria-hidden="true">✦</span>
+    <div>
+      <span>Ghost recommendation</span>
+      <strong>Start ${escapeHtml(rec.start)}</strong>
+      <p>${escapeHtml(rec.summary)} <b>${fmt(rec.margin)} point edge.</b></p>
+    </div>
+    <span class="confidence">${escapeHtml(confidenceLabel(rec.confidence))}</span>
   `;
 }
 
@@ -486,7 +549,7 @@ async function compare() {
         tePremium: state.tePremium,
       }),
     });
-    resultsEl.innerHTML = (data.players || []).map(renderPlayer).join('');
+    resultsEl.innerHTML = renderPlayers(data.players || []);
     renderRecommendation(data.recommendation);
     const missing = Object.entries(data.sourceErrors || {})
       .map(([key, message]) => `${key}: ${message}`)
@@ -531,6 +594,7 @@ async function loadPlayers() {
   } finally {
     if (requestId !== playersLoadId) return;
     state.playersLoading = false;
+    syncAllMarks();
     pickerEls().forEach((picker) => {
       if (picker.querySelector('.player-input')?.value.trim()) updateSuggestions(picker);
     });
@@ -538,7 +602,9 @@ async function loadPlayers() {
 }
 
 async function loadMeta() {
-  const data = await fetchJson(`/api/start-sit/meta?week=${state.week}&scoring=${state.scoring}`);
+  const params = new URLSearchParams({ scoring: state.scoring });
+  if (state.weekLocked) params.set('week', String(state.week));
+  const data = await fetchJson(`/api/start-sit/meta?${params.toString()}`);
   state.week = data.week || state.week;
   fillWeeks(state.week);
   weekSelect.value = String(state.week);
@@ -548,7 +614,10 @@ async function loadMeta() {
 function readQuery() {
   const params = new URLSearchParams(window.location.search);
   const week = Number(params.get('week'));
-  if (week >= 1 && week <= 18) state.week = week;
+  if (week >= 1 && week <= 18) {
+    state.week = week;
+    state.weekLocked = true;
+  }
   const scoring = params.get('scoring');
   if (['half', 'ppr', 'standard'].includes(scoring)) {
     state.scoring = scoring;
@@ -585,6 +654,19 @@ addPlayerBtn.addEventListener('click', () => {
   closeAllSuggests();
   addPicker();
 });
+document.getElementById('swap-players')?.addEventListener('click', () => {
+  const els = pickerEls();
+  if (els.length < 2) return;
+  const first = els[0].querySelector('.player-input');
+  const second = els[1].querySelector('.player-input');
+  const swap = first.value;
+  first.value = second.value;
+  second.value = swap;
+  state.slots[Number(els[0].dataset.slot)] = first.value.trim();
+  state.slots[Number(els[1].dataset.slot)] = second.value.trim();
+  syncSlotMark(els[0]);
+  syncSlotMark(els[1]);
+});
 compareBtn.addEventListener('click', () => {
   closeAllSuggests();
   compare();
@@ -593,6 +675,7 @@ weekSelect.addEventListener('mousedown', () => closeAllSuggests());
 weekSelect.addEventListener('change', async () => {
   closeAllSuggests();
   state.week = Number(weekSelect.value);
+  state.weekLocked = true;
   state.players = [];
   await Promise.all([loadMeta(), loadPlayers()]);
 });
@@ -610,6 +693,7 @@ tePremiumInput?.addEventListener('change', () => {
 
 fillWeeks(1);
 readQuery();
+syncAllMarks();
 state.playersLoading = true;
 loadMeta()
   .catch((error) => {

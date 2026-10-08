@@ -4,15 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Start/Sit · Ghost FF</title>
-    <link rel="stylesheet" href="brand.css?v=20260917-sheet" />
-    <link rel="stylesheet" href="styles.css?v=20260917-phone" />
-    <link rel="stylesheet" href="start-sit.css?v=20260917-sheet" />
+    <link rel="stylesheet" href="brand.css?v=20261002-theme" />
+    <link rel="stylesheet" href="styles.css?v=20261002-theme" />
+    <link rel="stylesheet" href="start-sit.css?v=20261002-theme" />
+    <link rel="stylesheet" href="ui-theme.css?v=20261002-photos" />
   </head>
-  <body class="start-sit-page">
+  <body class="start-sit-page has-mobile-nav">
     <div class="app-shell">
       <div class="header-cluster">
         <div class="top-bar-chrome">
-          <a class="logo-section logo-link" href="/">
+          <a class="logo-section logo-link" href="/home">
             <span class="logo-mark" aria-hidden="true"></span>
             <div class="logo-copy">
               <h1>Ghost FF</h1>
@@ -25,70 +26,86 @@
         </div>
         <div class="top-bar-nav" id="top-bar-nav">
           <nav class="page-nav" aria-label="Ghost FF">
-            <a href="/" class="page-link">Draft</a>
+            <a href="/home" class="page-link">Home</a>
+            <a href="/" class="page-link">Rankings</a>
             <a href="/start-sit" class="page-link is-current" aria-current="page">Start/Sit</a>
+            <a href="/lineup" class="page-link">Lineup</a>
             <a href="/assistant" class="page-link">Assistant</a>
           </nav>
+          <div class="top-bar-account">
+            <span id="user-display" class="user-display"></span>
+            <button id="login-button" class="nav-login" type="button">Log in</button>
+            <button id="logout-button" class="page-link" type="button" style="display: none;">Log out</button>
+          </div>
         </div>
       </div>
 
-      <main class="start-sit-main">
-        <header class="start-sit-hero">
-          <p class="eyebrow">Weekly lineup helper</p>
-          <h2>Start / Sit comparison</h2>
-          <p class="lede">
-            Search two to four names. Averages Sleeper and ESPN in your scoring,
-            then adjusts for implied points, game script, home, and dome.
-          </p>
-        </header>
-
-        <section class="board" aria-label="Compare players">
-          <div class="start-sit-controls">
-            <label class="field">
-              <span>Week</span>
-              <select id="week-select" class="compact-select"></select>
-            </label>
-            <label class="field">
-              <span>Scoring</span>
-              <select id="scoring-select" class="compact-select">
-                <option value="standard">Standard</option>
-                <option value="half" selected>Half-PPR</option>
-                <option value="ppr">PPR</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>TE premium</span>
-              <input id="te-premium" class="player-input te-premium-input" type="number" min="0" max="2" step="0.1" value="0" inputmode="decimal" aria-describedby="te-premium-hint" />
-            </label>
-          </div>
-          <p id="te-premium-hint" class="hint">Extra points per TE catch only. Half-PPR + 0.5 means TEs get full PPR while WR/RB stay at the league rate.</p>
-          <p id="meta-status" class="hint">Loading this week’s games…</p>
-
-          <div class="player-pickers" id="player-pickers">
-            <div class="picker" data-slot="0">
-              <label for="player-0">Player A</label>
-              <input id="player-0" class="player-input" type="text" placeholder="Name, kicker, or D/ST" autocomplete="off" aria-autocomplete="list" />
-              <div class="suggest" hidden></div>
-            </div>
-            <div class="picker" data-slot="1">
-              <label for="player-1">Player B</label>
-              <input id="player-1" class="player-input" type="text" placeholder="Name, kicker, or D/ST" autocomplete="off" aria-autocomplete="list" />
-              <div class="suggest" hidden></div>
-            </div>
-          </div>
-
-          <div class="compare-actions">
-            <button type="button" id="add-player" class="ss-btn ss-btn-ghost">Add another</button>
-            <button type="button" id="compare-btn" class="ss-btn ss-btn-primary">Compare</button>
+      <main class="page-shell ss-layout">
+        <section class="welcome">
+          <div>
+            <span class="eyebrow">Decision tool</span>
+            <h1>Who should you start?</h1>
+            <p>Compare projections, opportunity, and matchup—not just a single number.</p>
           </div>
         </section>
 
+        <section class="comparison-controls panel" aria-label="Compare players">
+          <label class="select-box">
+            <span>Week</span>
+            <select id="week-select" aria-label="Week"></select>
+          </label>
+          <label class="select-box">
+            <span>Scoring</span>
+            <select id="scoring-select" aria-label="Scoring">
+              <option value="standard">Standard</option>
+              <option value="half" selected>Half-PPR</option>
+              <option value="ppr">PPR</option>
+            </select>
+          </label>
+          <label class="select-box">
+            <span>TE premium</span>
+            <input id="te-premium" class="te-premium-input" type="number" min="0" max="2" step="0.1" value="0" inputmode="decimal" aria-label="TE premium" />
+          </label>
+          <div class="player-pickers" id="player-pickers">
+            <div class="picker selected-player" data-slot="0">
+              <span class="player-mark slot-mark" hidden></span>
+              <span class="picker-copy">
+                <label for="player-0"><small>Player one</small></label>
+                <input id="player-0" class="player-input" type="text" placeholder="Search" autocomplete="off" aria-autocomplete="list" />
+              </span>
+              <div class="suggest" hidden></div>
+            </div>
+            <button type="button" id="swap-players" class="swap-button" aria-label="Swap players">⇄</button>
+            <div class="picker selected-player" data-slot="1">
+              <span class="player-mark slot-mark" hidden></span>
+              <span class="picker-copy">
+                <label for="player-1"><small>Player two</small></label>
+                <input id="player-1" class="player-input" type="text" placeholder="Search" autocomplete="off" aria-autocomplete="list" />
+              </span>
+              <div class="suggest" hidden></div>
+            </div>
+          </div>
+          <button type="button" id="compare-btn" class="primary-button">Compare</button>
+        </section>
+        <div class="compare-extra">
+          <button type="button" id="add-player" class="text-button">Add another player</button>
+          <p id="te-premium-hint" class="method-note">Extra points per TE catch only. Half-PPR + 0.5 means TEs get full PPR while WR/RB stay at the league rate.</p>
+          <p id="meta-status" class="method-note">Loading this week’s games…</p>
+        </div>
+
         <p id="compare-status" class="compare-status" hidden></p>
-        <div id="recommendation" class="recommendation" hidden></div>
-        <div id="results" class="results"></div>
-        <p id="source-notes" class="source-notes" hidden></p>
+        <section id="recommendation" class="decision-banner" hidden></section>
+        <div id="results" class="comparison-grid results"></div>
+        <p id="source-notes" class="method-note" hidden></p>
       </main>
     </div>
-    <script src="start-sit.js?v=20260912-search"></script>
+    <nav class="mobile-nav" aria-label="Mobile">
+      <a href="/home">Home</a>
+      <a href="/">Rankings</a>
+      <a href="/start-sit" class="active">Start/Sit</a>
+      <a href="/lineup">Lineup</a>
+    </nav>
+    <script src="account-nav.js?v=20261008-account"></script>
+    <script src="start-sit.js?v=20261008-week"></script>
   </body>
 </html>

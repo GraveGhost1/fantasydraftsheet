@@ -989,6 +989,12 @@ label.nav-btn {
   content: ' ▴';
 }
 
+.col-proj {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
 /* Phone: Rank, Player, metric, Mark */
 @media (max-width: 768px) {
   .col-team,
@@ -1926,8 +1932,15 @@ button.page-link:hover {
     width: 100%;
   }
 
+  .col-proj {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+  }
+
   .rankings-table .col-rank,
   .rankings-table .col-team,
+  .rankings-table .col-opp,
   .rankings-table .col-adp-diff,
   .rankings-table .col-personal-diff,
   .rankings-table .col-sos,

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Home · Ghost FF</title>
+    <link rel="stylesheet" href="brand.css?v=20261002-theme" />
+    <link rel="stylesheet" href="styles.css?v=20261002-theme" />
+    <link rel="stylesheet" href="ui-theme.css?v=20261002-theme" />
+  </head>
+  <body class="has-mobile-nav">
+    <div class="app-shell">
+      <div class="header-cluster">
+        <div class="top-bar-chrome">
+          <a class="logo-section logo-link" href="/home">
+            <span class="logo-mark" aria-hidden="true"></span>
+            <div class="logo-copy">
+              <h1>Ghost FF</h1>
+            </div>
+          </a>
+          <button type="button" id="nav-expand-toggle" class="nav-expand-toggle" aria-expanded="false" aria-controls="top-bar-nav">
+            <span class="nav-expand-label">Menu</span>
+            <span class="nav-expand-chevron" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div class="top-bar-nav" id="top-bar-nav">
+          <nav class="page-nav" aria-label="Ghost FF">
+            <a href="/home" class="page-link is-current" aria-current="page">Home</a>
+            <a href="/" class="page-link">Rankings</a>
+            <a href="/start-sit" class="page-link">Start/Sit</a>
+            <a href="/lineup" class="page-link">Lineup</a>
+            <a href="/assistant" class="page-link">Assistant</a>
+          </nav>
+          <div class="top-bar-account">
+            <span id="user-display" class="user-display"></span>
+            <button id="login-button" class="nav-login" type="button">Log in</button>
+            <button id="logout-button" class="page-link" type="button" style="display: none;">Log out</button>
+          </div>
+        </div>
+      </div>
+
+      <main class="page-shell">
+        <section class="welcome">
+          <div>
+            <span class="eyebrow" id="home-eyebrow">This week</span>
+            <h1>Your lineup, made clearer.</h1>
+            <p>Rankings, projections, and matchup context from the tools you already use.</p>
+          </div>
+          <div class="week-control">
+            <span>Current week</span>
+            <strong class="week-value" id="home-week">Loading…</strong>
+          </div>
+        </section>
+
+        <section class="summary-grid" id="summary-grid" aria-live="polite"></section>
+
+        <div class="content-grid">
+          <section class="panel weekly-brief">
+            <div class="section-heading">
+              <div>
+                <span class="eyebrow">This week</span>
+                <h2>Three things to know</h2>
+              </div>
+              <span class="brief-count" id="brief-count"></span>
+            </div>
+            <div class="brief-list" id="brief-list"></div>
+          </section>
+          <aside class="panel spotlight" id="spotlight"></aside>
+        </div>
+
+        <section class="panel rankings-panel" style="margin-top: 18px;">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow" id="rank-eyebrow">This week</span>
+              <h2 id="rank-heading">Week rankings</h2>
+            </div>
+            <a class="text-button" href="/">View full rankings</a>
+          </div>
+          <div class="ranking-tools">
+            <div class="filter-row" id="rank-filters" role="group" aria-label="Filter by position"></div>
+            <label class="search-field">
+              <input id="rank-search" type="search" placeholder="Search players" aria-label="Search players" />
+            </label>
+          </div>
+          <div class="ranking-list" id="rank-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <nav class="mobile-nav" aria-label="Mobile">
+      <a href="/home" class="active">Home</a>
+      <a href="/">Rankings</a>
+      <a href="/start-sit">Start/Sit</a>
+      <a href="/lineup">Lineup</a>
+    </nav>
+    <script src="account-nav.js?v=20261008-account"></script>
+    <script src="home.js?v=20261008-eyebrow"></script>
+  </body>
+</html>

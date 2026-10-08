@@ -341,6 +341,7 @@ autoFillPlayers();
 // Wait for DOM to be ready before accessing elements
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM loaded');
+  void loadWeeklyRankings();
   
   const saveRankingsButton = document.getElementById('save-rankings');
   const applySavedRankingsButton = document.getElementById('apply-saved-rankings');
@@ -903,6 +904,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       saveState();
       render();
+      void loadWeeklyRankings();
     });
   }
 
@@ -942,6 +944,7 @@ async function initializeBoardData({ loadServerState = false } = {}) {
   render();
   initSleeperSyncFromState();
   void attachSleeperPhotosToBoard(loadToken);
+  void loadWeeklyRankings();
 }
 
 function findSavedPlayerByIdentity(savedByKey, savedList, livePlayer) {
@@ -3943,6 +3946,23 @@ function renderSortIndicators() {
 function renderRankingStatus() {
   const rankingStatus = document.getElementById('ranking-status');
   if (!rankingStatus) return;
+
+  if (state.weeklyRankings) {
+    const board = state.weeklyRankings;
+    if (board.loading) {
+      rankingStatus.textContent = 'Loading this week’s rankings…';
+      return;
+    }
+    if (board.error) {
+      rankingStatus.textContent = board.error;
+      return;
+    }
+    const scoringLabel = board.scoring === 'ppr' ? 'PPR' : board.scoring === 'standard' ? 'Standard' : 'Half-PPR';
+    rankingStatus.textContent = board.week
+      ? `Week ${board.week} · ${scoringLabel} · ranked by projected points`
+      : 'Week rankings';
+    return;
+  }
   
   let statusText = '';
   
@@ -4873,7 +4893,122 @@ function isAdpColumnSort() {
   return state.sort?.key === 'adp' || state.sort?.key === 'averageAdp';
 }
 
+function weeklyScoringKey() {
+  const format = state.settings?.scoringFormat;
+  if (format === 'ppr') return 'ppr';
+  if (format === 'standard') return 'standard';
+  return 'half';
+}
+
+function escapeWeeklyText(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function updateWeeklyHeading() {
+  const eyebrow = document.getElementById('board-eyebrow');
+  const title = document.getElementById('board-title');
+  const week = state.weeklyRankings?.week;
+  if (eyebrow) eyebrow.textContent = week ? `Week ${week}` : 'This week';
+  if (title) title.textContent = 'Weekly rankings';
+  const adpSelector = document.querySelector('.adp-selector');
+  if (adpSelector) adpSelector.hidden = true;
+}
+
+function showDraftRankings() {
+  state.weeklyRankings = null;
+  const eyebrow = document.getElementById('board-eyebrow');
+  const title = document.getElementById('board-title');
+  if (eyebrow) eyebrow.textContent = 'Your board';
+  if (title) title.textContent = 'Player rankings';
+  const adpSelector = document.querySelector('.adp-selector');
+  if (adpSelector) adpSelector.hidden = false;
+  renderDraftBoard();
+  renderRankingStatus();
+}
+
+let weeklyLoadToken = 0;
+
+async function loadWeeklyRankings() {
+  const token = ++weeklyLoadToken;
+  const scoring = weeklyScoringKey();
+  state.weeklyRankings = { ...(state.weeklyRankings || {}), loading: true, scoring, error: '' };
+  updateWeeklyHeading();
+  renderRankingStatus();
+  try {
+    const response = await fetch(`/api/weekly-rankings?scoring=${encodeURIComponent(scoring)}`);
+    const data = await response.json();
+    if (token !== weeklyLoadToken) return;
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.error || 'Weekly rankings unavailable');
+    }
+    if (data.mode === 'draft') {
+      showDraftRankings();
+      return;
+    }
+    state.weeklyRankings = data;
+  } catch (error) {
+    if (token !== weeklyLoadToken) return;
+    state.weeklyRankings = {
+      week: null,
+      players: [],
+      error: error.message || 'Weekly rankings unavailable',
+    };
+  }
+  updateWeeklyHeading();
+  renderWeeklyBoard();
+  updateTableHeader();
+  renderRankingStatus();
+}
+
+function renderWeeklyBoard() {
+  const rankingsBodyEl = document.getElementById('rankings-body');
+  if (!rankingsBodyEl) return;
+  const board = state.weeklyRankings;
+  if (!board || board.loading) {
+    rankingsBodyEl.innerHTML = '<tr><td class="col-player" colspan="6">Loading this week’s rankings…</td></tr>';
+    return;
+  }
+  if (board.error) {
+    rankingsBodyEl.innerHTML = `<tr><td class="col-player" colspan="6">${escapeWeeklyText(board.error)}</td></tr>`;
+    return;
+  }
+  const players = (board.players || []).filter((player) => matchesPositionFilter(player));
+  if (!players.length) {
+    rankingsBodyEl.innerHTML = '<tr><td class="col-player" colspan="6">No players for this week.</td></tr>';
+    return;
+  }
+  rankingsBodyEl.innerHTML = players.map((player) => {
+    const normalizedPosition = normalizePositionForCss(player.position);
+    const points = Number(player.points);
+    return `
+      <tr>
+        <td class="col-rank">${escapeWeeklyText(player.rank)}</td>
+        <td class="col-player">
+          <div class="player-cell">
+            <span class="player-rank">${escapeWeeklyText(player.rank)}</span>
+            ${playerPhotoHtml(player)}
+            <span class="player-name">${escapeWeeklyText(player.name)}</span>
+          </div>
+        </td>
+        <td class="col-pos"><span class="pos-pill pos-${normalizedPosition}">${escapeWeeklyText(player.position)}</span></td>
+        <td class="col-team">${escapeWeeklyText(player.team)}</td>
+        <td class="col-opp">${escapeWeeklyText(player.opponent || 'BYE')}</td>
+        <td class="col-proj">${Number.isFinite(points) ? points.toFixed(1) : '—'}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
 function renderDraftBoard() {
+  if (state.weeklyRankings) {
+    renderWeeklyBoard();
+    updateTableHeader();
+    return;
+  }
   const rankingsBodyEl = document.getElementById('rankings-body');
   if (!rankingsBodyEl) {
     console.error('rankingsBody element not found');
@@ -4992,6 +5127,18 @@ function getAdpValue(player, source) {
 function updateTableHeader() {
   const headerRow = document.getElementById('table-header');
   if (!headerRow) return;
+
+  if (state.weeklyRankings) {
+    headerRow.innerHTML = `
+      <th class="col-rank">Rank</th>
+      <th class="col-player">Player</th>
+      <th class="col-pos">Pos</th>
+      <th class="col-team">Team</th>
+      <th class="col-opp">Opp</th>
+      <th class="col-proj">Proj</th>
+    `;
+    return;
+  }
   
   const adpLabels = {
     all: { full: 'ADP', short: 'ADP' },

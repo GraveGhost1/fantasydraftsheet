@@ -698,6 +698,39 @@ def current_week(requested=None) -> int:
     return 1
 
 
+def season_mode() -> dict:
+    """Weekly rankings during the regular season and playoffs. Draft board in the offseason and preseason."""
+    state = sleeper_state()
+    season_type = str(state.get('season_type') or '').strip().lower()
+    if season_type in {'regular', 'post'}:
+        in_season = True
+    elif season_type in {'off', 'pre'}:
+        in_season = False
+    else:
+        in_season = _schedule_has_upcoming_game()
+    return {
+        'inSeason': in_season,
+        'mode': 'weekly' if in_season else 'draft',
+        'seasonType': season_type or ('regular' if in_season else 'off'),
+        'season': str(state.get('season') or SEASON),
+    }
+
+
+def _schedule_has_upcoming_game() -> bool:
+    horizon = time.time() - 12 * 60 * 60
+    for game in load_games_file():
+        kick = str(game.get('kickoff') or '').replace('Z', '+00:00')
+        if len(kick) < 19:
+            continue
+        try:
+            stamp = time.mktime(time.strptime(kick[:19], '%Y-%m-%dT%H:%M:%S'))
+        except Exception:
+            continue
+        if stamp > horizon:
+            return True
+    return False
+
+
 def fetch_live_odds() -> dict:
     cached = cache_get('live-odds')
     if cached is not None:
@@ -1027,6 +1060,73 @@ def sleeper_projections(week: int) -> list[dict]:
             },
         })
     return cache_set(key, parsed, CACHE_TTL['sleeper_proj'])
+
+
+def week_opponent_labels(week: int) -> dict:
+    labels = {}
+    for game in load_games_file():
+        if int(game.get('week') or 0) != int(week):
+            continue
+        home = normalize_team(game.get('home'))
+        away = normalize_team(game.get('away'))
+        if home and away:
+            labels[home] = f'vs {away}'
+            labels[away] = f'@ {home}'
+    return labels
+
+
+def weekly_rankings(week=None, scoring='half') -> dict:
+    """Players ranked by this week's projected points. Week defaults to the current NFL week."""
+    scoring = (scoring or 'half').lower()
+    if scoring in {'std'}:
+        scoring = 'standard'
+    if scoring not in {'half', 'ppr', 'standard'}:
+        scoring = 'half'
+    phase = season_mode()
+    if phase['mode'] == 'draft':
+        return {
+            'ok': True,
+            'mode': 'draft',
+            'week': None,
+            'season': phase['season'],
+            'seasonType': phase['seasonType'],
+            'scoring': scoring,
+            'players': [],
+        }
+    week = current_week(week)
+    key = f'weekly-rankings-{SEASON}-{week}-{scoring}'
+    cached = cache_get(key)
+    if cached is not None:
+        return cached
+    opponents = week_opponent_labels(week)
+    ranked = []
+    for row in sleeper_projections(week):
+        points = _source_points(row, scoring)
+        if points is None or points <= 0:
+            continue
+        pos = normalize_pos(row.get('position'))
+        team = normalize_team(row.get('team'))
+        ranked.append({
+            'name': row.get('name') or '',
+            'position': pos,
+            'team': team,
+            'opponent': opponents.get(team) or 'BYE',
+            'points': round1(points),
+            'sleeperId': row.get('id') or '',
+            'photo': player_photo_url(row.get('id') or '', pos, team),
+        })
+    ranked.sort(key=lambda item: (-item['points'], item['name']))
+    for index, item in enumerate(ranked, start=1):
+        item['rank'] = index
+    return cache_set(key, {
+        'ok': True,
+        'mode': 'weekly',
+        'week': week,
+        'season': SEASON,
+        'seasonType': phase['seasonType'],
+        'scoring': scoring,
+        'players': ranked,
+    }, CACHE_TTL['sleeper_proj'])
 
 
 def sleeper_week_stat_rows(season: int, week: int) -> list[dict]:
@@ -2352,6 +2452,288 @@ def compare_players(names: list[str], week=None, scoring='half', te_premium=0) -
     }
 
 
+def _player_from_sleeper_id(player_id, players_map: dict) -> dict | None:
+    pid = str(player_id or '').strip()
+    if pid in {'', '0', 'None'}:
+        return None
+    info = players_map.get(pid) if isinstance(players_map, dict) else None
+    if not isinstance(info, dict):
+        return None
+    pos = normalize_pos(info.get('position'))
+    team = normalize_team(info.get('team') or info.get('team_abbr') or '')
+    name = _sleeper_player_name(info)
+    if pos == 'DEF':
+        name = dst_display_name(name, team)
+    if not name:
+        return None
+    return {
+        'name': name,
+        'position': pos,
+        'team': team,
+        'sleeperId': pid,
+        'photo': player_photo_url(pid, pos, team),
+    }
+
+
+def _roster_owned_by(roster: dict, user_id: str) -> bool:
+    if str(roster.get('owner_id') or '') == user_id:
+        return True
+    co_owners = roster.get('co_owners') or []
+    return user_id in {str(item) for item in co_owners}
+
+
+def _league_summary(league: dict) -> dict:
+    settings = league.get('scoring_settings') if isinstance(league.get('scoring_settings'), dict) else {}
+    rec = to_float(settings.get('rec')) or 0
+    if rec >= 0.75:
+        scoring = 'ppr'
+    elif rec >= 0.25:
+        scoring = 'half'
+    else:
+        scoring = 'standard'
+    premium = to_float(settings.get('bonus_rec_te')) or 0
+    return {
+        'id': str(league.get('league_id') or ''),
+        'name': league.get('name') or 'League',
+        'status': league.get('status') or '',
+        'rosterPositions': league.get('roster_positions') or [],
+        'scoring': scoring,
+        'tePremium': round(clamp(premium, 0, 2), 2),
+    }
+
+
+_NON_STARTER_SLOTS = {'BN', 'BENCH', 'IR', 'TAXI'}
+
+
+def _starter_slot_labels(roster_positions) -> list:
+    """League starting slots, including K and DEF. Bench, IR, and taxi are not spots."""
+    labels = []
+    for pos in roster_positions or []:
+        label = str(pos or '').upper()
+        if not label or label in _NON_STARTER_SLOTS or label.startswith('TAXI'):
+            continue
+        labels.append(label)
+    return labels
+
+
+def sleeper_connected_team(username: str, week=None, league_id: str = '') -> dict:
+    """Load a Sleeper user's league starters for the week from their username."""
+    from urllib.error import HTTPError
+
+    week = current_week(week)
+    handle = str(username or '').strip().lstrip('@')
+    if not handle:
+        return {'ok': False, 'error': 'Enter a Sleeper username.', 'status': 400}
+    try:
+        user = http_json(f'https://api.sleeper.app/v1/user/{urllib.parse.quote(handle)}')
+    except HTTPError as exc:
+        if exc.code == 404:
+            return {'ok': False, 'error': 'No Sleeper user with that username.', 'status': 404}
+        return {'ok': False, 'error': 'Sleeper did not respond.', 'status': 502}
+    except Exception:
+        return {'ok': False, 'error': 'Sleeper did not respond.', 'status': 502}
+    if not isinstance(user, dict) or not user.get('user_id'):
+        return {'ok': False, 'error': 'No Sleeper user with that username.', 'status': 404}
+
+    user_id = str(user['user_id'])
+    display = user.get('display_name') or handle
+    try:
+        raw_leagues = http_json(f'https://api.sleeper.app/v1/user/{user_id}/leagues/nfl/{SEASON}') or []
+    except Exception:
+        raw_leagues = []
+    if not isinstance(raw_leagues, list):
+        raw_leagues = []
+    leagues = []
+    for league in raw_leagues:
+        if not isinstance(league, dict) or not league.get('league_id'):
+            continue
+        leagues.append(_league_summary(league))
+    if not leagues:
+        return {'ok': False, 'error': f'No {SEASON} NFL leagues for that username.', 'status': 404}
+
+    league_id = str(league_id or '').strip()
+    if not league_id:
+        if len(leagues) > 1:
+            return {
+                'ok': True,
+                'needsLeague': True,
+                'username': display,
+                'userId': user_id,
+                'week': week,
+                'leagues': [{'id': row['id'], 'name': row['name'], 'status': row['status']} for row in leagues],
+            }
+        league_id = leagues[0]['id']
+
+    league = next((row for row in leagues if row['id'] == league_id), None)
+    if league is None:
+        try:
+            raw = http_json(f'https://api.sleeper.app/v1/league/{urllib.parse.quote(league_id)}')
+        except Exception:
+            raw = None
+        if not isinstance(raw, dict) or not raw.get('league_id'):
+            return {'ok': False, 'error': 'That league was not found on this account.', 'status': 404}
+        league = _league_summary(raw)
+
+    try:
+        rosters = http_json(f'https://api.sleeper.app/v1/league/{league["id"]}/rosters') or []
+        matchups = http_json(f'https://api.sleeper.app/v1/league/{league["id"]}/matchups/{int(week)}') or []
+    except Exception:
+        return {'ok': False, 'error': 'Could not load that Sleeper league.', 'status': 502}
+    if not isinstance(rosters, list):
+        rosters = []
+    if not isinstance(matchups, list):
+        matchups = []
+    roster = next((row for row in rosters if isinstance(row, dict) and _roster_owned_by(row, user_id)), None)
+    if not roster:
+        return {'ok': False, 'error': 'That username does not have a roster in this league.', 'status': 404}
+
+    matchup = next((row for row in matchups if isinstance(row, dict) and row.get('roster_id') == roster.get('roster_id')), None)
+    starter_ids = []
+    if isinstance(matchup, dict) and isinstance(matchup.get('starters'), list) and matchup.get('starters'):
+        starter_ids = matchup.get('starters') or []
+    elif isinstance(roster.get('starters'), list):
+        starter_ids = roster.get('starters') or []
+
+    positions = _starter_slot_labels(league.get('rosterPositions'))
+    players_map = sleeper_players()
+    width = max(len(positions), len(starter_ids))
+    slots = []
+    for index in range(width):
+        label = positions[index] if index < len(positions) else 'FLEX'
+        player_id = starter_ids[index] if index < len(starter_ids) else None
+        slots.append({
+            'slot': label,
+            'player': _player_from_sleeper_id(player_id, players_map),
+        })
+
+    def roster_group(raw_ids, label):
+        rows = []
+        seen = set()
+        for player_id in raw_ids or []:
+            pid = str(player_id or '').strip()
+            if pid in {'', '0', 'None'} or pid in seen:
+                continue
+            seen.add(pid)
+            player = _player_from_sleeper_id(pid, players_map)
+            if player:
+                rows.append({'slot': label, 'player': player})
+        return rows
+
+    starter_set = {str(player_id).strip() for player_id in starter_ids if str(player_id).strip() not in {'', '0', 'None'}}
+    reserve_ids = [str(player_id) for player_id in (roster.get('reserve') or [])]
+    taxi_ids = [str(player_id) for player_id in (roster.get('taxi') or [])]
+    held = starter_set | set(reserve_ids) | set(taxi_ids)
+    roster_players = list(roster.get('players') or [])
+    if isinstance(matchup, dict):
+        for player_id in matchup.get('players') or []:
+            if player_id not in roster_players:
+                roster_players.append(player_id)
+    bench_ids = [
+        player_id for player_id in roster_players
+        if str(player_id).strip() not in held
+    ]
+    bench = roster_group(bench_ids, 'BN') + roster_group(reserve_ids, 'IR') + roster_group(taxi_ids, 'TAXI')
+    filled = [slot for slot in slots if slot.get('player')]
+    return {
+        'ok': True,
+        'needsLeague': False,
+        'username': display,
+        'userId': user_id,
+        'week': week,
+        'league': {
+            'id': league['id'],
+            'name': league['name'],
+            'scoring': league.get('scoring') or 'half',
+            'tePremium': league.get('tePremium') or 0,
+            'rosterPositions': league.get('rosterPositions') or [],
+        },
+        'leagues': [{'id': row['id'], 'name': row['name'], 'status': row.get('status') or ''} for row in leagues],
+        'slots': slots,
+        'bench': bench,
+        'starterCount': len(filled),
+        'spotCount': len(slots),
+        'benchCount': len(bench),
+    }
+
+
+def sleeper_waiver_candidates(league_id: str, week=None, scoring='half', limit=12, position='') -> dict:
+    """Top unrostered players in a Sleeper league, including kicker and defense streamers."""
+    week = current_week(week)
+    league_id = str(league_id or '').strip()
+    requested = normalize_pos(position)
+    if requested not in {'QB', 'RB', 'WR', 'TE', 'K', 'DEF'}:
+        requested = ''
+    if not league_id:
+        return {'ok': False, 'error': 'Pick a league first.', 'status': 400}
+    try:
+        rosters = http_json(f'https://api.sleeper.app/v1/league/{urllib.parse.quote(league_id)}/rosters') or []
+    except Exception:
+        return {'ok': False, 'error': 'Could not load league rosters.', 'status': 502}
+    rostered = set()
+    if isinstance(rosters, list):
+        for roster in rosters:
+            if not isinstance(roster, dict):
+                continue
+            for key in ('players', 'reserve', 'taxi', 'starters'):
+                for player_id in roster.get(key) or []:
+                    rostered.add(str(player_id))
+    field = scoring_field(scoring)
+    allowed = {requested} if requested else {'QB', 'RB', 'WR', 'TE', 'K', 'DEF'}
+    ranked = []
+    for row in sleeper_projections(week):
+        player_id = str(row.get('id') or '')
+        pos = normalize_pos(row.get('position'))
+        if not player_id or player_id in rostered or pos not in allowed:
+            continue
+        points_map = row.get('points') or {}
+        points = to_float(points_map.get(field))
+        if points is None:
+            for fallback in ('pts_half_ppr', 'pts_ppr', 'pts_std'):
+                points = to_float(points_map.get(fallback))
+                if points is not None:
+                    break
+        if points is None:
+            continue
+        ranked.append((points, row))
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    cap = {requested: 5} if requested else {'QB': 5, 'RB': 5, 'WR': 5, 'TE': 5, 'K': 5, 'DEF': 5}
+    ceiling = 5
+    counts = {}
+    players = []
+    for points, row in ranked:
+        pos = normalize_pos(row.get('position'))
+        if counts.get(pos, 0) >= cap.get(pos, 0):
+            continue
+        counts[pos] = counts.get(pos, 0) + 1
+        stats = row.get('stats') if isinstance(row.get('stats'), dict) else {}
+        players.append({
+            'name': row.get('name'),
+            'position': pos,
+            'team': row.get('team') or '',
+            'sleeperId': row.get('id') or '',
+            'photo': player_photo_url(row.get('id') or '', pos, row.get('team') or ''),
+            'points': round(points, 1),
+            'stats': {
+                'passYds': stats.get('passYds'),
+                'passTd': stats.get('passTd'),
+                'rushAtt': stats.get('rushAtt'),
+                'rushYds': stats.get('rushYds'),
+                'rushTd': stats.get('rushTd'),
+                'rec': stats.get('rec'),
+                'recYds': stats.get('recYds'),
+                'recTd': stats.get('recTd'),
+                'fgm': stats.get('fgm'),
+                'sack': stats.get('sack'),
+                'defInt': stats.get('defInt'),
+                'ptsAllow': stats.get('ptsAllow'),
+            },
+        })
+        if len(players) >= ceiling:
+            break
+    players.sort(key=lambda item: (['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].index(item['position']), -item['points']))
+    return {'ok': True, 'week': week, 'position': requested or 'All', 'players': players}
+
+
 def meta(week=None, scoring='half') -> dict:
     week = current_week(week)
     games = []
@@ -2368,9 +2750,12 @@ def meta(week=None, scoring='half') -> dict:
             'kickoff': game.get('kickoff'),
             'oddsLive': game.get('oddsLive'),
         })
+    phase = season_mode()
     return {
         'ok': True,
         'week': week,
+        'mode': phase['mode'],
+        'seasonType': phase['seasonType'],
         'season': SEASON,
         'scoring': scoring,
         'games': games,

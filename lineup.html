@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Lineup · Ghost FF</title>
+    <link rel="stylesheet" href="brand.css?v=20261002-theme" />
+    <link rel="stylesheet" href="styles.css?v=20261002-theme" />
+    <link rel="stylesheet" href="ui-theme.css?v=20261008-loading" />
+  </head>
+  <body class="has-mobile-nav">
+    <div class="app-shell">
+      <div class="header-cluster">
+        <div class="top-bar-chrome">
+          <a class="logo-section logo-link" href="/home">
+            <span class="logo-mark" aria-hidden="true"></span>
+            <div class="logo-copy">
+              <h1>Ghost FF</h1>
+            </div>
+          </a>
+          <button type="button" id="nav-expand-toggle" class="nav-expand-toggle" aria-expanded="false" aria-controls="top-bar-nav">
+            <span class="nav-expand-label">Menu</span>
+            <span class="nav-expand-chevron" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div class="top-bar-nav" id="top-bar-nav">
+          <nav class="page-nav" aria-label="Ghost FF">
+            <a href="/home" class="page-link">Home</a>
+            <a href="/" class="page-link">Rankings</a>
+            <a href="/start-sit" class="page-link">Start/Sit</a>
+            <a href="/lineup" class="page-link is-current" aria-current="page">Lineup</a>
+            <a href="/assistant" class="page-link">Assistant</a>
+          </nav>
+          <div class="top-bar-account">
+            <span id="user-display" class="user-display"></span>
+            <button id="login-button" class="nav-login" type="button">Log in</button>
+            <button id="logout-button" class="page-link" type="button" style="display: none;">Log out</button>
+          </div>
+        </div>
+      </div>
+
+      <main class="page-shell team-page">
+        <section class="team-header">
+          <div class="team-identity">
+            <span class="team-logo" aria-hidden="true"><span class="logo-mark"></span></span>
+            <div>
+              <span class="eyebrow">Saved on this browser</span>
+              <h1>Your lineup</h1>
+              <p id="lineup-subtitle">Search a player into each slot. Projections use the Start/Sit model.</p>
+            </div>
+          </div>
+          <button type="button" class="secondary-button" id="refresh-lineup">Refresh projections</button>
+        </section>
+
+        <div class="team-layout">
+          <section class="panel lineup-panel">
+            <div class="section-heading">
+              <div>
+                <span class="eyebrow">Starters</span>
+                <h2 id="lineup-heading">This week</h2>
+              </div>
+              <span class="lineup-total">
+                <small>Projected</small>
+                <b id="lineup-total">—</b>
+              </span>
+            </div>
+            <div class="lineup-tools">
+              <label>Week
+                <select id="lineup-week" aria-label="Week"></select>
+              </label>
+              <label>Scoring
+                <select id="lineup-scoring" aria-label="Scoring">
+                  <option value="standard">Standard</option>
+                  <option value="half" selected>Half-PPR</option>
+                  <option value="ppr">PPR</option>
+                </select>
+              </label>
+              <label>TE premium
+                <input id="lineup-te" type="number" min="0" max="2" step="0.1" value="0" aria-label="TE premium" />
+              </label>
+            </div>
+            <p class="lineup-status" id="lineup-status"></p>
+            <div class="lineup-list" id="lineup-list"></div>
+            <div id="bench-wrap">
+              <div class="section-heading bench-heading">
+                <div>
+                  <span class="eyebrow">Bench</span>
+                  <h2 id="bench-heading">Add a player</h2>
+                </div>
+              </div>
+              <div class="lineup-list" id="bench-list"></div>
+            </div>
+          </section>
+          <aside class="team-sidebar">
+            <section class="panel roster-note sleeper-panel">
+              <div>
+                <b>Connect Sleeper</b>
+                <p>Enter your Sleeper username to load this week’s starters.</p>
+              </div>
+              <form id="sleeper-form" class="sleeper-form">
+                <input id="sleeper-username" type="text" placeholder="Sleeper username" autocomplete="username" aria-label="Sleeper username" />
+                <select id="sleeper-league" aria-label="Sleeper league" hidden></select>
+                <button type="submit" class="primary-button wide" id="sleeper-connect">Connect</button>
+              </form>
+              <p class="lineup-status" id="sleeper-status"></p>
+            </section>
+            <section class="panel matchup-card">
+              <span class="eyebrow">Optimal lineup</span>
+              <p class="muted" id="lineup-edge">Fill the lineup to see slot-legal swaps.</p>
+              <div id="lineup-moves" class="waiver-list"></div>
+              <a class="primary-button wide" id="lineup-compare" href="/start-sit">Compare the swap</a>
+            </section>
+            <section class="panel matchup-card">
+              <span class="eyebrow" id="waiver-eyebrow">Waiver wire</span>
+              <p class="muted waiver-key">Boom/Bust means TD or big-play dependent.</p>
+              <div class="filter-row lineup-pos-filters" id="lineup-pos-filters" role="group" aria-label="Waiver position">
+                <button type="button" class="filter active" data-pos="All">All</button>
+                <button type="button" class="filter" data-pos="QB">QB</button>
+                <button type="button" class="filter" data-pos="RB">RB</button>
+                <button type="button" class="filter" data-pos="WR">WR</button>
+                <button type="button" class="filter" data-pos="TE">TE</button>
+                <button type="button" class="filter" data-pos="K">K</button>
+                <button type="button" class="filter" data-pos="DEF">DEF</button>
+              </div>
+              <div id="waiver-list" class="waiver-list">
+                <p class="muted">Loading</p>
+              </div>
+            </section>
+            <section class="panel roster-note">
+              <div>
+                <b>Companion mode</b>
+                <p>This page recommends a lineup. Apply the changes in your league platform.</p>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </main>
+    </div>
+
+    <nav class="mobile-nav" aria-label="Mobile">
+      <a href="/home">Home</a>
+      <a href="/">Rankings</a>
+      <a href="/start-sit">Start/Sit</a>
+      <a href="/lineup" class="active">Lineup</a>
+    </nav>
+    <script src="account-nav.js?v=20261008-account"></script>
+    <script src="lineup.js?v=20261008-loading"></script>
+  </body>
+</html>

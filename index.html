@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Ghost Fantasy Football</title>
-    <link rel="stylesheet" href="brand.css?v=20260917-phone" />
-    <link rel="stylesheet" href="styles.css?v=20260917-phone" />
+    <link rel="stylesheet" href="brand.css?v=20261002-theme" />
+    <link rel="stylesheet" href="styles.css?v=20261008-weekly" />
     <style id="mobile-nav-critical">
       .header-cluster {
         position: sticky;
@@ -16,8 +16,8 @@
         align-items: center;
         gap: 12px;
         padding: 8px 16px;
-        background: #0c121a;
-        border-bottom: 1px solid #1c2733;
+        background: #0b0d0f;
+        border-bottom: 1px solid #22272b;
       }
       .top-bar-chrome {
         display: flex;
@@ -33,10 +33,10 @@
         min-width: 44px;
         min-height: 40px;
         padding: 0 12px;
-        border: 1px solid #1c2733;
-        border-radius: 6px;
+        border: 1px solid #2c3237;
+        border-radius: 10px;
         background: transparent;
-        color: #eef3f7;
+        color: #f1f2ef;
         font: inherit;
         font-size: 0.85rem;
         font-weight: 600;
@@ -102,7 +102,7 @@
           flex-direction: column !important;
           width: 100% !important;
           padding: 0 12px 12px !important;
-          border-top: 1px solid #1c2733;
+          border-top: 1px solid #22272b;
         }
         .header-cluster.is-nav-open .top-bar-nav { display: flex !important; }
         .top-bar-nav > * { width: 100% !important; }
@@ -124,14 +124,15 @@
           margin: 0 !important;
           padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
           border-radius: 6px 6px 0 0 !important;
-          border: 1px solid #1c2733 !important;
+          border: 1px solid #22272b !important;
           border-bottom: 0 !important;
-          background: #121a24 !important;
+          background: #111417 !important;
         }
         .draft-dock[hidden] { display: none !important; }
         body { padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important; }
       }
     </style>
+    <link rel="stylesheet" href="ui-theme.css?v=20261002-theme" />
   </head>
   <body>
     <div id="username-modal" class="modal-overlay" style="display: none;">
@@ -179,7 +180,7 @@
     <div class="app-shell">
       <div class="header-cluster">
         <div class="top-bar-chrome">
-          <a class="logo-section logo-link" href="/">
+          <a class="logo-section logo-link" href="/home">
             <span class="logo-mark" aria-hidden="true"></span>
             <div class="logo-copy">
               <h1>Ghost FF</h1>
@@ -193,8 +194,10 @@
 
         <div class="top-bar-nav" id="top-bar-nav">
           <nav class="page-nav" aria-label="Ghost FF">
-            <a href="/" class="page-link is-current" aria-current="page">Draft</a>
+            <a href="/home" class="page-link">Home</a>
+            <a href="/" class="page-link is-current" aria-current="page">Rankings</a>
             <a href="/start-sit" class="page-link">Start/Sit</a>
+            <a href="/lineup" class="page-link">Lineup</a>
             <a href="/assistant" class="page-link">Assistant</a>
           </nav>
 
@@ -224,6 +227,10 @@
       </div>
 
       <div class="main-content">
+        <div class="board-intro">
+          <span class="eyebrow" id="board-eyebrow">This week</span>
+          <h2 id="board-title">Weekly rankings</h2>
+        </div>
         <div id="csv-help" class="csv-help-banner" style="display: none;">
           <div class="csv-help-copy">
             <strong>Upload your rankings</strong>
@@ -325,6 +332,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=20260917-sheet3"></script>
+    <script src="app.js?v=20261008-weekly"></script>
   </body>
 </html>

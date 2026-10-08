@@ -1,29 +1,29 @@
 /* Ghost FF brand tokens. Load this file first on every Ghost surface. */
 
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap");
 
 :root,
 :host,
 .fds-root {
   color-scheme: dark;
 
-  --bg: #080c12;
-  --header-bg: #0c121a;
-  --paper: #121a24;
-  --panel: #121a24;
-  --border: #1c2733;
-  --border-soft: rgba(183, 214, 232, 0.12);
-  --text: #eef3f7;
-  --muted: #8e9aab;
-  --accent: #3d7d9a;
-  --accent-hover: #4e91af;
-  --accent-deep: #2f6a86;
-  --ice: #b7d6e8;
-  --on-accent: #f4fbff;
-  --danger: #e07070;
-  --success: #2f9e6b;
-  --warning: #c4a574;
-  --sit: #d07158;
+  --bg: #0b0d0f;
+  --header-bg: #0b0d0f;
+  --paper: #111417;
+  --panel: #171b1f;
+  --border: #2c3237;
+  --border-soft: #22272b;
+  --text: #f1f2ef;
+  --muted: #8f969b;
+  --accent: #5b8def;
+  --accent-hover: #6f9af0;
+  --accent-deep: #3d6ec4;
+  --ice: #d5e4f7;
+  --on-accent: #ffffff;
+  --danger: #d96c67;
+  --success: #7eb78b;
+  --warning: #c79a54;
+  --sit: #d96c67;
 
   --pos-qb: #c4a574;
   --pos-rb: #2f9e6b;
@@ -42,8 +42,9 @@
   --leading-body: 1.5;
   --leading-header: 1.2;
 
-  --radius-sm: 4px;
-  --radius: 6px;
+  --radius-sm: 8px;
+  --radius: 10px;
+  --radius-card: 16px;
   --radius-full: 50%;
 
   --space-1: 4px;

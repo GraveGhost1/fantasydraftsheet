@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, send_from_directory, make_response
 from assistant_board import build_assistant_board
-from start_sit import compare_players, current_week as start_sit_week, meta as start_sit_meta, player_search_index, search_players, sleeper_photo_index
+from start_sit import compare_players, current_week as start_sit_week, meta as start_sit_meta, player_search_index, search_players, sleeper_connected_team, sleeper_photo_index, sleeper_waiver_candidates, weekly_rankings
 from server import (
     init_db,
     load_adp_profile,
@@ -37,6 +37,16 @@ def serve_index():
     return send_from_directory(ROOT, 'index.html')
 
 
+@app.route('/home')
+def serve_home():
+    return send_from_directory(ROOT, 'home.html')
+
+
+@app.route('/lineup')
+def serve_lineup():
+    return send_from_directory(ROOT, 'lineup.html')
+
+
 @app.route('/fantasy-draft-sheet-standalone.html')
 def serve_standalone():
     return send_from_directory(ROOT, 'fantasy-draft-sheet-standalone.html')
@@ -62,6 +72,15 @@ def start_sit_meta_api():
         return jsonify({'ok': False, 'error': str(exc)}), 500
 
 
+@app.route('/api/weekly-rankings', methods=['GET'])
+def weekly_rankings_api():
+    try:
+        scoring = request.args.get('scoring') or 'half'
+        return jsonify(weekly_rankings(request.args.get('week'), scoring))
+    except Exception as exc:
+        return jsonify({'ok': False, 'error': str(exc), 'players': []}), 500
+
+
 @app.route('/api/start-sit/players', methods=['GET'])
 def start_sit_players_api():
     try:
@@ -82,6 +101,35 @@ def start_sit_search_api():
         query = request.args.get('q') or request.args.get('query') or ''
         week = request.args.get('week')
         return jsonify({'ok': True, 'players': search_players(query, week)})
+    except Exception as exc:
+        return jsonify({'ok': False, 'error': str(exc), 'players': []}), 500
+
+
+@app.route('/api/sleeper/team', methods=['GET'])
+def sleeper_team_api():
+    try:
+        result = sleeper_connected_team(
+            request.args.get('username') or '',
+            request.args.get('week'),
+            request.args.get('leagueId') or request.args.get('league_id') or '',
+        )
+        status = 200 if result.get('ok') else result.get('status', 400)
+        return jsonify(result), status
+    except Exception as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), 500
+
+
+@app.route('/api/sleeper/waivers', methods=['GET'])
+def sleeper_waivers_api():
+    try:
+        result = sleeper_waiver_candidates(
+            request.args.get('leagueId') or request.args.get('league_id') or '',
+            request.args.get('week'),
+            request.args.get('scoring') or 'half',
+            position=request.args.get('position') or '',
+        )
+        status = 200 if result.get('ok') else result.get('status', 400)
+        return jsonify(result), status
     except Exception as exc:
         return jsonify({'ok': False, 'error': str(exc), 'players': []}), 500
 
